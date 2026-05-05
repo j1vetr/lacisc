@@ -87,6 +87,7 @@ lib/
 - Settings endpoint returns 404 (not 500) when no credentials configured yet — frontend handles this gracefully.
 - **Portal session is fragile**: direct `page.goto('/ratedCdrs.aspx')` after login loses the session and bounces to `/Account/Login?ReturnUrl=%2F/...`. Always reach protected pages by **clicking the menu link** from the welcome page (`a[href*='ratedCdrs.aspx' i]`).
 - **Volume parsing**: portal uses **binary units (GiB/MiB/KiB)**, not GB/MB. Each row also contains a "0 Bytes" in-bundle cell that would overwrite the real usage if we picked the last match. Mapper collects all volume cells and picks the **largest** as `totalVolumeData`. Period column is `YYYYMM` (e.g. `202605`), no separator.
+- **KIT detail pages (`CardDetails.aspx?ICCID=...`) require iframe context**: direct `page.goto()` returns ASP.NET ErrorPage ("[Unknown Error]") even when authenticated. Must **click the link from the ratedCdrs grid** so ASP.NET keeps its viewstate/iframe wrapper. `enrichShipNames()` does this and caches the result in `station_kits` so we only visit each KIT detail page once. KITs whose ship name is still null are retried on each sync.
 
 ## Pointers
 

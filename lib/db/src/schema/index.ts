@@ -71,6 +71,15 @@ export const stationCdrRecords = pgTable(
   ]
 );
 
+export const stationKits = pgTable("station_kits", {
+  kitNo: text("kit_no").primaryKey(),
+  shipName: text("ship_name"),
+  detailUrl: text("detail_url"),
+  shipNameSyncedAt: timestamp("ship_name_synced_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const stationSyncLogs = pgTable("station_sync_logs", {
   id: serial("id").primaryKey(),
   status: text("status").notNull(),

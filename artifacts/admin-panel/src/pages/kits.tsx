@@ -120,7 +120,12 @@ export default function Kits() {
                         <div className="p-1.5 rounded-md bg-secondary text-muted-foreground">
                           <Terminal className="w-4 h-4" />
                         </div>
-                        <span className="font-mono text-[13px] text-foreground">{row.kitNo}</span>
+                        <div className="flex flex-col">
+                          <span className="font-mono text-[13px] text-foreground">{row.kitNo}</span>
+                          <span className="text-[11px] text-muted-foreground truncate max-w-[220px]" title={row.shipName || undefined}>
+                            {row.shipName || "—"}
+                          </span>
+                        </div>
                       </div>
                     </Cell>
                     <Cell className="text-right font-mono text-[13px] text-foreground">

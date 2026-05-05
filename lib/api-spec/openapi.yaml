@@ -524,6 +524,9 @@ components:
           type: integer
         kitNo:
           type: string
+        shipName:
+          type: string
+          nullable: true
         product:
           type: string
           nullable: true
@@ -614,6 +617,9 @@ components:
       properties:
         kitNo:
           type: string
+        shipName:
+          type: string
+          nullable: true
         totalGb:
           type: number
         totalPrice:

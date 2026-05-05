@@ -1,6 +1,7 @@
-import { db, stationCdrRecords } from "@workspace/db";
-import { and, eq } from "drizzle-orm";
+import { db, stationCdrRecords, stationKits } from "@workspace/db";
+import { and, eq, isNull, or, inArray } from "drizzle-orm";
 import { logger } from "./logger";
+import type { Page } from "playwright";
 
 export interface SyncResult {
   success: boolean;
@@ -53,6 +54,7 @@ function parseGb(value: string | null | undefined): number | null {
 interface ScrapedRow {
   kit_no: string;
   raw_row_data: string[];
+  kit_detail_href: string | null;
 }
 
 function mapRowToRecord(row: ScrapedRow): {
@@ -175,6 +177,156 @@ function mapRowToRecord(row: ScrapedRow): {
     endCdr,
     rawRowData: cells,
   };
+}
+
+// Visit each KIT detail page (only for KITs we don't yet have a ship name for)
+// and cache the ship name in station_kits. Best-effort: any failure is logged
+// and skipped so the main sync still succeeds.
+async function enrichShipNames(
+  page: Page,
+  baseUrl: string,
+  rows: ScrapedRow[]
+): Promise<void> {
+  // Build map of unique kit_no -> first non-empty href seen for it.
+  const kitHrefMap = new Map<string, string>();
+  for (const row of rows) {
+    if (row.kit_no && row.kit_detail_href && !kitHrefMap.has(row.kit_no)) {
+      kitHrefMap.set(row.kit_no, row.kit_detail_href);
+    }
+  }
+  if (kitHrefMap.size === 0) {
+    logger.info("No KIT detail hrefs captured; skipping ship-name enrichment");
+    return;
+  }
+
+  // Find which kits already have a ship_name cached.
+  const kitNos = Array.from(kitHrefMap.keys());
+  const cached = await db
+    .select({ kitNo: stationKits.kitNo, shipName: stationKits.shipName })
+    .from(stationKits)
+    .where(inArray(stationKits.kitNo, kitNos));
+  const haveShipName = new Set(
+    cached.filter((c) => c.shipName != null && c.shipName.trim() !== "").map((c) => c.kitNo)
+  );
+
+  const toFetch = kitNos.filter((k) => !haveShipName.has(k));
+  logger.info({ totalKits: kitNos.length, alreadyCached: haveShipName.size, toFetch: toFetch.length }, "Ship-name enrichment plan");
+
+  // Save the rated-CDRs page once so we can inspect the actual link markup
+  // (href attributes vs. JS click handlers, DevExpress callback args, etc.).
+  await page.content().then((html) =>
+    import("fs").then((fs) => fs.promises.writeFile("/tmp/rated-cdrs-snapshot.html", html))
+  ).catch(() => {});
+
+  // We are currently on the ratedCdrs page. To preserve session/iframe state,
+  // we CLICK the actual KIT link in the table rather than navigating directly
+  // (direct page.goto to CardDetails.aspx returns ASP.NET ErrorPage). After
+  // each detail visit we navigate back to ratedCdrs via the menu.
+  let savedFirstDebug = false;
+  for (const kitNo of toFetch) {
+    const href = kitHrefMap.get(kitNo);
+    if (!href) continue;
+    try {
+      // Click the KIT link from the current ratedCdrs page.
+      const linkLocator = page.locator(`a[href="${href}"]`).first();
+      const hasLink = (await linkLocator.count()) > 0;
+      if (!hasLink) {
+        logger.warn({ kitNo, href }, "KIT link not found on current page; re-navigating to ratedCdrs");
+        // Navigate back to ratedCdrs via menu and try again
+        const cdrLink = page.locator("a[href*='ratedCdrs.aspx' i], a[href*='RatedCdrs.aspx' i]").first();
+        if ((await cdrLink.count()) > 0) {
+          await Promise.all([
+            page.waitForNavigation({ waitUntil: "networkidle", timeout: 20000 }).catch(() => {}),
+            cdrLink.click(),
+          ]);
+        }
+      }
+
+      await Promise.all([
+        page.waitForNavigation({ waitUntil: "networkidle", timeout: 25000 }).catch(() => {}),
+        page.locator(`a[href="${href}"]`).first().click({ timeout: 10000 }).catch(() => {}),
+      ]);
+
+      // Save the first detail page HTML for debugging label structure.
+      if (!savedFirstDebug) {
+        savedFirstDebug = true;
+        const html = await page.content().catch(() => "");
+        if (html) {
+          await import("fs").then((fs) =>
+            fs.promises.writeFile("/tmp/kit-detail-debug.html", html)
+          ).catch(() => {});
+        }
+      }
+
+      // Build label -> value map from common form/table layouts.
+      const pairs: Record<string, string> = await page.evaluate(() => {
+        const out: Record<string, string> = {};
+        // <tr><td>Label</td><td>Value</td></tr> tables (very common in IBIS)
+        document.querySelectorAll("tr").forEach((tr) => {
+          const cells = Array.from(tr.querySelectorAll("td, th"));
+          if (cells.length >= 2) {
+            const label = (cells[0].textContent || "").trim().replace(/[:：]\s*$/, "");
+            const value = (cells[1].textContent || "").trim();
+            if (label && value && label.length < 80 && !out[label]) out[label] = value;
+          }
+        });
+        // <label>...<input/span> form layouts
+        document.querySelectorAll("label").forEach((l) => {
+          const label = (l.textContent || "").trim().replace(/[:：]\s*$/, "");
+          const next = l.nextElementSibling;
+          if (next && label && !out[label]) {
+            const input = next.querySelector("input, select, textarea") as HTMLInputElement | null;
+            const value = (input?.value || next.textContent || "").trim();
+            if (value && label.length < 80) out[label] = value;
+          }
+        });
+        return out;
+      }).catch(() => ({} as Record<string, string>));
+
+      // Pick best ship-name candidate (priority: explicit ship/vessel, then customer name, then description)
+      const PRIORITY: RegExp[] = [
+        /^(ship\s*name|vessel\s*name|gemi\s*ad[ıi]?)$/i,
+        /^(ship|vessel|gemi)$/i,
+        /(ship|vessel)\s*name/i,
+        /^(customer\s*name|customer)$/i,
+        /^(installation\s*site|site\s*name|location)$/i,
+        /^(kit\s*description|description|name)$/i,
+      ];
+      let shipName: string | null = null;
+      for (const re of PRIORITY) {
+        for (const [k, v] of Object.entries(pairs)) {
+          if (re.test(k) && v.length > 1 && v.length < 200 && !/^kitp/i.test(v)) {
+            shipName = v;
+            break;
+          }
+        }
+        if (shipName) break;
+      }
+
+      const now = new Date();
+      await db
+        .insert(stationKits)
+        .values({
+          kitNo,
+          shipName,
+          detailUrl: href,
+          shipNameSyncedAt: shipName ? now : null,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: stationKits.kitNo,
+          set: {
+            shipName: shipName ?? undefined,
+            detailUrl: href,
+            shipNameSyncedAt: shipName ? now : undefined,
+            updatedAt: now,
+          },
+        });
+      logger.info({ kitNo, shipName, pairKeys: Object.keys(pairs).slice(0, 10) }, "Ship-name fetched");
+    } catch (e) {
+      logger.warn({ kitNo, err: (e as Error).message }, "Failed to fetch ship name (continuing)");
+    }
+  }
 }
 
 export async function runSync(
@@ -381,9 +533,11 @@ export async function runSync(
               (td.textContent || "").replace(/\s+/g, " ").trim()
             )
           : [];
+        const href = a.getAttribute("href");
         return {
           kit_no: (a.textContent || "").trim(),
           raw_row_data: cells,
+          kit_detail_href: href,
         };
       });
     });
@@ -455,6 +609,17 @@ export async function runSync(
       } else {
         await db.insert(stationCdrRecords).values(recordData).onConflictDoNothing();
         inserted++;
+      }
+    }
+
+    // Ship-name enrichment: for any KIT we don't yet have a ship name for,
+    // visit its detail page once and cache the result. Skip kits that already
+    // have a ship_name in station_kits (cache forever).
+    if (!testOnly) {
+      try {
+        await enrichShipNames(page, baseUrl, rows);
+      } catch (e) {
+        logger.warn({ err: (e as Error).message }, "Ship-name enrichment failed (non-fatal)");
       }
     }
 

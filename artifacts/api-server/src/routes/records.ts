@@ -4,6 +4,7 @@ import {
   stationCdrRecords,
   stationSyncLogs,
   stationCredentials,
+  stationKits,
 } from "@workspace/db";
 import {
   eq,
@@ -15,6 +16,7 @@ import {
   count,
   sum,
   max,
+  getTableColumns,
 } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 
@@ -64,8 +66,12 @@ router.get("/station/cdr-records", requireAuth, async (req, res): Promise<void> 
 
   const [records, [{ total }]] = await Promise.all([
     db
-      .select()
+      .select({
+        ...getTableColumns(stationCdrRecords),
+        shipName: stationKits.shipName,
+      })
       .from(stationCdrRecords)
+      .leftJoin(stationKits, eq(stationKits.kitNo, stationCdrRecords.kitNo))
       .where(whereClause)
       .orderBy(orderFn(sortCol))
       .limit(limitNum)
@@ -94,6 +100,7 @@ router.get("/station/kits", requireAuth, async (req, res): Promise<void> => {
   const query = db
     .select({
       kitNo: stationCdrRecords.kitNo,
+      shipName: stationKits.shipName,
       totalGb: sum(stationCdrRecords.totalVolumeGbNumeric).mapWith(Number),
       totalPrice: sql<number>`SUM(CAST(NULLIF(REGEXP_REPLACE(${stationCdrRecords.totalPrice}, '[^0-9.]', '', 'g'), '') AS NUMERIC))`.mapWith(Number),
       recordCount: count(),
@@ -101,7 +108,8 @@ router.get("/station/kits", requireAuth, async (req, res): Promise<void> => {
       lastSyncedAt: max(stationCdrRecords.syncedAt),
     })
     .from(stationCdrRecords)
-    .groupBy(stationCdrRecords.kitNo);
+    .leftJoin(stationKits, eq(stationKits.kitNo, stationCdrRecords.kitNo))
+    .groupBy(stationCdrRecords.kitNo, stationKits.shipName);
 
   if (kitNo) {
     query.where(like(stationCdrRecords.kitNo, `%${kitNo}%`));

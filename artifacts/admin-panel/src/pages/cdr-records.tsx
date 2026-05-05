@@ -183,9 +183,14 @@ export default function CdrRecords() {
                 data?.records.map((row) => (
                   <Row key={row.id} className="hover:bg-secondary transition-colors border-none h-12">
                     <Cell className="pl-6 py-2">
-                      <Badge variant="secondary" className="bg-secondary text-foreground border-none rounded-[4px] font-mono px-1.5 py-0.5 tracking-tight text-[11px]">
-                        {row.kitNo}
-                      </Badge>
+                      <div className="flex flex-col gap-0.5">
+                        <Badge variant="secondary" className="bg-secondary text-foreground border-none rounded-[4px] font-mono px-1.5 py-0.5 tracking-tight text-[11px] w-fit">
+                          {row.kitNo}
+                        </Badge>
+                        <span className="text-[11px] text-muted-foreground truncate max-w-[160px]" title={row.shipName || undefined}>
+                          {row.shipName || "—"}
+                        </span>
+                      </div>
                     </Cell>
                     <Cell className="font-mono text-xs text-muted-foreground">{row.period || "-"}</Cell>
                     <Cell className="text-xs whitespace-nowrap font-medium text-foreground">{row.startCdr ? row.startCdr.split(' ')[0] : "-"}</Cell>

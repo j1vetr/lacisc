@@ -146,6 +146,7 @@ export const GetCdrRecordsResponse = zod.object({
     zod.object({
       id: zod.number(),
       kitNo: zod.string(),
+      shipName: zod.string().nullish(),
       product: zod.string().nullish(),
       service: zod.string().nullish(),
       originNumber: zod.string().nullish(),
@@ -183,6 +184,7 @@ export const GetKitsQueryParams = zod.object({
 
 export const GetKitsResponseItem = zod.object({
   kitNo: zod.string(),
+  shipName: zod.string().nullish(),
   totalGb: zod.number(),
   totalPrice: zod.number(),
   recordCount: zod.number(),

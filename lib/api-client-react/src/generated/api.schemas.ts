@@ -77,6 +77,7 @@ export interface SyncResponse {
 export interface CdrRecord {
   id: number;
   kitNo: string;
+  shipName?: string | null;
   product?: string | null;
   service?: string | null;
   originNumber?: string | null;
@@ -108,6 +109,7 @@ export interface CdrRecordsResponse {
 
 export interface KitSummary {
   kitNo: string;
+  shipName?: string | null;
   totalGb: number;
   totalPrice: number;
   recordCount: number;
