@@ -187,47 +187,54 @@ export async function runSync(
       page.keyboard.press("Enter"),
     ]);
 
-    // Check for login failure
-    const pageContent = await page.content();
-    if (
-      pageContent.toLowerCase().includes("invalid") ||
-      pageContent.toLowerCase().includes("incorrect") ||
-      pageContent.toLowerCase().includes("failed")
-    ) {
+    // Authoritative login check: try to reach the protected CDR page.
+    // If the portal session is invalid, ASP.NET will redirect us back to the login page.
+    await page.goto(`${baseUrl}/ratedCdrs.aspx`, {
+      waitUntil: "networkidle",
+      timeout: 30000,
+    }).catch(() => {});
+
+    const finalUrl = page.url();
+    const cdrContent = await page.content();
+    const stillOnLogin =
+      /login|signin|default\.aspx/i.test(finalUrl) ||
+      (await page.locator("input[type='password']").count()) > 0;
+
+    if (stillOnLogin) {
+      const screenshotPath = "/tmp/login-debug.png";
+      const htmlSnapshotPath = "/tmp/login-debug.html";
+      await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => {});
+      await import("fs").then(fs => fs.promises.writeFile(htmlSnapshotPath, cdrContent)).catch(() => {});
+      logger.warn({ finalUrl }, "Login appears to have failed (still on login page)");
       return {
         success: false,
-        message: "Login failed: Invalid credentials or login error detected",
+        message: `Login failed: portal redirected back to login page (url=${finalUrl}). Check credentials and portal URL.`,
         recordsFound: 0,
         recordsInserted: 0,
         recordsUpdated: 0,
+        screenshotPath,
+        htmlSnapshotPath,
       };
     }
 
     if (testOnly) {
       return {
         success: true,
-        message: "Connection successful! Login verified.",
+        message: "Bağlantı başarılı! Giriş doğrulandı.",
         recordsFound: 0,
         recordsInserted: 0,
         recordsUpdated: 0,
       };
     }
 
-    // Navigate to CDR page
-    await page.goto(`${baseUrl}/ratedCdrs.aspx`, {
-      waitUntil: "networkidle",
-      timeout: 30000,
-    });
-
-    const cdrContent = await page.content();
-    if (!cdrContent.includes("Rated CDRs") && !cdrContent.toLowerCase().includes("cdr")) {
+    if (!/ratedcdrs\.aspx/i.test(finalUrl) && !cdrContent.toLowerCase().includes("cdr")) {
       const screenshotPath = "/tmp/rated-cdrs-debug.png";
       const htmlSnapshotPath = "/tmp/rated-cdrs-debug.html";
-      await page.screenshot({ path: screenshotPath });
-      await import("fs").then(fs => fs.promises.writeFile(htmlSnapshotPath, cdrContent));
+      await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => {});
+      await import("fs").then(fs => fs.promises.writeFile(htmlSnapshotPath, cdrContent)).catch(() => {});
       return {
         success: false,
-        message: "Could not reach Rated CDRs page",
+        message: `Could not reach Rated CDRs page (landed on ${finalUrl})`,
         recordsFound: 0,
         recordsInserted: 0,
         recordsUpdated: 0,
