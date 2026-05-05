@@ -27,7 +27,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatNumber, formatDate } from "@/lib/format";
 
+import { useDocumentTitle } from "@/hooks/use-document-title";
+
 export default function Dashboard() {
+  useDocumentTitle("Panel");
   const { data: summary, isLoading, isError, error } = useGetDashboardSummary({ query: { queryKey: getGetDashboardSummaryQueryKey() } });
   const { data: kits, isLoading: kitsLoading } = useGetKits(
     { sortBy: "totalGb" },

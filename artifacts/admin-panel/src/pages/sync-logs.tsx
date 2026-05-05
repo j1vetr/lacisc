@@ -15,7 +15,10 @@ import {
 } from "@/components/ui/table";
 import { formatNumber, formatDate } from "@/lib/format";
 
+import { useDocumentTitle } from "@/hooks/use-document-title";
+
 export default function SyncLogs() {
+  useDocumentTitle("Senkronizasyon");
   const [page, setPage] = useState(1);
   const limit = 20;
 

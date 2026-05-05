@@ -16,7 +16,10 @@ import {
 } from "@/components/ui/table";
 import { formatCurrency, formatNumber, formatDate } from "@/lib/format";
 
+import { useDocumentTitle } from "@/hooks/use-document-title";
+
 export default function Kits() {
+  useDocumentTitle("KIT Özeti");
   const [, setLocation] = useLocation();
   const [kitNo, setKitNo] = useState("");
   const [sortBy, setSortBy] = useState<"totalGb" | "totalPrice" | "lastSeen" | undefined>("totalPrice");

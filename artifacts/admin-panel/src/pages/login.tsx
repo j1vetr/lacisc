@@ -27,7 +27,10 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+import { useDocumentTitle } from "@/hooks/use-document-title";
+
 export default function Login() {
+  useDocumentTitle("Giriş");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const loginMutation = useLogin();

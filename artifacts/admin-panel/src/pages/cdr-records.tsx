@@ -16,7 +16,10 @@ import {
 } from "@/components/ui/table";
 import { formatCurrency, formatNumber, formatDate } from "@/lib/format";
 
+import { useDocumentTitle } from "@/hooks/use-document-title";
+
 export default function CdrRecords() {
+  useDocumentTitle("CDR Kayıtları");
   const [page, setPage] = useState(1);
   const [kitNo, setKitNo] = useState("");
   const [period, setPeriod] = useState("");

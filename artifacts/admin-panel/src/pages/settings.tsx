@@ -40,7 +40,10 @@ const settingsSchema = z.object({
 
 type SettingsFormValues = z.infer<typeof settingsSchema>;
 
+import { useDocumentTitle } from "@/hooks/use-document-title";
+
 export default function Settings() {
+  useDocumentTitle("Ayarlar");
   const { data: settings, isLoading } = useGetStationSettings({ query: { queryKey: getGetStationSettingsQueryKey() } });
   const saveMutation = useSaveStationSettings();
   const testConnectionMutation = useTestConnection();
