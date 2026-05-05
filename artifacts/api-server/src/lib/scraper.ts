@@ -185,17 +185,52 @@ export async function runSync(
     const passwordInput = page.locator("input[type='password']").first();
     await passwordInput.fill(password);
 
+    // Verify the values actually landed in the inputs (Playwright sometimes silently
+    // fills the wrong element if a selector matched something unexpected).
+    const filledUsername = await usernameInput.inputValue().catch(() => "");
+    const filledPassword = await passwordInput.inputValue().catch(() => "");
+    logger.info({
+      filledUsernameLen: filledUsername.length,
+      filledPasswordLen: filledPassword.length,
+      usernameMatches: filledUsername === username,
+      passwordMatches: filledPassword === password,
+      preSubmitUrl: page.url(),
+    }, "Login form filled");
+
     // Click the actual submit button so the antiforgery token is included in the form post.
     const submitButton = page.locator(
       "button[type='submit'], input[type='submit'], button:has-text('Login'), button:has-text('Giriş'), button:has-text('Sign in')"
     ).first();
 
+    const hasSubmit = (await submitButton.count()) > 0;
     await Promise.all([
       page.waitForNavigation({ waitUntil: "networkidle", timeout: 20000 }).catch(() => {}),
-      (await submitButton.count())
-        ? submitButton.click()
-        : passwordInput.press("Enter"),
+      hasSubmit ? submitButton.click() : passwordInput.press("Enter"),
     ]);
+
+    // Snapshot the page IMMEDIATELY after submit to capture portal's real response
+    // (success redirect target, or "invalid credentials" error message).
+    const postSubmitUrl = page.url();
+    const postSubmitContent = await page.content().catch(() => "");
+    await page.screenshot({ path: "/tmp/post-submit-debug.png", fullPage: true }).catch(() => {});
+    await import("fs").then(fs =>
+      fs.promises.writeFile("/tmp/post-submit-debug.html", postSubmitContent)
+    ).catch(() => {});
+
+    // Look for visible validation errors that ASP.NET MVC renders inside .text-danger spans.
+    const errorTexts = await page.evaluate(() => {
+      const nodes = Array.from(document.querySelectorAll(".text-danger, .validation-summary-errors, .field-validation-error"));
+      return nodes
+        .map(n => (n.textContent || "").trim())
+        .filter(t => t.length > 0);
+    }).catch(() => [] as string[]);
+
+    logger.info({
+      postSubmitUrl,
+      hasSubmitButton: hasSubmit,
+      portalErrors: errorTexts,
+      pageHasPasswordInput: postSubmitContent.includes('type="password"'),
+    }, "Login form submitted");
 
     // Authoritative login check: try to reach the protected CDR page.
     // If the portal session is invalid, ASP.NET will redirect us back to the login page.
