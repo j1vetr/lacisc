@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import brandLogo from "@assets/Adsız_tasarım_(5)_1778022902872.png";
+import brandLogo from "@assets/1_1778023047729.png";
 import { useLogin } from "@workspace/api-client-react";
 
 import { Button } from "@/components/ui/button";

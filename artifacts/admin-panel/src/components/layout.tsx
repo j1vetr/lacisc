@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
-import brandLogo from "@assets/Adsız_tasarım_(5)_1778022902872.png";
+import brandLogo from "@assets/1_1778023047729.png";
 import { Activity, Database, LayoutDashboard, Settings, List, LogOut } from "lucide-react";
 import { useLogout, useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 
