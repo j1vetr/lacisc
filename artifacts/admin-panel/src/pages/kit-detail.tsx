@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Link, useRoute } from "wouter";
 import {
   useGetKitDetail,
@@ -37,6 +37,13 @@ import {
   TableHeader as Header,
   TableRow as Row,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatCurrency, formatNumber, formatDate } from "@/lib/format";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
@@ -63,17 +70,28 @@ export default function KitDetail() {
   const kitNo = decodeURIComponent(rawKitNo);
   useDocumentTitle(kitNo);
 
+  const [selectedPeriod, setSelectedPeriod] = useState<string | undefined>(undefined);
+
   const { data: detail, isLoading: detailLoading } = useGetKitDetail(kitNo, {
     query: { queryKey: getGetKitDetailQueryKey(kitNo), enabled: Boolean(kitNo) },
   });
-  const { data: daily, isLoading: dailyLoading } = useGetKitDaily(
-    kitNo,
-    {},
-    { query: { queryKey: getGetKitDailyQueryKey(kitNo, {}), enabled: Boolean(kitNo) } }
-  );
   const { data: monthly, isLoading: monthlyLoading } = useGetKitMonthly(kitNo, {
     query: { queryKey: getGetKitMonthlyQueryKey(kitNo), enabled: Boolean(kitNo) },
   });
+
+  const dailyParams = selectedPeriod ? { period: selectedPeriod } : {};
+  const { data: daily, isLoading: dailyLoading } = useGetKitDaily(
+    kitNo,
+    dailyParams,
+    {
+      query: {
+        queryKey: getGetKitDailyQueryKey(kitNo, dailyParams),
+        enabled: Boolean(kitNo),
+      },
+    }
+  );
+
+  const activePeriod = selectedPeriod ?? detail?.currentPeriod ?? null;
 
   const dailyWithDeltas = useMemo(() => {
     if (!daily) return [];
@@ -100,7 +118,15 @@ export default function KitDetail() {
   );
 
   const currency = detail?.currency || "USD";
-  const periodLabel = formatPeriodLabel(detail?.currentPeriod);
+  const periodLabel = formatPeriodLabel(activePeriod);
+
+  // Period options: union of monthly periods + currentPeriod, sorted desc.
+  const periodOptions = useMemo(() => {
+    const set = new Set<string>();
+    if (detail?.currentPeriod) set.add(detail.currentPeriod);
+    (monthly ?? []).forEach((m) => m.period && set.add(m.period));
+    return Array.from(set).sort((a, b) => (a < b ? 1 : -1));
+  }, [monthly, detail?.currentPeriod]);
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500">
@@ -212,10 +238,31 @@ export default function KitDetail() {
       {/* Daily trend */}
       <Card className="border border-border bg-card shadow-none rounded-xl">
         <CardHeader className="pb-4">
-          <CardTitle className="text-lg font-normal tracking-tight">Günlük Seyir</CardTitle>
-          <CardDescription className="mt-1 text-sm">
-            {periodLabel} dönemi içerisinde gün sonu toplamları (her gün için en son senkronizasyon değeri).
-          </CardDescription>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <CardTitle className="text-lg font-normal tracking-tight">Günlük Seyir</CardTitle>
+              <CardDescription className="mt-1 text-sm">
+                {periodLabel} dönemi içerisinde gün sonu toplamları (her gün için en son senkronizasyon değeri).
+              </CardDescription>
+            </div>
+            {periodOptions.length > 0 && (
+              <Select
+                value={activePeriod ?? undefined}
+                onValueChange={(v) => setSelectedPeriod(v)}
+              >
+                <SelectTrigger className="w-[160px] h-9 rounded-lg border-border shadow-none font-mono text-[12px] shrink-0">
+                  <SelectValue placeholder="Dönem seç" />
+                </SelectTrigger>
+                <SelectContent>
+                  {periodOptions.map((p) => (
+                    <SelectItem key={p} value={p} className="font-mono text-[12px]">
+                      {formatPeriodLabel(p)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           {dailyLoading ? (
