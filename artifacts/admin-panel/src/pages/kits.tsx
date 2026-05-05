@@ -47,8 +47,7 @@ export default function Kits() {
   };
 
   const handleRowClick = (clickedKitNo: string) => {
-    window.sessionStorage.setItem("cdr_filter_kit", clickedKitNo);
-    setLocation("/cdr-records");
+    setLocation(`/kits/${encodeURIComponent(clickedKitNo)}`);
   };
 
   return (
@@ -159,7 +158,7 @@ export default function Kits() {
         </div>
         
         <div className="border-t border-border p-3 bg-card shrink-0 text-xs text-muted-foreground text-center">
-          Toplam {kits?.length || 0} tekil terminal listeleniyor. Detaylı CDR kayıtları için bir satıra tıklayın.
+          Toplam {kits?.length || 0} tekil terminal listeleniyor. Detaylı görünüm için bir satıra tıklayın.
         </div>
       </div>
     </div>

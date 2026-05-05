@@ -176,7 +176,7 @@ export default function Dashboard() {
             ) : (
               <div className="divide-y divide-border">
                 {kits.map((row) => (
-                  <Link key={row.kitNo} href={`/cdr-records?kitNo=${encodeURIComponent(row.kitNo)}`}>
+                  <Link key={row.kitNo} href={`/kits/${encodeURIComponent(row.kitNo)}`}>
                     <div className="flex items-center justify-between py-3 hover:bg-secondary/50 -mx-2 px-2 rounded-md cursor-pointer transition-colors group">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="p-1.5 rounded-md bg-secondary text-muted-foreground shrink-0">

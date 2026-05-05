@@ -1,5 +1,5 @@
-import { db, stationCdrRecords, stationKits } from "@workspace/db";
-import { and, eq, isNull, or, inArray } from "drizzle-orm";
+import { db, stationCdrRecords, stationKits, stationKitDailySnapshots } from "@workspace/db";
+import { and, eq, isNull, or, inArray, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import type { Page } from "playwright";
 
@@ -329,6 +329,50 @@ async function enrichShipNames(
   }
 }
 
+// Aggregate (kit_no, period) totals from CDR records and upsert one snapshot
+// per (kit_no, period) for today's date. Same-day re-runs overwrite.
+async function writeDailySnapshots(): Promise<void> {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const rows = await db.execute(sql`
+    SELECT
+      kit_no AS "kitNo",
+      period,
+      SUM(total_volume_gb_numeric)::float8 AS "totalGb",
+      SUM(CAST(NULLIF(REGEXP_REPLACE(total_price, '[^0-9.]', '', 'g'), '') AS NUMERIC))::float8 AS "totalPrice",
+      MAX(currency) AS currency
+    FROM station_cdr_records
+    WHERE period IS NOT NULL
+    GROUP BY kit_no, period
+  `);
+  const now = new Date();
+  // drizzle node-postgres returns { rows: [...] }
+  const list = (rows as unknown as { rows: Array<{ kitNo: string; period: string; totalGb: number | null; totalPrice: number | null; currency: string | null }> }).rows;
+  for (const r of list) {
+    if (!r.kitNo || !r.period) continue;
+    await db
+      .insert(stationKitDailySnapshots)
+      .values({
+        kitNo: r.kitNo,
+        period: r.period,
+        snapshotDate: today,
+        totalGb: r.totalGb,
+        totalPriceNumeric: r.totalPrice,
+        currency: r.currency,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [stationKitDailySnapshots.kitNo, stationKitDailySnapshots.period, stationKitDailySnapshots.snapshotDate],
+        set: {
+          totalGb: r.totalGb,
+          totalPriceNumeric: r.totalPrice,
+          currency: r.currency,
+          updatedAt: now,
+        },
+      });
+  }
+  logger.info({ count: list.length, snapshotDate: today }, "Daily snapshots written");
+}
+
 export async function runSync(
   portalUrl: string,
   username: string,
@@ -620,6 +664,14 @@ export async function runSync(
         await enrichShipNames(page, baseUrl, rows);
       } catch (e) {
         logger.warn({ err: (e as Error).message }, "Ship-name enrichment failed (non-fatal)");
+      }
+
+      // Daily snapshots: write today's per-(kit,period) totals so we can show
+      // day-by-day evolution. Best-effort — failure here must not break sync.
+      try {
+        await writeDailySnapshots();
+      } catch (e) {
+        logger.warn({ err: (e as Error).message }, "Daily snapshot write failed (non-fatal)");
       }
     }
 

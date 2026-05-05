@@ -2,7 +2,7 @@ import React from "react";
 import { Link, useLocation } from "wouter";
 import brandLogo from "@assets/1_1778023047729.png";
 import toovLogo from "@assets/TOOV_1778023131850.png";
-import { Activity, Database, LayoutDashboard, Settings, List, LogOut } from "lucide-react";
+import { Activity, LayoutDashboard, Settings, List, LogOut } from "lucide-react";
 import { useLogout, useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -11,8 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const navItems = [
   { title: "Panel", url: "/", icon: LayoutDashboard },
-  { title: "CDR Kayıtları", url: "/cdr-records", icon: Database },
-  { title: "KIT Özeti", url: "/kits", icon: List },
+  { title: "Terminaller", url: "/kits", icon: List },
   { title: "Senkronizasyon Kayıtları", url: "/sync-logs", icon: Activity },
   { title: "Ayarlar", url: "/settings", icon: Settings },
 ];

@@ -5,6 +5,7 @@ import {
   stationSyncLogs,
   stationCredentials,
   stationKits,
+  stationKitDailySnapshots,
 } from "@workspace/db";
 import {
   eq,
@@ -130,6 +131,111 @@ router.get("/station/kits", requireAuth, async (req, res): Promise<void> => {
   });
 
   res.json(results);
+});
+
+router.get("/station/kits/:kitNo", requireAuth, async (req, res): Promise<void> => {
+  const kitNo = String(req.params.kitNo);
+
+  const [kitMeta] = await db
+    .select()
+    .from(stationKits)
+    .where(eq(stationKits.kitNo, kitNo))
+    .limit(1);
+
+  const [aggAll] = await db
+    .select({
+      recordCount: count(),
+      currentPeriod: max(stationCdrRecords.period),
+      lastSyncedAt: max(stationCdrRecords.syncedAt),
+    })
+    .from(stationCdrRecords)
+    .where(eq(stationCdrRecords.kitNo, kitNo));
+
+  if ((aggAll?.recordCount ?? 0) === 0 && !kitMeta) {
+    res.status(404).json({ error: "KIT not found" });
+    return;
+  }
+
+  const currentPeriod = aggAll?.currentPeriod ?? null;
+  let totalGb: number | null = null;
+  let totalPrice: number | null = null;
+  let currency: string | null = null;
+
+  if (currentPeriod) {
+    const [periodAgg] = await db
+      .select({
+        totalGb: sum(stationCdrRecords.totalVolumeGbNumeric).mapWith(Number),
+        totalPrice: sql<number>`SUM(CAST(NULLIF(REGEXP_REPLACE(${stationCdrRecords.totalPrice}, '[^0-9.]', '', 'g'), '') AS NUMERIC))`.mapWith(Number),
+        currency: max(stationCdrRecords.currency),
+      })
+      .from(stationCdrRecords)
+      .where(and(eq(stationCdrRecords.kitNo, kitNo), eq(stationCdrRecords.period, currentPeriod)));
+    totalGb = periodAgg?.totalGb ?? null;
+    totalPrice = periodAgg?.totalPrice ?? null;
+    currency = periodAgg?.currency ?? null;
+  }
+
+  res.json({
+    kitNo,
+    shipName: kitMeta?.shipName ?? null,
+    currentPeriod,
+    totalGb,
+    totalPrice,
+    currency,
+    recordCount: Number(aggAll?.recordCount ?? 0),
+    lastSyncedAt: aggAll?.lastSyncedAt ?? null,
+  });
+});
+
+router.get("/station/kits/:kitNo/daily", requireAuth, async (req, res): Promise<void> => {
+  const kitNo = String(req.params.kitNo);
+  let { period } = req.query as { period?: string };
+
+  if (!period) {
+    const [latest] = await db
+      .select({ p: max(stationCdrRecords.period) })
+      .from(stationCdrRecords)
+      .where(eq(stationCdrRecords.kitNo, kitNo));
+    period = latest?.p ?? undefined;
+  }
+
+  if (!period) {
+    res.json([]);
+    return;
+  }
+
+  const points = await db
+    .select({
+      snapshotDate: stationKitDailySnapshots.snapshotDate,
+      totalGb: stationKitDailySnapshots.totalGb,
+      totalPrice: stationKitDailySnapshots.totalPriceNumeric,
+      currency: stationKitDailySnapshots.currency,
+    })
+    .from(stationKitDailySnapshots)
+    .where(and(eq(stationKitDailySnapshots.kitNo, kitNo), eq(stationKitDailySnapshots.period, period)))
+    .orderBy(asc(stationKitDailySnapshots.snapshotDate));
+
+  res.json(points);
+});
+
+router.get("/station/kits/:kitNo/monthly", requireAuth, async (req, res): Promise<void> => {
+  const kitNo = String(req.params.kitNo);
+
+  // For each period, take the row with the latest snapshot_date.
+  const result = await db.execute(sql`
+    SELECT DISTINCT ON (period)
+      period,
+      total_gb AS "totalGb",
+      total_price_numeric AS "totalPrice",
+      currency,
+      snapshot_date AS "lastSnapshotDate"
+    FROM station_kit_daily_snapshots
+    WHERE kit_no = ${kitNo}
+    ORDER BY period DESC, snapshot_date DESC
+  `);
+
+  const rows = (result as unknown as { rows: Array<{ period: string; totalGb: number | null; totalPrice: number | null; currency: string | null; lastSnapshotDate: string | null }> }).rows;
+  res.json(rows);
 });
 
 router.get("/station/summary", requireAuth, async (_req, res): Promise<void> => {

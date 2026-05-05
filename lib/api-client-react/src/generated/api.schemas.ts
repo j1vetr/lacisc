@@ -117,6 +117,32 @@ export interface KitSummary {
   lastSyncedAt?: string | null;
 }
 
+export interface KitDetail {
+  kitNo: string;
+  shipName?: string | null;
+  currentPeriod?: string | null;
+  totalGb?: number | null;
+  totalPrice?: number | null;
+  currency?: string | null;
+  recordCount: number;
+  lastSyncedAt?: string | null;
+}
+
+export interface KitDailyPoint {
+  snapshotDate: string;
+  totalGb?: number | null;
+  totalPrice?: number | null;
+  currency?: string | null;
+}
+
+export interface KitMonthlyPoint {
+  period: string;
+  totalGb?: number | null;
+  totalPrice?: number | null;
+  currency?: string | null;
+  lastSnapshotDate?: string | null;
+}
+
 export interface DashboardSummary {
   totalKits: number;
   totalGb: number;
@@ -194,6 +220,10 @@ export const GetKitsSortBy = {
   totalPrice: "totalPrice",
   lastSeen: "lastSeen",
 } as const;
+
+export type GetKitDailyParams = {
+  period?: string;
+};
 
 export type GetSyncLogsParams = {
   page?: number;

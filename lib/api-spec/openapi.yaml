@@ -276,6 +276,83 @@ paths:
                 items:
                   $ref: "#/components/schemas/KitSummary"
 
+  /station/kits/{kitNo}:
+    get:
+      operationId: getKitDetail
+      tags: [records]
+      summary: Get a single KIT with current period summary
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: kitNo
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: KIT detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KitDetail"
+        "404":
+          description: KIT not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /station/kits/{kitNo}/daily:
+    get:
+      operationId: getKitDaily
+      tags: [records]
+      summary: Get day-by-day snapshots for a KIT in a period
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: kitNo
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: period
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Daily snapshot points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/KitDailyPoint"
+
+  /station/kits/{kitNo}/monthly:
+    get:
+      operationId: getKitMonthly
+      tags: [records]
+      summary: Get month-by-month last snapshot for a KIT
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: kitNo
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Monthly snapshot points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/KitMonthlyPoint"
+
   /station/summary:
     get:
       operationId: getDashboardSummary
@@ -638,6 +715,73 @@ components:
         - totalGb
         - totalPrice
         - recordCount
+
+    KitDetail:
+      type: object
+      properties:
+        kitNo:
+          type: string
+        shipName:
+          type: string
+          nullable: true
+        currentPeriod:
+          type: string
+          nullable: true
+        totalGb:
+          type: number
+          nullable: true
+        totalPrice:
+          type: number
+          nullable: true
+        currency:
+          type: string
+          nullable: true
+        recordCount:
+          type: integer
+        lastSyncedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - kitNo
+        - recordCount
+
+    KitDailyPoint:
+      type: object
+      properties:
+        snapshotDate:
+          type: string
+        totalGb:
+          type: number
+          nullable: true
+        totalPrice:
+          type: number
+          nullable: true
+        currency:
+          type: string
+          nullable: true
+      required:
+        - snapshotDate
+
+    KitMonthlyPoint:
+      type: object
+      properties:
+        period:
+          type: string
+        totalGb:
+          type: number
+          nullable: true
+        totalPrice:
+          type: number
+          nullable: true
+        currency:
+          type: string
+          nullable: true
+        lastSnapshotDate:
+          type: string
+          nullable: true
+      required:
+        - period
 
     DashboardSummary:
       type: object

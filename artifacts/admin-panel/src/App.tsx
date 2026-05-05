@@ -11,8 +11,8 @@ import Layout from "./components/layout";
 import Login from "./pages/login";
 import Dashboard from "./pages/dashboard";
 import Settings from "./pages/settings";
-import CdrRecords from "./pages/cdr-records";
 import Kits from "./pages/kits";
+import KitDetail from "./pages/kit-detail";
 import SyncLogs from "./pages/sync-logs";
 import NotFound from "./pages/not-found";
 
@@ -52,8 +52,8 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/">{() => <ProtectedRoute component={Dashboard} />}</Route>
-      <Route path="/cdr-records">{() => <ProtectedRoute component={CdrRecords} />}</Route>
       <Route path="/kits">{() => <ProtectedRoute component={Kits} />}</Route>
+      <Route path="/kits/:kitNo">{() => <ProtectedRoute component={KitDetail} />}</Route>
       <Route path="/sync-logs">{() => <ProtectedRoute component={SyncLogs} />}</Route>
       <Route path="/settings">{() => <ProtectedRoute component={Settings} />}</Route>
       <Route component={NotFound} />

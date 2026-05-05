@@ -71,6 +71,28 @@ export const stationCdrRecords = pgTable(
   ]
 );
 
+export const stationKitDailySnapshots = pgTable(
+  "station_kit_daily_snapshots",
+  {
+    id: serial("id").primaryKey(),
+    kitNo: text("kit_no").notNull(),
+    period: text("period").notNull(),
+    snapshotDate: text("snapshot_date").notNull(),
+    totalGb: doublePrecision("total_gb"),
+    totalPriceNumeric: doublePrecision("total_price_numeric"),
+    currency: text("currency"),
+    capturedAt: timestamp("captured_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("uq_kit_daily_snapshot").on(
+      table.kitNo,
+      table.period,
+      table.snapshotDate
+    ),
+  ]
+);
+
 export const stationKits = pgTable("station_kits", {
   kitNo: text("kit_no").primaryKey(),
   shipName: text("ship_name"),

@@ -25,9 +25,13 @@ import type {
   ErrorResponse,
   ExportCsvParams,
   GetCdrRecordsParams,
+  GetKitDailyParams,
   GetKitsParams,
   GetSyncLogsParams,
   HealthStatus,
+  KitDailyPoint,
+  KitDetail,
+  KitMonthlyPoint,
   KitSummary,
   LoginBody,
   MessageResponse,
@@ -931,6 +935,292 @@ export function useGetKits<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetKitsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get a single KIT with current period summary
+ */
+export const getGetKitDetailUrl = (kitNo: string) => {
+  return `/api/station/kits/${kitNo}`;
+};
+
+export const getKitDetail = async (
+  kitNo: string,
+  options?: RequestInit,
+): Promise<KitDetail> => {
+  return customFetch<KitDetail>(getGetKitDetailUrl(kitNo), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetKitDetailQueryKey = (kitNo: string) => {
+  return [`/api/station/kits/${kitNo}`] as const;
+};
+
+export const getGetKitDetailQueryOptions = <
+  TData = Awaited<ReturnType<typeof getKitDetail>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  kitNo: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getKitDetail>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetKitDetailQueryKey(kitNo);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getKitDetail>>> = ({
+    signal,
+  }) => getKitDetail(kitNo, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!kitNo,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getKitDetail>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetKitDetailQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getKitDetail>>
+>;
+export type GetKitDetailQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get a single KIT with current period summary
+ */
+
+export function useGetKitDetail<
+  TData = Awaited<ReturnType<typeof getKitDetail>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  kitNo: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getKitDetail>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetKitDetailQueryOptions(kitNo, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get day-by-day snapshots for a KIT in a period
+ */
+export const getGetKitDailyUrl = (
+  kitNo: string,
+  params?: GetKitDailyParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/station/kits/${kitNo}/daily?${stringifiedParams}`
+    : `/api/station/kits/${kitNo}/daily`;
+};
+
+export const getKitDaily = async (
+  kitNo: string,
+  params?: GetKitDailyParams,
+  options?: RequestInit,
+): Promise<KitDailyPoint[]> => {
+  return customFetch<KitDailyPoint[]>(getGetKitDailyUrl(kitNo, params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetKitDailyQueryKey = (
+  kitNo: string,
+  params?: GetKitDailyParams,
+) => {
+  return [
+    `/api/station/kits/${kitNo}/daily`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetKitDailyQueryOptions = <
+  TData = Awaited<ReturnType<typeof getKitDaily>>,
+  TError = ErrorType<unknown>,
+>(
+  kitNo: string,
+  params?: GetKitDailyParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getKitDaily>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetKitDailyQueryKey(kitNo, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getKitDaily>>> = ({
+    signal,
+  }) => getKitDaily(kitNo, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!kitNo,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getKitDaily>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetKitDailyQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getKitDaily>>
+>;
+export type GetKitDailyQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get day-by-day snapshots for a KIT in a period
+ */
+
+export function useGetKitDaily<
+  TData = Awaited<ReturnType<typeof getKitDaily>>,
+  TError = ErrorType<unknown>,
+>(
+  kitNo: string,
+  params?: GetKitDailyParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getKitDaily>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetKitDailyQueryOptions(kitNo, params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get month-by-month last snapshot for a KIT
+ */
+export const getGetKitMonthlyUrl = (kitNo: string) => {
+  return `/api/station/kits/${kitNo}/monthly`;
+};
+
+export const getKitMonthly = async (
+  kitNo: string,
+  options?: RequestInit,
+): Promise<KitMonthlyPoint[]> => {
+  return customFetch<KitMonthlyPoint[]>(getGetKitMonthlyUrl(kitNo), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetKitMonthlyQueryKey = (kitNo: string) => {
+  return [`/api/station/kits/${kitNo}/monthly`] as const;
+};
+
+export const getGetKitMonthlyQueryOptions = <
+  TData = Awaited<ReturnType<typeof getKitMonthly>>,
+  TError = ErrorType<unknown>,
+>(
+  kitNo: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getKitMonthly>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetKitMonthlyQueryKey(kitNo);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getKitMonthly>>> = ({
+    signal,
+  }) => getKitMonthly(kitNo, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!kitNo,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getKitMonthly>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetKitMonthlyQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getKitMonthly>>
+>;
+export type GetKitMonthlyQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get month-by-month last snapshot for a KIT
+ */
+
+export function useGetKitMonthly<
+  TData = Awaited<ReturnType<typeof getKitMonthly>>,
+  TError = ErrorType<unknown>,
+>(
+  kitNo: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getKitMonthly>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetKitMonthlyQueryOptions(kitNo, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

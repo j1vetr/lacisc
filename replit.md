@@ -35,7 +35,7 @@ Full-stack admin panel that scrapes CDR billing data from the Station Satcom por
 ```
 artifacts/
   admin-panel/        # React+Vite frontend (path: /)
-    src/pages/        # login, dashboard, cdr-records, kits, sync-logs, settings
+    src/pages/        # login, dashboard, kits, kit-detail, sync-logs, settings
     src/components/   # layout.tsx + shadcn/ui components
     src/lib/          # format.ts, utils.ts
   api-server/         # Express backend (path: /api)
@@ -43,7 +43,7 @@ artifacts/
     src/lib/          # scraper.ts, crypto.ts, scheduler.ts, logger.ts
     src/middlewares/  # auth.ts (requireAuth JWT middleware)
 lib/
-  db/                 # Drizzle schema + client (admin_users, station_credentials, station_cdr_records, station_sync_logs)
+  db/                 # Drizzle schema + client (admin_users, station_credentials, station_cdr_records, station_sync_logs, station_kits, station_kit_daily_snapshots)
   api-spec/           # openapi.yaml + orval codegen config
   api-client-react/   # Generated React Query hooks + custom-fetch with auto Bearer token
   api-zod/            # Generated Zod schemas
@@ -60,9 +60,9 @@ lib/
 ## Product
 
 - Yönetici Girişi (JWT auth)
-- Panel: KPI kartları (toplam KIT, GB, USD, aktif dönem) + son sync durumu + hızlı aksiyonlar
-- CDR Kayıtları: sayfalanmış, sıralanabilir, filtrelenebilir tablo + CSV indirme
-- KIT Özeti: terminal başına toplam kullanım/faturalama, CDR'lere tıklama
+- Panel: KPI kartları (toplam KIT, GB, USD, aktif dönem) + Terminaller listesi (8/12) + Sistem Sağlığı (4/12, sync btn içinde)
+- Terminaller: terminal başına toplam kullanım/faturalama, satır tıklama → KIT detay
+- KIT Detay (`/kits/:kitNo`): aktif dönem KPI'ları + günlük seyir (Recharts dual-axis çizgi grafik + delta tablosu) + aylık özet tablosu
 - Senkronizasyon Kayıtları: tüm scraper çalışmaları, renkli durum rozetleri (timeline pasteller)
 - Ayarlar: portal bilgileri, bağlantı testi, otomatik sync ayarı
 
@@ -87,6 +87,7 @@ lib/
 - Settings endpoint returns 404 (not 500) when no credentials configured yet — frontend handles this gracefully.
 - **Portal session is fragile**: direct `page.goto('/ratedCdrs.aspx')` after login loses the session and bounces to `/Account/Login?ReturnUrl=%2F/...`. Always reach protected pages by **clicking the menu link** from the welcome page (`a[href*='ratedCdrs.aspx' i]`).
 - **Volume parsing**: portal uses **binary units (GiB/MiB/KiB)**, not GB/MB. Each row also contains a "0 Bytes" in-bundle cell that would overwrite the real usage if we picked the last match. Mapper collects all volume cells and picks the **largest** as `totalVolumeData`. Period column is `YYYYMM` (e.g. `202605`), no separator.
+- **Daily snapshots are best-effort & idempotent per day**: `writeDailySnapshots()` runs at end of every successful sync and upserts one row per `(kit_no, period, today_YYYY-MM-DD)` into `station_kit_daily_snapshots`. Multiple syncs in the same day overwrite that day's row (we keep the latest value). The KIT detail "Günlük Seyir" view depends on this — it shows nothing until the first post-deploy sync completes.
 - **KIT detail pages (`CardDetails.aspx?ICCID=...`) require iframe context**: direct `page.goto()` returns ASP.NET ErrorPage ("[Unknown Error]") even when authenticated. Must **click the link from the ratedCdrs grid** so ASP.NET keeps its viewstate/iframe wrapper. `enrichShipNames()` does this and caches the result in `station_kits` so we only visit each KIT detail page once. KITs whose ship name is still null are retried on each sync.
 
 ## Pointers

@@ -194,6 +194,59 @@ export const GetKitsResponseItem = zod.object({
 export const GetKitsResponse = zod.array(GetKitsResponseItem);
 
 /**
+ * @summary Get a single KIT with current period summary
+ */
+export const GetKitDetailParams = zod.object({
+  kitNo: zod.coerce.string(),
+});
+
+export const GetKitDetailResponse = zod.object({
+  kitNo: zod.string(),
+  shipName: zod.string().nullish(),
+  currentPeriod: zod.string().nullish(),
+  totalGb: zod.number().nullish(),
+  totalPrice: zod.number().nullish(),
+  currency: zod.string().nullish(),
+  recordCount: zod.number(),
+  lastSyncedAt: zod.coerce.date().nullish(),
+});
+
+/**
+ * @summary Get day-by-day snapshots for a KIT in a period
+ */
+export const GetKitDailyParams = zod.object({
+  kitNo: zod.coerce.string(),
+});
+
+export const GetKitDailyQueryParams = zod.object({
+  period: zod.coerce.string().optional(),
+});
+
+export const GetKitDailyResponseItem = zod.object({
+  snapshotDate: zod.string(),
+  totalGb: zod.number().nullish(),
+  totalPrice: zod.number().nullish(),
+  currency: zod.string().nullish(),
+});
+export const GetKitDailyResponse = zod.array(GetKitDailyResponseItem);
+
+/**
+ * @summary Get month-by-month last snapshot for a KIT
+ */
+export const GetKitMonthlyParams = zod.object({
+  kitNo: zod.coerce.string(),
+});
+
+export const GetKitMonthlyResponseItem = zod.object({
+  period: zod.string(),
+  totalGb: zod.number().nullish(),
+  totalPrice: zod.number().nullish(),
+  currency: zod.string().nullish(),
+  lastSnapshotDate: zod.string().nullish(),
+});
+export const GetKitMonthlyResponse = zod.array(GetKitMonthlyResponseItem);
+
+/**
  * @summary Get dashboard summary
  */
 export const GetDashboardSummaryResponse = zod.object({
