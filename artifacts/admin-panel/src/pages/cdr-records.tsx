@@ -127,7 +127,7 @@ export default function CdrRecords() {
         <div className="relative w-48">
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Dönem (MM/YYYY)"
+            placeholder="Dönem (YYYYMM, örn. 202605)"
             className="pl-10 h-10 bg-card border-border rounded-lg font-mono text-sm shadow-none"
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
@@ -195,7 +195,7 @@ export default function CdrRecords() {
                       <div className="truncate max-w-[160px] text-muted-foreground mt-0.5">{row.service || "-"}</div>
                     </Cell>
                     <Cell className="text-right font-mono text-xs">
-                      <span className="text-foreground">{row.totalVolumeGbNumeric != null ? formatNumber(row.totalVolumeGbNumeric, 4) : "-"}</span>
+                      <span className="text-foreground">{row.totalVolumeGbNumeric != null ? `${formatNumber(row.totalVolumeGbNumeric, 2)} GB` : "-"}</span>
                     </Cell>
                     <Cell className="text-right font-mono text-[13px] font-medium text-foreground">
                       {formatCurrency(row.totalPrice, row.currency || "USD")}

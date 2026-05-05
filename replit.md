@@ -85,6 +85,8 @@ lib/
 - Scraper requires Playwright Chromium; `pnpm approve-builds` may be needed if bcrypt build scripts are blocked.
 - `ENCRYPTION_KEY` must be exactly 64 hex chars or crypto operations will throw.
 - Settings endpoint returns 404 (not 500) when no credentials configured yet — frontend handles this gracefully.
+- **Portal session is fragile**: direct `page.goto('/ratedCdrs.aspx')` after login loses the session and bounces to `/Account/Login?ReturnUrl=%2F/...`. Always reach protected pages by **clicking the menu link** from the welcome page (`a[href*='ratedCdrs.aspx' i]`).
+- **Volume parsing**: portal uses **binary units (GiB/MiB/KiB)**, not GB/MB. Each row also contains a "0 Bytes" in-bundle cell that would overwrite the real usage if we picked the last match. Mapper collects all volume cells and picks the **largest** as `totalVolumeData`. Period column is `YYYYMM` (e.g. `202605`), no separator.
 
 ## Pointers
 

@@ -12,18 +12,41 @@ export interface SyncResult {
   htmlSnapshotPath?: string;
 }
 
+// Matches "13.17 GiB", "234.5 MB", "0 Bytes" — both decimal (KB/MB/GB/TB)
+// and binary (KiB/MiB/GiB/TiB) units, plus plain "Bytes".
+const VOLUME_REGEX = /^([\d.,]+)\s*(TiB|GiB|MiB|KiB|TB|GB|MB|KB|Bytes?|B)$/i;
+
 function parseGb(value: string | null | undefined): number | null {
   if (!value) return null;
-  const lower = value.toLowerCase().trim();
-  const numMatch = lower.match(/[\d.]+/);
-  if (!numMatch) return null;
-  const num = parseFloat(numMatch[0]);
+  const m = value.trim().match(VOLUME_REGEX);
+  if (!m) return null;
+  // Locale-safe number parsing: handle both "13.17" (en) and "13,17" (tr/eu).
+  // If the string contains exactly one separator and no other, treat it as the
+  // decimal mark; otherwise strip thousands separators (commas) by default.
+  let raw = m[1];
+  const hasDot = raw.includes(".");
+  const hasComma = raw.includes(",");
+  if (hasComma && !hasDot) {
+    raw = raw.replace(",", ".");
+  } else {
+    raw = raw.replace(/,/g, "");
+  }
+  const num = parseFloat(raw);
   if (isNaN(num)) return null;
+  const unit = m[2].toLowerCase();
 
-  if (lower.includes("gb")) return num;
-  if (lower.includes("mb")) return num / 1024;
-  if (lower.includes("kb")) return num / (1024 * 1024);
-  if (lower.includes("byte") || lower.includes("b")) return num / (1024 * 1024 * 1024);
+  // Binary (1024-based) units
+  if (unit === "tib") return num * 1024;
+  if (unit === "gib") return num;
+  if (unit === "mib") return num / 1024;
+  if (unit === "kib") return num / (1024 * 1024);
+  // Decimal units (treat as approximate GB equivalents — portal mixes them)
+  if (unit === "tb") return num * 1000;
+  if (unit === "gb") return num;
+  if (unit === "mb") return num / 1024;
+  if (unit === "kb") return num / (1024 * 1024);
+  // Plain bytes
+  if (unit.startsWith("byte") || unit === "b") return num / (1024 * 1024 * 1024);
   return num;
 }
 
@@ -75,37 +98,58 @@ function mapRowToRecord(row: ScrapedRow): {
   let startCdr: string | null = null;
   let endCdr: string | null = null;
 
-  // Iterate cells and match by pattern
+  // First pass: collect all volume-like values so we can pick the largest as
+  // "total volume" (the row also contains a "0 Bytes" in-bundle column that
+  // would otherwise overwrite a real "13.17 GiB" usage value).
+  const volumes: { raw: string; gb: number }[] = [];
+  for (const c of cells) {
+    const cell = c?.trim() ?? "";
+    if (!cell) continue;
+    if (VOLUME_REGEX.test(cell)) {
+      const gb = parseGb(cell);
+      if (gb != null) volumes.push({ raw: cell, gb });
+    }
+  }
+  if (volumes.length > 0) {
+    const max = volumes.reduce((a, b) => (b.gb > a.gb ? b : a));
+    totalVolumeData = max.raw;
+    totalVolumeGbNumeric = max.gb;
+  }
+
+  // Second pass: detect the rest of the columns by content patterns.
   for (let i = 0; i < cells.length; i++) {
     const cell = cells[i]?.trim() ?? "";
     if (!cell) continue;
 
     if (cell.startsWith("KITP")) {
       kitNo = cell;
-    } else if (/^\d{4}-\d{2}$/.test(cell) || /^\d{4}\/\d{2}$/.test(cell)) {
+    } else if (/^(20\d{2})(0[1-9]|1[0-2])$/.test(cell) && !period) {
+      // YYYYMM period with valid month 01-12 (e.g. "202605"); strict check
+      // avoids stealing 6-digit numeric IDs.
+      period = cell;
+    } else if (/^20\d{2}[-/](0[1-9]|1[0-2])$/.test(cell) && !period) {
       period = cell;
     } else if (/^\d{4}-\d{2}-\d{2}/.test(cell) && !startCdr) {
       startCdr = cell;
     } else if (/^\d{4}-\d{2}-\d{2}/.test(cell) && startCdr && !endCdr) {
       endCdr = cell;
-    } else if (/^[\d.]+\s*(GB|MB|KB|Bytes?)/i.test(cell)) {
-      totalVolumeData = cell;
-      totalVolumeGbNumeric = parseGb(cell);
     } else if (/^[\d.]+\s*min/i.test(cell)) {
       totalVolumeMin = cell;
     } else if (/^[\d.]+\s*msg/i.test(cell)) {
       totalVolumeMsg = cell;
     } else if (/^(USD|EUR|GBP|TRY)$/i.test(cell)) {
       currency = cell;
-    } else if (/^\d{5,}$/.test(cell) && !cdrId) {
+    } else if (/^\d{5,}(\.\d+)?$/.test(cell) && !cdrId) {
       cdrId = cell;
-    } else if (/^[A-Z]{2,}-\d+/.test(cell) && !customerCode) {
+    } else if (/^[A-Z]{2,}-[A-Z0-9-]+/.test(cell) && !customerCode) {
       customerCode = cell;
     } else if (/^[\d.]+$/.test(cell) && currency && !totalPrice) {
       totalPrice = cell;
-    } else if (!product && cell.length > 2 && cell.length < 50 && !/^\d/.test(cell)) {
+    } else if (/^[\d.]+$/.test(cell) && totalPrice && !invoicedAmount) {
+      invoicedAmount = cell;
+    } else if (!product && cell.length > 2 && cell.length < 50 && !/^\d/.test(cell) && !VOLUME_REGEX.test(cell)) {
       product = cell;
-    } else if (!service && cell.length > 2 && cell.length < 50 && !/^\d/.test(cell)) {
+    } else if (!service && cell.length > 2 && cell.length < 50 && !/^\d/.test(cell) && !VOLUME_REGEX.test(cell)) {
       service = cell;
     }
   }
