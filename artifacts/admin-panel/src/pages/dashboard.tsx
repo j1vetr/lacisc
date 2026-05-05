@@ -1,25 +1,23 @@
 import React from "react";
 import { Link } from "wouter";
-import { 
-  Database, 
-  HardDrive, 
-  DollarSign, 
-  CalendarClock, 
-  Activity, 
+import {
+  Database,
+  HardDrive,
+  DollarSign,
+  CalendarClock,
   RefreshCw,
   AlertCircle,
   CheckCircle2,
   Clock,
   ArrowRight,
-  List,
-  Settings
+  Terminal,
 } from "lucide-react";
-import { 
-  useGetDashboardSummary, 
+import {
+  useGetDashboardSummary,
   getGetDashboardSummaryQueryKey,
   useSyncNow,
-  useGetMe,
-  getGetMeQueryKey
+  useGetKits,
+  getGetKitsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -30,8 +28,11 @@ import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatNumber, formatDate } from "@/lib/format";
 
 export default function Dashboard() {
-  const { data: user } = useGetMe({ query: { queryKey: getGetMeQueryKey() } });
   const { data: summary, isLoading, isError, error } = useGetDashboardSummary({ query: { queryKey: getGetDashboardSummaryQueryKey() } });
+  const { data: kits, isLoading: kitsLoading } = useGetKits(
+    { sortBy: "totalGb" },
+    { query: { queryKey: getGetKitsQueryKey({ sortBy: "totalGb" }) } }
+  );
   const syncNowMutation = useSyncNow();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -71,25 +72,9 @@ export default function Dashboard() {
   }
 
   const isSyncing = syncNowMutation.isPending || summary?.lastSyncStatus === 'running';
-  const firstName = user?.name?.split(' ')[0] || "Yönetici";
 
   return (
-    <div className="space-y-12 animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-6 pb-6 border-b border-border">
-        <div className="space-y-2">
-          <h1 className="text-[40px] leading-[1.1] font-normal tracking-[-0.02em] text-foreground">Hoş geldin, {firstName}</h1>
-          <p className="text-base text-muted-foreground">VSAT terminallerinizden en güncel veriler.</p>
-        </div>
-        <Button 
-          onClick={handleSync} 
-          disabled={isSyncing}
-          className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-none transition-colors h-10 px-5 text-sm font-medium"
-        >
-          <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-          {isSyncing ? "Senkronize Ediliyor..." : "Şimdi Senkronize Et"}
-        </Button>
-      </div>
-
+    <div className="space-y-10 animate-in fade-in duration-500">
       {/* KPI Cards */}
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         <Card className="border border-border bg-card shadow-none rounded-xl">
@@ -161,140 +146,141 @@ export default function Dashboard() {
       </div>
 
       <div className="grid gap-8 md:grid-cols-12">
-        {/* Sync Status - Span 7 */}
-        <Card className="border border-border bg-card shadow-none md:col-span-7 flex flex-col rounded-xl">
+        {/* KIT List - Span 8 */}
+        <Card className="border border-border bg-card shadow-none md:col-span-8 flex flex-col rounded-xl">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-lg font-normal tracking-tight">Sistem Sağlığı</CardTitle>
-                <CardDescription className="mt-1 text-sm">Son portal senkronizasyon durumu</CardDescription>
+                <CardTitle className="text-lg font-normal tracking-tight">Terminaller</CardTitle>
+                <CardDescription className="mt-1 text-sm">KIT bazında toplam kullanım ve faturalama</CardDescription>
               </div>
-              <Link href="/sync-logs">
+              <Link href="/kits">
                 <Button variant="ghost" size="sm" className="text-xs h-8 text-foreground hover:bg-secondary rounded-lg">
-                  Kayıtları Gör <ArrowRight className="w-3 h-3 ml-1" />
+                  Tümü <ArrowRight className="w-3 h-3 ml-1" />
                 </Button>
               </Link>
             </div>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col justify-center">
-            {isLoading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-16 w-full rounded-lg" />
-                <div className="grid grid-cols-3 gap-4">
-                  <Skeleton className="h-20 w-full rounded-lg" />
-                  <Skeleton className="h-20 w-full rounded-lg" />
-                  <Skeleton className="h-20 w-full rounded-lg" />
-                </div>
+          <CardContent className="flex-1">
+            {kitsLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full rounded-lg" />
+                ))}
               </div>
+            ) : !kits || kits.length === 0 ? (
+              <div className="text-center py-12 text-sm text-muted-foreground">Henüz KIT verisi yok.</div>
             ) : (
-              <div className="space-y-6">
-                <div className="flex items-center gap-4 p-5 rounded-xl border border-border bg-secondary/50">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                    summary?.lastSyncStatus === 'success' ? 'bg-[#9fc9a2] text-foreground' : // mint
-                    summary?.lastSyncStatus === 'failed' ? 'bg-[#dfa88f] text-foreground' : // peach
-                    summary?.lastSyncStatus === 'running' ? 'bg-[#9fbbe0] text-foreground' : // blue
-                    'bg-border text-muted-foreground'
-                  }`}>
-                    {summary?.lastSyncStatus === 'success' ? <CheckCircle2 className="w-5 h-5" /> :
-                     summary?.lastSyncStatus === 'failed' ? <AlertCircle className="w-5 h-5" /> :
-                     summary?.lastSyncStatus === 'running' ? <RefreshCw className="w-5 h-5 animate-spin" /> :
-                     <Clock className="w-5 h-5" />}
-                  </div>
-                  <div>
-                    <h3 className="text-[15px] font-medium capitalize flex items-center gap-2 text-foreground">
-                      {summary?.lastSyncStatus === 'success' ? 'Başarılı' : 
-                       summary?.lastSyncStatus === 'failed' ? 'Başarısız' : 
-                       summary?.lastSyncStatus === 'running' ? 'Çalışıyor' : 'Bekliyor'}
-                    </h3>
-                    <p className="text-[13px] text-muted-foreground font-mono mt-0.5">
-                      {summary?.lastSuccessSyncAt ? formatDate(summary.lastSuccessSyncAt) : "İlk senkronizasyon bekleniyor"}
-                    </p>
-                  </div>
-                </div>
-
-                {summary?.lastSyncError && (
-                  <div className="p-5 rounded-xl border border-[#dfa88f] bg-[#dfa88f]/10">
-                    <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4" /> Hata Detayı
-                    </p>
-                    <p className="text-xs font-mono text-foreground/80 leading-relaxed">{summary.lastSyncError}</p>
-                  </div>
-                )}
-
-                {(summary?.lastSyncRecordsFound != null || summary?.lastSyncRecordsInserted != null) && (
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="p-5 rounded-xl border border-border bg-card flex flex-col items-center justify-center text-center">
-                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">Bulunan Kayıt</span>
-                      <span className="text-2xl font-normal font-mono text-foreground">{formatNumber(summary?.lastSyncRecordsFound, 0)}</span>
+              <div className="divide-y divide-border">
+                {kits.map((row) => (
+                  <Link key={row.kitNo} href={`/cdr-records?kitNo=${encodeURIComponent(row.kitNo)}`}>
+                    <div className="flex items-center justify-between py-3 hover:bg-secondary/50 -mx-2 px-2 rounded-md cursor-pointer transition-colors group">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="p-1.5 rounded-md bg-secondary text-muted-foreground shrink-0">
+                          <Terminal className="w-4 h-4" />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-mono text-[13px] text-foreground truncate">{row.kitNo}</span>
+                          <span className="text-[11px] text-muted-foreground truncate" title={row.shipName || undefined}>
+                            {row.shipName || "—"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-6 shrink-0">
+                        <div className="text-right">
+                          <div className="font-mono text-[13px] text-foreground">{formatNumber(row.totalGb, 2)}</div>
+                          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">GB</div>
+                        </div>
+                        <div className="text-right min-w-[90px]">
+                          <div className="font-mono text-[13px] text-foreground">{formatCurrency(row.totalPrice)}</div>
+                          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Tutar</div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="p-5 rounded-xl border border-[#9fc9a2] bg-[#9fc9a2]/10 flex flex-col items-center justify-center text-center">
-                      <span className="text-[11px] font-semibold text-foreground uppercase tracking-widest mb-2">Eklenen</span>
-                      <span className="text-2xl font-normal font-mono text-foreground">{formatNumber(summary?.lastSyncRecordsInserted, 0)}</span>
-                    </div>
-                    <div className="p-5 rounded-xl border border-[#c0a8dd] bg-[#c0a8dd]/10 flex flex-col items-center justify-center text-center">
-                      <span className="text-[11px] font-semibold text-foreground uppercase tracking-widest mb-2">Güncellenen</span>
-                      <span className="text-2xl font-normal font-mono text-foreground">{formatNumber(summary?.lastSyncRecordsUpdated, 0)}</span>
-                    </div>
-                  </div>
-                )}
+                  </Link>
+                ))}
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Quick Links - Span 5 */}
-        <Card className="border border-border bg-card shadow-none md:col-span-5 rounded-xl">
+        {/* Compact System Health - Span 4 */}
+        <Card className="border border-border bg-card shadow-none md:col-span-4 rounded-xl flex flex-col">
           <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-normal tracking-tight">Hızlı Erişim</CardTitle>
-            <CardDescription className="mt-1 text-sm">Sık kullanılan görünümler</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <Link href="/cdr-records">
-                <div className="group flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:bg-secondary transition-colors cursor-pointer">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 rounded-md bg-secondary text-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                      <Database className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-[15px] font-medium text-foreground">CDR Kayıtları</h4>
-                      <p className="text-xs text-muted-foreground mt-0.5">Ham kullanım kayıtlarını filtrele</p>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all transform -translate-x-2 group-hover:translate-x-0" />
-                </div>
-              </Link>
-              
-              <Link href="/kits">
-                <div className="group flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:bg-secondary transition-colors cursor-pointer">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 rounded-md bg-secondary text-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                      <List className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-[15px] font-medium text-foreground">KIT Özeti</h4>
-                      <p className="text-xs text-muted-foreground mt-0.5">Terminal aggregasyonlarını görüntüle</p>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all transform -translate-x-2 group-hover:translate-x-0" />
-                </div>
-              </Link>
-
-              <Link href="/settings">
-                <div className="group flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:bg-secondary transition-colors cursor-pointer">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 rounded-md bg-secondary text-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                      <Settings className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-[15px] font-medium text-foreground">Ayarlar</h4>
-                      <p className="text-xs text-muted-foreground mt-0.5">Kimlik bilgilerini yönet</p>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all transform -translate-x-2 group-hover:translate-x-0" />
-                </div>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg font-normal tracking-tight">Sistem Sağlığı</CardTitle>
+              <Link href="/sync-logs">
+                <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-muted-foreground hover:bg-secondary rounded-md">
+                  <ArrowRight className="w-3 h-3" />
+                </Button>
               </Link>
             </div>
+          </CardHeader>
+          <CardContent className="flex-1 flex flex-col gap-4">
+            {isLoading ? (
+              <Skeleton className="h-32 w-full rounded-lg" />
+            ) : (
+              <>
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-secondary/40">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                    summary?.lastSyncStatus === 'success' ? 'bg-[#9fc9a2] text-foreground' :
+                    summary?.lastSyncStatus === 'failed' ? 'bg-[#dfa88f] text-foreground' :
+                    summary?.lastSyncStatus === 'running' ? 'bg-[#9fbbe0] text-foreground' :
+                    'bg-border text-muted-foreground'
+                  }`}>
+                    {summary?.lastSyncStatus === 'success' ? <CheckCircle2 className="w-4 h-4" /> :
+                     summary?.lastSyncStatus === 'failed' ? <AlertCircle className="w-4 h-4" /> :
+                     summary?.lastSyncStatus === 'running' ? <RefreshCw className="w-4 h-4 animate-spin" /> :
+                     <Clock className="w-4 h-4" />}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-medium text-foreground leading-tight">
+                      {summary?.lastSyncStatus === 'success' ? 'Başarılı' :
+                       summary?.lastSyncStatus === 'failed' ? 'Başarısız' :
+                       summary?.lastSyncStatus === 'running' ? 'Çalışıyor' : 'Bekliyor'}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate">
+                      {summary?.lastSuccessSyncAt ? formatDate(summary.lastSuccessSyncAt) : "İlk sync bekleniyor"}
+                    </div>
+                  </div>
+                </div>
+
+                {summary?.lastSyncError && (
+                  <div className="p-3 rounded-lg border border-[#dfa88f] bg-[#dfa88f]/10">
+                    <p className="text-[11px] font-medium text-foreground mb-1 flex items-center gap-1.5">
+                      <AlertCircle className="w-3 h-3" /> Hata
+                    </p>
+                    <p className="text-[10px] font-mono text-foreground/70 leading-relaxed line-clamp-3">{summary.lastSyncError}</p>
+                  </div>
+                )}
+
+                {(summary?.lastSyncRecordsFound != null || summary?.lastSyncRecordsInserted != null) && (
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="p-2.5 rounded-md border border-border text-center">
+                      <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Bulunan</div>
+                      <div className="text-base font-normal font-mono text-foreground">{formatNumber(summary?.lastSyncRecordsFound, 0)}</div>
+                    </div>
+                    <div className="p-2.5 rounded-md border border-[#9fc9a2]/60 bg-[#9fc9a2]/10 text-center">
+                      <div className="text-[9px] font-semibold text-foreground uppercase tracking-wider mb-1">Eklenen</div>
+                      <div className="text-base font-normal font-mono text-foreground">{formatNumber(summary?.lastSyncRecordsInserted, 0)}</div>
+                    </div>
+                    <div className="p-2.5 rounded-md border border-[#c0a8dd]/60 bg-[#c0a8dd]/10 text-center">
+                      <div className="text-[9px] font-semibold text-foreground uppercase tracking-wider mb-1">Güncel.</div>
+                      <div className="text-base font-normal font-mono text-foreground">{formatNumber(summary?.lastSyncRecordsUpdated, 0)}</div>
+                    </div>
+                  </div>
+                )}
+
+                <Button
+                  onClick={handleSync}
+                  disabled={isSyncing}
+                  className="mt-auto w-full rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-none transition-colors h-10 text-sm font-medium"
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                  {isSyncing ? "Senkronize ediliyor..." : "Şimdi senkronize et"}
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
