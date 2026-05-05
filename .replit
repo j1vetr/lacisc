@@ -18,3 +18,17 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[userenv]
+
+[userenv.shared]
+JWT_SECRET = "1aaa85ea2b11b9a7b846de28ebef0fb8404a7e93ca57b0f606f126587e32aa17"
+ENCRYPTION_KEY = "e89cd651c8033c5fbff141d83a4cdfe2d2660d69a433d3aa24c74c4d479cde82"
+
+[[ports]]
+localPort = 8080
+externalPort = 80
+
+[[ports]]
+localPort = 20130
+externalPort = 3000

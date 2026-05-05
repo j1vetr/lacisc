@@ -351,16 +351,28 @@ export async function customFetch<T = unknown>(
 
   // Attach bearer token when an auth getter is configured and no
   // Authorization header has been explicitly provided.
-  if (_authTokenGetter && !headers.has("authorization")) {
-    const token = await _authTokenGetter();
+  if (!headers.has("authorization")) {
+    const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
     if (token) {
       headers.set("authorization", `Bearer ${token}`);
+    } else if (_authTokenGetter) {
+      const getterToken = await _authTokenGetter();
+      if (getterToken) {
+        headers.set("authorization", `Bearer ${getterToken}`);
+      }
     }
   }
 
   const requestInfo = { method, url: resolveUrl(input) };
 
   const response = await fetch(input, { ...init, method, headers });
+
+  if (response.status === 401 && typeof window !== "undefined") {
+    localStorage.removeItem("auth_token");
+    if (!window.location.pathname.includes("/login")) {
+      window.location.href = "/login";
+    }
+  }
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);
