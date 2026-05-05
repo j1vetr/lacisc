@@ -232,33 +232,25 @@ export async function runSync(
       pageHasPasswordInput: postSubmitContent.includes('type="password"'),
     }, "Login form submitted");
 
-    // Authoritative login check: try to reach the protected CDR page.
-    // If the portal session is invalid, ASP.NET will redirect us back to the login page.
-    await page.goto(`${baseUrl}/ratedCdrs.aspx`, {
-      waitUntil: "networkidle",
-      timeout: 30000,
-    }).catch(() => {});
+    // Decide login success based on the post-submit page itself, NOT by trying
+    // to reach /ratedCdrs.aspx (direct deep-link navigation loses the session
+    // on this portal — the ASP.NET app requires a click-through from the menu).
+    const stillOnLoginAfterSubmit =
+      /Account\/Login/i.test(postSubmitUrl) ||
+      postSubmitContent.includes('type="password"');
 
-    const finalUrl = page.url();
-    const cdrContent = await page.content();
-    const stillOnLogin =
-      /login|signin|default\.aspx/i.test(finalUrl) ||
-      (await page.locator("input[type='password']").count()) > 0;
-
-    if (stillOnLogin) {
-      const screenshotPath = "/tmp/login-debug.png";
-      const htmlSnapshotPath = "/tmp/login-debug.html";
-      await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => {});
-      await import("fs").then(fs => fs.promises.writeFile(htmlSnapshotPath, cdrContent)).catch(() => {});
-      logger.warn({ finalUrl }, "Login appears to have failed (still on login page)");
+    if (stillOnLoginAfterSubmit) {
+      logger.warn({ postSubmitUrl, errorTexts }, "Login truly failed (still on login page after submit)");
       return {
         success: false,
-        message: `Login failed: portal redirected back to login page (url=${finalUrl}). Check credentials and portal URL.`,
+        message: errorTexts.length > 0
+          ? `Login failed: ${errorTexts.join(" / ")}`
+          : `Login failed: portal kept us on the login page (url=${postSubmitUrl}). Check username/password.`,
         recordsFound: 0,
         recordsInserted: 0,
         recordsUpdated: 0,
-        screenshotPath,
-        htmlSnapshotPath,
+        screenshotPath: "/tmp/post-submit-debug.png",
+        htmlSnapshotPath: "/tmp/post-submit-debug.html",
       };
     }
 
@@ -272,14 +264,37 @@ export async function runSync(
       };
     }
 
-    if (!/ratedcdrs\.aspx/i.test(finalUrl) && !cdrContent.toLowerCase().includes("cdr")) {
+    // Reach the CDR page by clicking the menu link from the authenticated welcome
+    // page. This preserves the session that direct page.goto() loses.
+    const cdrLink = page.locator("a[href*='ratedCdrs.aspx' i], a[href*='RatedCdrs.aspx' i]").first();
+    const cdrLinkCount = await cdrLink.count();
+    logger.info({ cdrLinkCount }, "Looking for CDR menu link");
+
+    if (cdrLinkCount > 0) {
+      await Promise.all([
+        page.waitForNavigation({ waitUntil: "networkidle", timeout: 30000 }).catch(() => {}),
+        cdrLink.click(),
+      ]);
+    } else {
+      // Fallback: try direct navigation
+      await page.goto(`${baseUrl}/ratedCdrs.aspx`, {
+        waitUntil: "networkidle",
+        timeout: 30000,
+      }).catch(() => {});
+    }
+
+    const finalUrl = page.url();
+    const cdrContent = await page.content();
+    logger.info({ finalUrl, viaMenuClick: cdrLinkCount > 0 }, "Reached CDR page candidate");
+
+    if (/Account\/Login/i.test(finalUrl) || (await page.locator("input[type='password']").count()) > 0) {
       const screenshotPath = "/tmp/rated-cdrs-debug.png";
       const htmlSnapshotPath = "/tmp/rated-cdrs-debug.html";
       await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => {});
       await import("fs").then(fs => fs.promises.writeFile(htmlSnapshotPath, cdrContent)).catch(() => {});
       return {
         success: false,
-        message: `Could not reach Rated CDRs page (landed on ${finalUrl})`,
+        message: `Reached login page when trying to open CDR page (url=${finalUrl}). The user may lack CDR access permission.`,
         recordsFound: 0,
         recordsInserted: 0,
         recordsUpdated: 0,
