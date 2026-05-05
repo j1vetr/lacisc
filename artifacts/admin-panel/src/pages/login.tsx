@@ -4,6 +4,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import brandLogo from "@assets/1_1778023047729.png";
+import toovLogo from "@assets/TOOV_1778023131850.png";
 import { useLogin } from "@workspace/api-client-react";
 
 import { Button } from "@/components/ui/button";
@@ -123,6 +124,12 @@ export default function Login() {
               </Button>
             </form>
           </Form>
+          <div className="mt-8 pt-6 border-t border-border flex items-center justify-center gap-3">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-medium">
+              Geliştirici
+            </span>
+            <img src={toovLogo} alt="TOOV" className="h-5 w-auto object-contain opacity-80" />
+          </div>
         </CardContent>
       </Card>
     </div>
