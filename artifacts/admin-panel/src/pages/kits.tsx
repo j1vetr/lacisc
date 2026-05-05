@@ -49,21 +49,21 @@ export default function Kits() {
   };
 
   return (
-    <div className="space-y-6 flex flex-col h-[calc(100vh-6rem)] animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 shrink-0">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Terminal Directory</h1>
-          <p className="text-sm text-muted-foreground font-medium">Aggregated performance and billing per KIT.</p>
+    <div className="space-y-8 flex flex-col h-[calc(100vh-8rem)] animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-6 shrink-0">
+        <div className="space-y-2">
+          <h1 className="text-[40px] leading-[1.1] font-normal tracking-[-0.02em] text-foreground">KIT Özeti</h1>
+          <p className="text-base text-muted-foreground">Terminal bazlı aggregasyonlar ve toplam kullanımlar.</p>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-4 shrink-0 p-1">
+      <div className="flex flex-wrap gap-4 shrink-0">
         <div className="relative w-full max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search Terminal KIT..."
-            className="pl-10 h-11 bg-card/40 border-border/50 rounded-xl font-mono text-sm shadow-sm backdrop-blur"
+            placeholder="Ara: Terminal KIT..."
+            className="pl-10 h-10 bg-card border-border rounded-lg font-mono text-sm shadow-none"
             value={kitNo}
             onChange={(e) => setKitNo(e.target.value)}
           />
@@ -71,78 +71,76 @@ export default function Kits() {
       </div>
 
       {/* Data Table */}
-      <div className="rounded-xl border border-border/50 bg-card/40 backdrop-blur flex-1 overflow-hidden flex flex-col min-h-0 shadow-sm">
+      <div className="rounded-xl border border-border bg-card flex-1 overflow-hidden flex flex-col min-h-0 shadow-none">
         <div className="overflow-auto flex-1 relative">
-          <Table className="relative w-full text-sm">
-            <Header className="sticky top-0 z-10 bg-card/80 backdrop-blur-xl shadow-[0_1px_0_0_var(--color-border)]">
+          <Table className="relative w-full text-[13px]">
+            <Header className="sticky top-0 z-10 bg-card shadow-[0_1px_0_0_var(--color-border)]">
               <Row className="hover:bg-transparent border-none">
-                <Head className="w-[240px] pl-8 font-semibold uppercase tracking-wider text-xs">Terminal Identifier</Head>
-                <Head className="w-[140px] text-right cursor-pointer hover:bg-secondary/30 transition-colors group font-semibold uppercase tracking-wider text-xs" onClick={() => toggleSort("totalGb")}>
-                  <div className="flex items-center justify-end">Volume (GB) <SortIcon col="totalGb" /></div>
+                <Head className="w-[240px] pl-8 font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Terminal No</Head>
+                <Head className="w-[140px] text-right cursor-pointer hover:bg-secondary transition-colors group font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12" onClick={() => toggleSort("totalGb")}>
+                  <div className="flex items-center justify-end">Toplam Veri (GB) <SortIcon col="totalGb" /></div>
                 </Head>
-                <Head className="w-[160px] text-right cursor-pointer hover:bg-secondary/30 transition-colors group font-semibold uppercase tracking-wider text-xs" onClick={() => toggleSort("totalPrice")}>
-                  <div className="flex items-center justify-end">Total Billed <SortIcon col="totalPrice" /></div>
+                <Head className="w-[160px] text-right cursor-pointer hover:bg-secondary transition-colors group font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12" onClick={() => toggleSort("totalPrice")}>
+                  <div className="flex items-center justify-end">Toplam Tutar <SortIcon col="totalPrice" /></div>
                 </Head>
-                <Head className="w-[100px] text-right font-semibold uppercase tracking-wider text-xs">Entries</Head>
-                <Head className="w-[120px] text-right font-semibold uppercase tracking-wider text-xs">Period</Head>
-                <Head className="w-[180px] text-right cursor-pointer hover:bg-secondary/30 transition-colors group font-semibold uppercase tracking-wider text-xs pr-8" onClick={() => toggleSort("lastSeen")}>
-                  <div className="flex items-center justify-end">Last Updated <SortIcon col="lastSeen" /></div>
+                <Head className="w-[100px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Kayıt Sayısı</Head>
+                <Head className="w-[120px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Son Dönem</Head>
+                <Head className="w-[180px] text-right cursor-pointer hover:bg-secondary transition-colors group font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12 pr-8" onClick={() => toggleSort("lastSeen")}>
+                  <div className="flex items-center justify-end">Son Güncelleme <SortIcon col="lastSeen" /></div>
                 </Head>
               </Row>
             </Header>
-            <Body className="divide-y divide-border/30">
+            <Body className="divide-y divide-border">
               {isLoading ? (
                 Array.from({ length: 12 }).map((_, i) => (
-                  <Row key={i} className="border-none">
-                    <Cell className="pl-8 py-4"><Skeleton className="h-6 w-32 rounded-md" /></Cell>
-                    <Cell><Skeleton className="h-5 w-20 ml-auto rounded" /></Cell>
-                    <Cell><Skeleton className="h-5 w-24 ml-auto rounded" /></Cell>
-                    <Cell><Skeleton className="h-5 w-12 ml-auto rounded" /></Cell>
-                    <Cell><Skeleton className="h-5 w-16 ml-auto rounded" /></Cell>
-                    <Cell className="pr-8"><Skeleton className="h-5 w-24 ml-auto rounded" /></Cell>
+                  <Row key={i} className="border-none h-14">
+                    <Cell className="pl-8"><Skeleton className="h-4 w-32 rounded" /></Cell>
+                    <Cell><Skeleton className="h-4 w-20 ml-auto rounded" /></Cell>
+                    <Cell><Skeleton className="h-4 w-24 ml-auto rounded" /></Cell>
+                    <Cell><Skeleton className="h-4 w-12 ml-auto rounded" /></Cell>
+                    <Cell><Skeleton className="h-4 w-16 ml-auto rounded" /></Cell>
+                    <Cell className="pr-8"><Skeleton className="h-4 w-24 ml-auto rounded" /></Cell>
                   </Row>
                 ))
               ) : kits?.length === 0 ? (
-                <Row className="hover:bg-transparent">
+                <Row className="hover:bg-transparent border-none">
                   <Cell colSpan={6} className="h-48 text-center text-muted-foreground font-medium">
-                    No terminals matched your search.
+                    Aramanızla eşleşen terminal bulunamadı.
                   </Cell>
                 </Row>
               ) : (
                 kits?.map((row) => (
                   <Row 
                     key={row.kitNo} 
-                    className="hover:bg-secondary/30 transition-all cursor-pointer group border-none"
+                    className="hover:bg-secondary transition-all cursor-pointer group border-none h-14"
                     onClick={() => handleRowClick(row.kitNo)}
                   >
-                    <Cell className="pl-8 py-3.5">
+                    <Cell className="pl-8">
                       <div className="flex items-center gap-3">
-                        <div className="p-1.5 rounded-md bg-secondary/50 group-hover:bg-primary/10 transition-colors">
-                          <Terminal className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                        <div className="p-1.5 rounded-md bg-secondary text-muted-foreground">
+                          <Terminal className="w-4 h-4" />
                         </div>
-                        <Badge variant="secondary" className="bg-transparent text-foreground border-border group-hover:border-primary/30 group-hover:text-primary transition-colors rounded-md font-mono px-2.5 py-1 tracking-tight text-[13px] shadow-sm">
-                          {row.kitNo}
-                        </Badge>
+                        <span className="font-mono text-[13px] text-foreground">{row.kitNo}</span>
                       </div>
                     </Cell>
-                    <Cell className="text-right font-mono text-sm font-medium text-foreground/90">
+                    <Cell className="text-right font-mono text-[13px] text-foreground">
                       {formatNumber(row.totalGb, 2)}
                     </Cell>
-                    <Cell className="text-right font-mono text-sm font-semibold text-green-500/90">
+                    <Cell className="text-right font-mono text-[13px] text-foreground">
                       {formatCurrency(row.totalPrice)}
                     </Cell>
                     <Cell className="text-right font-mono text-xs text-muted-foreground">
-                      <span className="bg-secondary/50 px-2 py-0.5 rounded-full">{formatNumber(row.recordCount, 0)}</span>
+                      {formatNumber(row.recordCount, 0)}
                     </Cell>
-                    <Cell className="text-right font-mono text-xs text-muted-foreground font-medium">
+                    <Cell className="text-right font-mono text-[11px] text-foreground">
                       {row.lastPeriod || "-"}
                     </Cell>
                     <Cell className="text-right pr-8">
                       <div className="flex items-center justify-end gap-3">
-                        <span className="text-xs font-mono text-muted-foreground whitespace-nowrap">
+                        <span className="text-[11px] font-mono text-muted-foreground whitespace-nowrap">
                           {formatDate(row.lastSyncedAt)}
                         </span>
-                        <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all transform -translate-x-2 group-hover:translate-x-0" />
+                        <ArrowRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all transform -translate-x-2 group-hover:translate-x-0" />
                       </div>
                     </Cell>
                   </Row>
@@ -152,8 +150,8 @@ export default function Kits() {
           </Table>
         </div>
         
-        <div className="border-t border-border/30 p-3 bg-card/60 shrink-0 text-xs font-medium text-muted-foreground text-center backdrop-blur-md">
-          {kits?.length || 0} unique terminals available. Click a row to inspect detailed billing entries.
+        <div className="border-t border-border p-3 bg-card shrink-0 text-xs text-muted-foreground text-center">
+          Toplam {kits?.length || 0} tekil terminal listeleniyor. Detaylı CDR kayıtları için bir satıra tıklayın.
         </div>
       </div>
     </div>

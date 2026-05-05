@@ -101,25 +101,25 @@ export default function CdrRecords() {
   };
 
   return (
-    <div className="space-y-6 flex flex-col h-[calc(100vh-6rem)] animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 shrink-0">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">CDR Database</h1>
-          <p className="text-sm text-muted-foreground font-medium">Scraped records mapped to terminals.</p>
+    <div className="space-y-8 flex flex-col h-[calc(100vh-8rem)] animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-6 shrink-0">
+        <div className="space-y-2">
+          <h1 className="text-[40px] leading-[1.1] font-normal tracking-[-0.02em] text-foreground">CDR Kayıtları</h1>
+          <p className="text-base text-muted-foreground">Terminallere göre eşlenmiş ham kullanım kayıtları.</p>
         </div>
-        <Button onClick={handleExport} variant="outline" className="rounded-full bg-background/50 border-border/80 hover:bg-secondary">
+        <Button onClick={handleExport} className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-none h-10 px-5 text-sm font-medium">
           <Download className="w-4 h-4 mr-2" />
-          Export CSV
+          CSV İndir
         </Button>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-4 shrink-0 p-1">
+      <div className="flex flex-wrap gap-4 shrink-0">
         <div className="relative w-full max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search Terminal KIT..."
-            className="pl-10 h-11 bg-card/40 border-border/50 rounded-xl font-mono text-sm shadow-sm backdrop-blur"
+            placeholder="Ara: KIT No..."
+            className="pl-10 h-10 bg-card border-border rounded-lg font-mono text-sm shadow-none"
             value={kitNo}
             onChange={(e) => setKitNo(e.target.value)}
           />
@@ -127,8 +127,8 @@ export default function CdrRecords() {
         <div className="relative w-48">
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Period (MM/YYYY)"
-            className="pl-10 h-11 bg-card/40 border-border/50 rounded-xl font-mono text-sm shadow-sm backdrop-blur"
+            placeholder="Dönem (MM/YYYY)"
+            className="pl-10 h-10 bg-card border-border rounded-lg font-mono text-sm shadow-none"
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
           />
@@ -136,34 +136,34 @@ export default function CdrRecords() {
       </div>
 
       {/* Data Table */}
-      <div className="rounded-xl border border-border/50 bg-card/40 backdrop-blur flex-1 overflow-hidden flex flex-col min-h-0 shadow-sm">
+      <div className="rounded-xl border border-border bg-card flex-1 overflow-hidden flex flex-col min-h-0 shadow-none">
         <div className="overflow-auto flex-1 relative">
-          <Table className="relative w-full text-sm">
-            <Header className="sticky top-0 z-10 bg-card/80 backdrop-blur-xl shadow-[0_1px_0_0_var(--color-border)]">
+          <Table className="relative w-full text-[13px]">
+            <Header className="sticky top-0 z-10 bg-card shadow-[0_1px_0_0_var(--color-border)]">
               <Row className="hover:bg-transparent border-none">
-                <Head className="w-[140px] pl-6 font-semibold uppercase tracking-wider text-xs">Terminal</Head>
-                <Head className="w-[100px] font-semibold uppercase tracking-wider text-xs">Period</Head>
-                <Head className="w-[120px] cursor-pointer hover:bg-secondary/30 transition-colors group font-semibold uppercase tracking-wider text-xs" onClick={() => toggleSort("startCdr")}>
-                  <div className="flex items-center">Date <SortIcon col="startCdr" /></div>
+                <Head className="w-[140px] pl-6 font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Terminal</Head>
+                <Head className="w-[100px] font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Dönem</Head>
+                <Head className="w-[120px] cursor-pointer hover:bg-secondary transition-colors group font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12" onClick={() => toggleSort("startCdr")}>
+                  <div className="flex items-center">Başlangıç <SortIcon col="startCdr" /></div>
                 </Head>
-                <Head className="w-[120px] font-semibold uppercase tracking-wider text-xs">Client Code</Head>
-                <Head className="w-[180px] font-semibold uppercase tracking-wider text-xs">Service</Head>
-                <Head className="w-[100px] text-right cursor-pointer hover:bg-secondary/30 transition-colors group font-semibold uppercase tracking-wider text-xs" onClick={() => toggleSort("totalVolumeGbNumeric")}>
-                  <div className="flex items-center justify-end">Volume <SortIcon col="totalVolumeGbNumeric" /></div>
+                <Head className="w-[120px] font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Müşteri Kodu</Head>
+                <Head className="w-[180px] font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Servis</Head>
+                <Head className="w-[100px] text-right cursor-pointer hover:bg-secondary transition-colors group font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12" onClick={() => toggleSort("totalVolumeGbNumeric")}>
+                  <div className="flex items-center justify-end">Toplam Veri <SortIcon col="totalVolumeGbNumeric" /></div>
                 </Head>
-                <Head className="w-[120px] text-right cursor-pointer hover:bg-secondary/30 transition-colors group font-semibold uppercase tracking-wider text-xs" onClick={() => toggleSort("totalPrice")}>
-                  <div className="flex items-center justify-end">Invoiced <SortIcon col="totalPrice" /></div>
+                <Head className="w-[120px] text-right cursor-pointer hover:bg-secondary transition-colors group font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12" onClick={() => toggleSort("totalPrice")}>
+                  <div className="flex items-center justify-end">Tutar <SortIcon col="totalPrice" /></div>
                 </Head>
-                <Head className="w-[160px] text-right cursor-pointer hover:bg-secondary/30 transition-colors group font-semibold uppercase tracking-wider text-xs pr-6" onClick={() => toggleSort("syncedAt")}>
-                  <div className="flex items-center justify-end">Acquired <SortIcon col="syncedAt" /></div>
+                <Head className="w-[160px] text-right cursor-pointer hover:bg-secondary transition-colors group font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12 pr-6" onClick={() => toggleSort("syncedAt")}>
+                  <div className="flex items-center justify-end">Senkronize Edildi <SortIcon col="syncedAt" /></div>
                 </Head>
               </Row>
             </Header>
-            <Body className="divide-y divide-border/30">
+            <Body className="divide-y divide-border">
               {isLoading ? (
                 Array.from({ length: 15 }).map((_, i) => (
                   <Row key={i} className="border-none">
-                    <Cell className="pl-6"><Skeleton className="h-5 w-20 rounded" /></Cell>
+                    <Cell className="pl-6 h-12"><Skeleton className="h-4 w-20 rounded" /></Cell>
                     <Cell><Skeleton className="h-4 w-12 rounded" /></Cell>
                     <Cell><Skeleton className="h-4 w-20 rounded" /></Cell>
                     <Cell><Skeleton className="h-4 w-16 rounded" /></Cell>
@@ -174,33 +174,33 @@ export default function CdrRecords() {
                   </Row>
                 ))
               ) : data?.records.length === 0 ? (
-                <Row className="hover:bg-transparent">
+                <Row className="hover:bg-transparent border-none">
                   <Cell colSpan={8} className="h-48 text-center text-muted-foreground font-medium">
-                    No matching records found.
+                    Kayıt yok.
                   </Cell>
                 </Row>
               ) : (
                 data?.records.map((row) => (
-                  <Row key={row.id} className="hover:bg-secondary/20 transition-colors border-none">
-                    <Cell className="pl-6 py-3">
-                      <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20 border-primary/10 rounded-md font-mono px-2 py-0.5 tracking-tight">
+                  <Row key={row.id} className="hover:bg-secondary transition-colors border-none h-12">
+                    <Cell className="pl-6 py-2">
+                      <Badge variant="secondary" className="bg-secondary text-foreground border-none rounded-[4px] font-mono px-1.5 py-0.5 tracking-tight text-[11px]">
                         {row.kitNo}
                       </Badge>
                     </Cell>
                     <Cell className="font-mono text-xs text-muted-foreground">{row.period || "-"}</Cell>
-                    <Cell className="text-xs whitespace-nowrap font-medium text-muted-foreground">{row.startCdr ? row.startCdr.split(' ')[0] : "-"}</Cell>
-                    <Cell className="text-xs truncate max-w-[120px] font-medium">{row.customerCode || "-"}</Cell>
+                    <Cell className="text-xs whitespace-nowrap font-medium text-foreground">{row.startCdr ? row.startCdr.split(' ')[0] : "-"}</Cell>
+                    <Cell className="text-xs truncate max-w-[120px] font-medium text-foreground">{row.customerCode || "-"}</Cell>
                     <Cell className="text-xs">
-                      <div className="truncate max-w-[160px] font-medium text-foreground/90">{row.product || "-"}</div>
+                      <div className="truncate max-w-[160px] font-medium text-foreground">{row.product || "-"}</div>
                       <div className="truncate max-w-[160px] text-muted-foreground mt-0.5">{row.service || "-"}</div>
                     </Cell>
                     <Cell className="text-right font-mono text-xs">
-                      <span className="text-foreground/90">{row.totalVolumeGbNumeric != null ? formatNumber(row.totalVolumeGbNumeric, 4) : "-"}</span>
+                      <span className="text-foreground">{row.totalVolumeGbNumeric != null ? formatNumber(row.totalVolumeGbNumeric, 4) : "-"}</span>
                     </Cell>
-                    <Cell className="text-right font-mono text-xs font-semibold text-green-500/90">
-                      {row.currency} {formatNumber(row.totalPrice)}
+                    <Cell className="text-right font-mono text-[13px] font-medium text-foreground">
+                      {formatCurrency(row.totalPrice, row.currency || "USD")}
                     </Cell>
-                    <Cell className="text-right text-xs font-mono text-muted-foreground whitespace-nowrap pr-6">
+                    <Cell className="text-right text-[11px] font-mono text-muted-foreground whitespace-nowrap pr-6">
                       {formatDate(row.syncedAt)}
                     </Cell>
                   </Row>
@@ -211,32 +211,32 @@ export default function CdrRecords() {
         </div>
         
         {/* Pagination */}
-        <div className="border-t border-border/30 p-3 px-6 flex items-center justify-between bg-card/60 shrink-0 backdrop-blur-md">
-          <div className="text-xs text-muted-foreground font-medium">
-            {isFetching && <span className="mr-4 text-primary animate-pulse">Updating...</span>}
-            Showing {data?.records.length || 0} of {formatNumber(data?.total || 0, 0)} entries
+        <div className="border-t border-border p-3 px-6 flex items-center justify-between bg-card shrink-0">
+          <div className="text-[13px] text-muted-foreground">
+            {isFetching && <span className="mr-4 text-primary">Yükleniyor...</span>}
+            Toplam {formatNumber(data?.total || 0, 0)} kaydın {data?.records.length || 0} kadarı gösteriliyor
           </div>
           <div className="flex items-center gap-3">
             <Button 
               variant="outline" 
               size="sm" 
-              className="h-8 rounded-full px-4 text-xs font-medium border-border/60 hover:bg-secondary"
+              className="h-8 rounded-lg px-4 text-xs font-medium border-border hover:bg-secondary shadow-none"
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1 || isLoading}
             >
-              Previous
+              Önceki
             </Button>
-            <div className="text-xs font-semibold font-mono bg-secondary/50 px-3 py-1.5 rounded-full">
+            <div className="text-xs font-mono bg-secondary px-3 py-1.5 rounded-lg text-foreground">
               {page} / {data?.totalPages || 1}
             </div>
             <Button 
               variant="outline" 
               size="sm"
-              className="h-8 rounded-full px-4 text-xs font-medium border-border/60 hover:bg-secondary" 
+              className="h-8 rounded-lg px-4 text-xs font-medium border-border hover:bg-secondary shadow-none" 
               onClick={() => setPage(p => p + 1)}
               disabled={page >= (data?.totalPages || 1) || isLoading}
             >
-              Next
+              Sonraki
             </Button>
           </div>
         </div>

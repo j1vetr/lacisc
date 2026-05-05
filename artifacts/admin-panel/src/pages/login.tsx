@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Satellite, Command } from "lucide-react";
+import { Command } from "lucide-react";
 import { useLogin } from "@workspace/api-client-react";
 
 import { Button } from "@/components/ui/button";
@@ -20,8 +20,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useToast } from "@/hooks/use-toast";
 
 const loginSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email address." }),
-  password: z.string().min(1, { message: "Password is required." }),
+  email: z.string().email({ message: "Lütfen geçerli bir e-posta adresi girin." }),
+  password: z.string().min(1, { message: "Şifre zorunludur." }),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -49,8 +49,8 @@ export default function Login() {
         },
         onError: (err: any) => {
           toast({
-            title: "Access Denied",
-            description: err.message || "Invalid secure credentials.",
+            title: "Erişim Reddedildi",
+            description: err.message || "Geçersiz kimlik bilgileri.",
             variant: "destructive",
           });
         },
@@ -59,38 +59,36 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-background bg-[url('/noise.png')] bg-repeat p-4">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/15 via-background to-background pointer-events-none opacity-50" />
-      
-      <Card className="w-full max-w-[420px] relative z-10 border-border/40 shadow-2xl bg-card/60 backdrop-blur-2xl rounded-3xl overflow-hidden">
-        <div className="h-1.5 w-full bg-gradient-to-r from-primary via-primary/50 to-transparent" />
+    <div className="min-h-screen w-full flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-[420px] bg-card border border-border shadow-none rounded-xl overflow-hidden">
+        <div className="h-1 w-full bg-primary" />
         <CardHeader className="space-y-4 pt-10 pb-8 text-center px-10">
-          <div className="mx-auto bg-background/50 p-4 rounded-2xl w-16 h-16 flex items-center justify-center border border-border/50 shadow-inner mb-2">
-            <Command className="w-8 h-8 text-primary" />
+          <div className="mx-auto bg-secondary p-3 rounded-lg w-12 h-12 flex items-center justify-center border border-border">
+            <Command className="w-6 h-6 text-foreground" />
           </div>
-          <div className="space-y-1.5">
-            <CardTitle className="text-2xl font-bold tracking-tight text-foreground">System Auth</CardTitle>
-            <CardDescription className="text-sm font-medium">
-              Station Satcom Operations Center
+          <div className="space-y-1">
+            <CardTitle className="text-2xl font-normal tracking-[-0.02em] text-foreground">Yönetici Girişi</CardTitle>
+            <CardDescription className="text-sm font-medium text-muted-foreground">
+              Station Satcom Operasyon Merkezi
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent className="px-10 pb-10">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <FormField
                   control={form.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Clearance Email</FormLabel>
+                      <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">E-posta</FormLabel>
                       <FormControl>
                         <Input 
                           placeholder="admin@stationsatcom.com" 
                           {...field} 
                           autoComplete="email"
-                          className="bg-background/80 border-border/50 h-12 rounded-xl text-sm"
+                          className="bg-background border-border h-11 rounded-lg text-sm focus-visible:ring-primary shadow-none"
                         />
                       </FormControl>
                       <FormMessage />
@@ -102,14 +100,14 @@ export default function Login() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Passkey</FormLabel>
+                      <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">Şifre</FormLabel>
                       <FormControl>
                         <Input 
                           type="password" 
                           placeholder="••••••••" 
                           {...field} 
                           autoComplete="current-password"
-                          className="bg-background/80 border-border/50 h-12 rounded-xl text-sm font-mono tracking-widest"
+                          className="bg-background border-border h-11 rounded-lg text-sm font-mono tracking-widest focus-visible:ring-primary shadow-none"
                         />
                       </FormControl>
                       <FormMessage />
@@ -119,10 +117,10 @@ export default function Login() {
               </div>
               <Button 
                 type="submit" 
-                className="w-full h-12 rounded-xl font-semibold text-[15px] shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all duration-300" 
+                className="w-full h-11 rounded-lg font-medium text-sm bg-primary text-primary-foreground hover:bg-primary/90 shadow-none transition-colors" 
                 disabled={loginMutation.isPending}
               >
-                {loginMutation.isPending ? "Verifying..." : "Initialize Session"}
+                {loginMutation.isPending ? "Yükleniyor..." : "Oturumu Başlat"}
               </Button>
             </form>
           </Form>

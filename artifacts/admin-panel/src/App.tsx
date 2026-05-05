@@ -62,11 +62,6 @@ function Router() {
 }
 
 function App() {
-  // Always dark mode
-  useEffect(() => {
-    document.documentElement.classList.add("dark");
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

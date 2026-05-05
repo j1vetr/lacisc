@@ -59,16 +59,25 @@ lib/
 
 ## Product
 
-- Login with JWT auth
-- Dashboard: KPI cards (total KITs, GB, USD, active period) + last sync status + quick actions
-- CDR Records: paginated, sortable, filterable table with CSV export
-- KIT Summary: aggregated usage/billing per terminal with click-through to CDRs
-- Sync Logs: history of all scraper runs with color-coded status and duration
-- Settings: configure portal URL/credentials, test connection, toggle background sync
+- Yönetici Girişi (JWT auth)
+- Panel: KPI kartları (toplam KIT, GB, USD, aktif dönem) + son sync durumu + hızlı aksiyonlar
+- CDR Kayıtları: sayfalanmış, sıralanabilir, filtrelenebilir tablo + CSV indirme
+- KIT Özeti: terminal başına toplam kullanım/faturalama, CDR'lere tıklama
+- Senkronizasyon Kayıtları: tüm scraper çalışmaları, renkli durum rozetleri (timeline pasteller)
+- Ayarlar: portal bilgileri, bağlantı testi, otomatik sync ayarı
+
+## Design system
+
+- **Theme**: Cursor.com inspired — warm cream canvas (#f7f7f4), warm ink (#26251e)
+- **Single CTA color**: Cursor Orange (#f54e00) — used scarcely on primary actions only
+- **Fonts**: Inter (UI, weight 400/500/600) + JetBrains Mono (numeric/code/KIT IDs)
+- **Depth**: hairline-only (1px #e6e5e0), no drop shadows
+- **Locale**: tr-TR throughout (`src/lib/format.ts`); all UI strings in Turkish
 
 ## User preferences
 
-_Populate as you build_
+- Tüm arayüz Türkçe olmalı
+- Cursor.com'un editöryel sakinliği baz alınacak (krem zemin, tek turuncu CTA, hairline depth)
 
 ## Gotchas
 

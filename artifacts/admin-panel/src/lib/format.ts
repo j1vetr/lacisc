@@ -1,4 +1,5 @@
 import { format, parseISO } from "date-fns";
+import { tr } from "date-fns/locale";
 
 export function formatCurrency(amount?: number | string | null, currency: string = "USD") {
   if (amount == null) return "-";
@@ -6,7 +7,7 @@ export function formatCurrency(amount?: number | string | null, currency: string
   const numericAmount = typeof amount === "string" ? parseFloat(amount) : amount;
   if (isNaN(numericAmount)) return String(amount);
   
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("tr-TR", {
     style: "currency",
     currency: currency || "USD",
     minimumFractionDigits: 2,
@@ -20,7 +21,7 @@ export function formatNumber(amount?: number | string | null, decimals: number =
   const numericAmount = typeof amount === "string" ? parseFloat(amount) : amount;
   if (isNaN(numericAmount)) return String(amount);
   
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("tr-TR", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   }).format(numericAmount);
@@ -29,7 +30,7 @@ export function formatNumber(amount?: number | string | null, decimals: number =
 export function formatDate(dateString?: string | null) {
   if (!dateString) return "-";
   try {
-    return format(parseISO(dateString), "MMM dd, yyyy HH:mm:ss");
+    return format(parseISO(dateString), "dd.MM.yyyy HH:mm", { locale: tr });
   } catch (e) {
     return dateString;
   }
