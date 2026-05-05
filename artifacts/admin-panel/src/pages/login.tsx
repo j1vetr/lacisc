@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Command } from "lucide-react";
+import brandLogo from "@assets/Adsız_tasarım_(5)_1778022902872.png";
 import { useLogin } from "@workspace/api-client-react";
 
 import { Button } from "@/components/ui/button";
@@ -62,15 +62,14 @@ export default function Login() {
     <div className="min-h-screen w-full flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-[420px] bg-card border border-border shadow-none rounded-xl overflow-hidden">
         <div className="h-1 w-full bg-primary" />
-        <CardHeader className="space-y-4 pt-10 pb-8 text-center px-10">
-          <div className="mx-auto bg-secondary p-3 rounded-lg w-12 h-12 flex items-center justify-center border border-border">
-            <Command className="w-6 h-6 text-foreground" />
-          </div>
+        <CardHeader className="space-y-6 pt-10 pb-8 text-center px-10">
+          <img
+            src={brandLogo}
+            alt="Lacivert Teknoloji"
+            className="mx-auto max-h-24 w-auto object-contain"
+          />
           <div className="space-y-1">
             <CardTitle className="text-2xl font-normal tracking-[-0.02em] text-foreground">Yönetici Girişi</CardTitle>
-            <CardDescription className="text-sm font-medium text-muted-foreground">
-              Station Satcom Operasyon Merkezi
-            </CardDescription>
           </div>
         </CardHeader>
         <CardContent className="px-10 pb-10">

@@ -1,5 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
+import brandLogo from "@assets/Adsız_tasarım_(5)_1778022902872.png";
 import { Activity, Database, LayoutDashboard, Settings, List, LogOut } from "lucide-react";
 import { useLogout, useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 
@@ -33,16 +34,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen w-full bg-background text-foreground overflow-hidden">
       {/* Sidebar */}
       <aside className="w-64 border-r border-border bg-background flex flex-col shrink-0">
-        <div className="h-20 flex items-center px-6 border-b border-border shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded bg-primary flex items-center justify-center text-primary-foreground font-bold tracking-tighter text-sm">
-              SS
-            </div>
-            <div className="flex flex-col">
-              <span className="font-semibold text-sm tracking-tight leading-tight text-foreground">Station Satcom</span>
-              <span className="text-[11px] text-muted-foreground uppercase tracking-widest font-semibold">Operasyon</span>
-            </div>
-          </div>
+        <div className="h-24 flex items-center justify-center px-4 border-b border-border shrink-0">
+          <img
+            src={brandLogo}
+            alt="Lacivert Teknoloji"
+            className="max-h-16 w-auto object-contain"
+          />
         </div>
 
         <nav className="flex-1 overflow-y-auto py-8 px-4 space-y-2">
