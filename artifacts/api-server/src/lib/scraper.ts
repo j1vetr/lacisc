@@ -153,38 +153,48 @@ export async function runSync(
     const page = await browser.newPage();
     await page.setDefaultNavigationTimeout(30000);
 
-    // Navigate to portal
+    // Navigate directly to the MVC login page (portal is ASP.NET MVC,
+    // landing on root just redirects to /Account/Login anyway).
     const baseUrl = portalUrl.endsWith("/") ? portalUrl.slice(0, -1) : portalUrl;
-    await page.goto(baseUrl, { waitUntil: "networkidle" });
+    await page.goto(`${baseUrl}/Account/Login`, { waitUntil: "networkidle" }).catch(async () => {
+      await page.goto(baseUrl, { waitUntil: "networkidle" });
+    });
 
-    // Find and fill login form
-    const usernameInput = await page
+    // ASP.NET MVC Identity uses Email/UserName fields. Try common selectors in order.
+    const usernameInput = page
       .locator(
-        "input[type='text'], input[name*='user'], input[name*='User'], input[id*='user'], input[id*='User'], input[name*='login'], input[id*='login']"
+        "input[name='Email'], input[id='Email'], input[name='UserName'], input[id='UserName'], input[name*='user' i], input[id*='user' i], input[type='email'], input[type='text']:not([type='hidden'])"
       )
       .first();
 
-    if (!(await usernameInput.isVisible())) {
+    if (!(await usernameInput.count())) {
+      const screenshotPath = "/tmp/login-form-debug.png";
+      await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => {});
       return {
         success: false,
-        message: "Could not find username input on login page",
+        message: `Could not find username input on login page (${page.url()})`,
         recordsFound: 0,
         recordsInserted: 0,
         recordsUpdated: 0,
+        screenshotPath,
       };
     }
 
     await usernameInput.fill(username);
 
-    const passwordInput = await page
-      .locator("input[type='password']")
-      .first();
+    const passwordInput = page.locator("input[type='password']").first();
     await passwordInput.fill(password);
 
-    // Submit login
+    // Click the actual submit button so the antiforgery token is included in the form post.
+    const submitButton = page.locator(
+      "button[type='submit'], input[type='submit'], button:has-text('Login'), button:has-text('Giriş'), button:has-text('Sign in')"
+    ).first();
+
     await Promise.all([
-      page.waitForNavigation({ waitUntil: "networkidle", timeout: 15000 }).catch(() => {}),
-      page.keyboard.press("Enter"),
+      page.waitForNavigation({ waitUntil: "networkidle", timeout: 20000 }).catch(() => {}),
+      (await submitButton.count())
+        ? submitButton.click()
+        : passwordInput.press("Enter"),
     ]);
 
     // Authoritative login check: try to reach the protected CDR page.
