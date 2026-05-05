@@ -76,45 +76,45 @@
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
 
-  /* Default to Dark Mode for Dashboard feel */
-  --background: 223 48% 8%; /* Dark Navy/Slate #0B1120 */
-  --foreground: 210 40% 98%; /* #F8FAFC */
+  /* Deep, sophisticated dark theme */
+  --background: 222 47% 6%; /* Near black with blue undertone */
+  --foreground: 210 40% 98%;
 
-  --border: 215 28% 17%; /* #1E293B */
+  --border: 215 28% 13%; 
 
-  --card: 222 47% 11%; /* #0F172A */
+  --card: 222 47% 8%; 
   --card-foreground: 210 40% 98%;
-  --card-border: 215 28% 17%;
+  --card-border: 215 28% 13%;
 
-  --sidebar: 222 47% 11%;
+  --sidebar: 222 47% 7%;
   --sidebar-foreground: 210 40% 98%;
-  --sidebar-border: 215 28% 17%;
-  --sidebar-primary: 190 96% 41%; /* Teal/Cyan #06B6D4 */
+  --sidebar-border: 215 28% 13%;
+  --sidebar-primary: 190 96% 41%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 215 28% 17%;
+  --sidebar-accent: 215 28% 15%;
   --sidebar-accent-foreground: 210 40% 98%;
   --sidebar-ring: 190 96% 41%;
 
-  --popover: 222 47% 11%;
+  --popover: 222 47% 8%;
   --popover-foreground: 210 40% 98%;
-  --popover-border: 215 28% 17%;
+  --popover-border: 215 28% 13%;
 
   --primary: 190 96% 41%; /* Teal/Cyan */
   --primary-foreground: 0 0% 100%;
 
-  --secondary: 215 28% 17%; /* Slate */
+  --secondary: 215 28% 15%;
   --secondary-foreground: 210 40% 98%;
 
-  --muted: 215 28% 17%;
-  --muted-foreground: 215 20% 65%; /* #94A3B8 */
+  --muted: 215 28% 15%;
+  --muted-foreground: 215 20% 60%; 
 
   --accent: 190 96% 41%;
   --accent-foreground: 0 0% 100%;
 
-  --destructive: 0 84% 60%; /* Red */
+  --destructive: 0 84% 60%;
   --destructive-foreground: 210 40% 98%;
 
-  --input: 215 28% 17%;
+  --input: 215 28% 15%;
   --ring: 190 96% 41%;
 
   --chart-1: 190 96% 41%;
@@ -123,10 +123,11 @@
   --chart-4: 280 65% 60%;
   --chart-5: 340 75% 55%;
 
-  --app-font-sans: 'Inter', sans-serif;
+  --app-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --app-font-serif: Georgia, serif;
-  --app-font-mono: 'Space Mono', Menlo, monospace;
-  --radius: 0.25rem;
+  --app-font-mono: 'Space Mono', 'JetBrains Mono', Menlo, Monaco, Consolas, monospace;
+  
+  --radius: 0.5rem;
 
   --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00);
   --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00);

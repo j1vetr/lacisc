@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
   TableBody as Body,
@@ -15,7 +14,6 @@ import {
   TableHeader as Header,
   TableRow as Row,
 } from "@/components/ui/table";
-import { Pagination } from "@/components/ui/pagination";
 import { formatCurrency, formatNumber, formatDate } from "@/lib/format";
 
 export default function CdrRecords() {
@@ -25,10 +23,14 @@ export default function CdrRecords() {
   const [sortBy, setSortBy] = useState<"totalVolumeGbNumeric" | "totalPrice" | "syncedAt" | "startCdr" | undefined>("syncedAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
-  const [debouncedKitNo, setDebouncedKitNo] = useState("");
+  const [debouncedKitNo, setDebouncedKitNo] = useState(window.sessionStorage.getItem("cdr_filter_kit") || "");
   const [debouncedPeriod, setDebouncedPeriod] = useState("");
 
-  // Simple debounce for search inputs
+  React.useEffect(() => {
+    if (debouncedKitNo) setKitNo(debouncedKitNo);
+    window.sessionStorage.removeItem("cdr_filter_kit");
+  }, []);
+
   React.useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedKitNo(kitNo);
@@ -64,14 +66,14 @@ export default function CdrRecords() {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
       setSortBy(col);
-      setSortOrder("desc"); // Default to desc for new sorts
+      setSortOrder("desc");
     }
     setPage(1);
   };
 
   const SortIcon = ({ col }: { col: string }) => {
-    if (sortBy !== col) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-50" />;
-    return sortOrder === "asc" ? <ChevronUp className="w-3 h-3 ml-1" /> : <ChevronDown className="w-3 h-3 ml-1" />;
+    if (sortBy !== col) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-40 group-hover:opacity-100" />;
+    return sortOrder === "asc" ? <ChevronUp className="w-3 h-3 ml-1 text-primary" /> : <ChevronDown className="w-3 h-3 ml-1 text-primary" />;
   };
 
   const handleExport = () => {
@@ -99,34 +101,34 @@ export default function CdrRecords() {
   };
 
   return (
-    <div className="space-y-4 flex flex-col h-[calc(100vh-8rem)]">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shrink-0">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Raw CDR Data</h1>
-          <p className="text-sm text-muted-foreground">Comprehensive Call Detail Records from portal.</p>
+    <div className="space-y-6 flex flex-col h-[calc(100vh-6rem)] animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 shrink-0">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">CDR Database</h1>
+          <p className="text-sm text-muted-foreground font-medium">Scraped records mapped to terminals.</p>
         </div>
-        <Button onClick={handleExport} variant="outline" className="border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground">
+        <Button onClick={handleExport} variant="outline" className="rounded-full bg-background/50 border-border/80 hover:bg-secondary">
           <Download className="w-4 h-4 mr-2" />
           Export CSV
         </Button>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 shrink-0 p-4 bg-card border border-border rounded-lg shadow-sm">
-        <div className="relative max-w-xs w-full">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+      <div className="flex flex-wrap gap-4 shrink-0 p-1">
+        <div className="relative w-full max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search KIT Number..."
-            className="pl-9 bg-background font-mono text-sm"
+            placeholder="Search Terminal KIT..."
+            className="pl-10 h-11 bg-card/40 border-border/50 rounded-xl font-mono text-sm shadow-sm backdrop-blur"
             value={kitNo}
             onChange={(e) => setKitNo(e.target.value)}
           />
         </div>
-        <div className="relative w-40">
-          <Filter className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <div className="relative w-48">
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Period (01/2024)"
-            className="pl-9 bg-background font-mono text-sm"
+            placeholder="Period (MM/YYYY)"
+            className="pl-10 h-11 bg-card/40 border-border/50 rounded-xl font-mono text-sm shadow-sm backdrop-blur"
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
           />
@@ -134,71 +136,71 @@ export default function CdrRecords() {
       </div>
 
       {/* Data Table */}
-      <div className="border border-border rounded-md bg-card flex-1 overflow-hidden flex flex-col min-h-0">
+      <div className="rounded-xl border border-border/50 bg-card/40 backdrop-blur flex-1 overflow-hidden flex flex-col min-h-0 shadow-sm">
         <div className="overflow-auto flex-1 relative">
           <Table className="relative w-full text-sm">
-            <Header className="sticky top-0 z-10 bg-card/95 backdrop-blur shadow-[0_1px_0_0_var(--color-border)]">
-              <Row>
-                <Head className="w-[140px] pl-4">KIT No</Head>
-                <Head className="w-[120px]">Period</Head>
-                <Head className="w-[100px] cursor-pointer hover:text-primary" onClick={() => toggleSort("startCdr")}>
+            <Header className="sticky top-0 z-10 bg-card/80 backdrop-blur-xl shadow-[0_1px_0_0_var(--color-border)]">
+              <Row className="hover:bg-transparent border-none">
+                <Head className="w-[140px] pl-6 font-semibold uppercase tracking-wider text-xs">Terminal</Head>
+                <Head className="w-[100px] font-semibold uppercase tracking-wider text-xs">Period</Head>
+                <Head className="w-[120px] cursor-pointer hover:bg-secondary/30 transition-colors group font-semibold uppercase tracking-wider text-xs" onClick={() => toggleSort("startCdr")}>
                   <div className="flex items-center">Date <SortIcon col="startCdr" /></div>
                 </Head>
-                <Head className="w-[120px]">Customer</Head>
-                <Head className="w-[140px]">Product / Service</Head>
-                <Head className="w-[100px] text-right cursor-pointer hover:text-primary" onClick={() => toggleSort("totalVolumeGbNumeric")}>
-                  <div className="flex items-center justify-end">GB <SortIcon col="totalVolumeGbNumeric" /></div>
+                <Head className="w-[120px] font-semibold uppercase tracking-wider text-xs">Client Code</Head>
+                <Head className="w-[180px] font-semibold uppercase tracking-wider text-xs">Service</Head>
+                <Head className="w-[100px] text-right cursor-pointer hover:bg-secondary/30 transition-colors group font-semibold uppercase tracking-wider text-xs" onClick={() => toggleSort("totalVolumeGbNumeric")}>
+                  <div className="flex items-center justify-end">Volume <SortIcon col="totalVolumeGbNumeric" /></div>
                 </Head>
-                <Head className="w-[120px] text-right cursor-pointer hover:text-primary" onClick={() => toggleSort("totalPrice")}>
-                  <div className="flex items-center justify-end">Price <SortIcon col="totalPrice" /></div>
+                <Head className="w-[120px] text-right cursor-pointer hover:bg-secondary/30 transition-colors group font-semibold uppercase tracking-wider text-xs" onClick={() => toggleSort("totalPrice")}>
+                  <div className="flex items-center justify-end">Invoiced <SortIcon col="totalPrice" /></div>
                 </Head>
-                <Head className="w-[160px] text-right cursor-pointer hover:text-primary" onClick={() => toggleSort("syncedAt")}>
-                  <div className="flex items-center justify-end">Synced <SortIcon col="syncedAt" /></div>
+                <Head className="w-[160px] text-right cursor-pointer hover:bg-secondary/30 transition-colors group font-semibold uppercase tracking-wider text-xs pr-6" onClick={() => toggleSort("syncedAt")}>
+                  <div className="flex items-center justify-end">Acquired <SortIcon col="syncedAt" /></div>
                 </Head>
               </Row>
             </Header>
-            <Body className="divide-y divide-border">
+            <Body className="divide-y divide-border/30">
               {isLoading ? (
-                Array.from({ length: 10 }).map((_, i) => (
-                  <Row key={i}>
-                    <Cell className="pl-4"><Skeleton className="h-6 w-24" /></Cell>
-                    <Cell><Skeleton className="h-4 w-16" /></Cell>
-                    <Cell><Skeleton className="h-4 w-20" /></Cell>
-                    <Cell><Skeleton className="h-4 w-24" /></Cell>
-                    <Cell><Skeleton className="h-4 w-32" /></Cell>
-                    <Cell><Skeleton className="h-4 w-16 ml-auto" /></Cell>
-                    <Cell><Skeleton className="h-4 w-20 ml-auto" /></Cell>
-                    <Cell><Skeleton className="h-4 w-24 ml-auto" /></Cell>
+                Array.from({ length: 15 }).map((_, i) => (
+                  <Row key={i} className="border-none">
+                    <Cell className="pl-6"><Skeleton className="h-5 w-20 rounded" /></Cell>
+                    <Cell><Skeleton className="h-4 w-12 rounded" /></Cell>
+                    <Cell><Skeleton className="h-4 w-20 rounded" /></Cell>
+                    <Cell><Skeleton className="h-4 w-16 rounded" /></Cell>
+                    <Cell><Skeleton className="h-4 w-32 rounded" /></Cell>
+                    <Cell><Skeleton className="h-4 w-12 ml-auto rounded" /></Cell>
+                    <Cell><Skeleton className="h-4 w-16 ml-auto rounded" /></Cell>
+                    <Cell className="pr-6"><Skeleton className="h-4 w-24 ml-auto rounded" /></Cell>
                   </Row>
                 ))
               ) : data?.records.length === 0 ? (
-                <Row>
-                  <Cell colSpan={8} className="h-32 text-center text-muted-foreground">
-                    No CDR records found matching the filters.
+                <Row className="hover:bg-transparent">
+                  <Cell colSpan={8} className="h-48 text-center text-muted-foreground font-medium">
+                    No matching records found.
                   </Cell>
                 </Row>
               ) : (
                 data?.records.map((row) => (
-                  <Row key={row.id} className="hover:bg-secondary/40 transition-colors">
-                    <Cell className="font-mono font-medium pl-4 py-2">
-                      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 rounded font-mono px-2 py-0.5 tracking-tight">
+                  <Row key={row.id} className="hover:bg-secondary/20 transition-colors border-none">
+                    <Cell className="pl-6 py-3">
+                      <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20 border-primary/10 rounded-md font-mono px-2 py-0.5 tracking-tight">
                         {row.kitNo}
                       </Badge>
                     </Cell>
                     <Cell className="font-mono text-xs text-muted-foreground">{row.period || "-"}</Cell>
-                    <Cell className="text-xs whitespace-nowrap">{row.startCdr ? row.startCdr.split(' ')[0] : "-"}</Cell>
-                    <Cell className="text-xs truncate max-w-[120px]">{row.customerCode || "-"}</Cell>
+                    <Cell className="text-xs whitespace-nowrap font-medium text-muted-foreground">{row.startCdr ? row.startCdr.split(' ')[0] : "-"}</Cell>
+                    <Cell className="text-xs truncate max-w-[120px] font-medium">{row.customerCode || "-"}</Cell>
                     <Cell className="text-xs">
-                      <div className="truncate max-w-[140px] font-medium">{row.product || "-"}</div>
-                      <div className="truncate max-w-[140px] text-muted-foreground">{row.service || "-"}</div>
+                      <div className="truncate max-w-[160px] font-medium text-foreground/90">{row.product || "-"}</div>
+                      <div className="truncate max-w-[160px] text-muted-foreground mt-0.5">{row.service || "-"}</div>
                     </Cell>
                     <Cell className="text-right font-mono text-xs">
-                      {row.totalVolumeGbNumeric != null ? formatNumber(row.totalVolumeGbNumeric, 4) : "-"}
+                      <span className="text-foreground/90">{row.totalVolumeGbNumeric != null ? formatNumber(row.totalVolumeGbNumeric, 4) : "-"}</span>
                     </Cell>
-                    <Cell className="text-right font-mono text-xs font-medium text-primary/90">
+                    <Cell className="text-right font-mono text-xs font-semibold text-green-500/90">
                       {row.currency} {formatNumber(row.totalPrice)}
                     </Cell>
-                    <Cell className="text-right text-xs text-muted-foreground whitespace-nowrap">
+                    <Cell className="text-right text-xs font-mono text-muted-foreground whitespace-nowrap pr-6">
                       {formatDate(row.syncedAt)}
                     </Cell>
                   </Row>
@@ -208,29 +210,29 @@ export default function CdrRecords() {
           </Table>
         </div>
         
-        {/* Pagination Footer */}
-        <div className="border-t border-border p-3 flex items-center justify-between bg-card shrink-0">
-          <div className="text-xs text-muted-foreground">
-            {isFetching && <span className="mr-4 animate-pulse">Loading...</span>}
-            Showing {data?.records.length || 0} of {formatNumber(data?.total || 0, 0)} records
+        {/* Pagination */}
+        <div className="border-t border-border/30 p-3 px-6 flex items-center justify-between bg-card/60 shrink-0 backdrop-blur-md">
+          <div className="text-xs text-muted-foreground font-medium">
+            {isFetching && <span className="mr-4 text-primary animate-pulse">Updating...</span>}
+            Showing {data?.records.length || 0} of {formatNumber(data?.total || 0, 0)} entries
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-3">
             <Button 
               variant="outline" 
               size="sm" 
-              className="h-8"
+              className="h-8 rounded-full px-4 text-xs font-medium border-border/60 hover:bg-secondary"
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1 || isLoading}
             >
               Previous
             </Button>
-            <div className="text-xs font-medium mx-2 font-mono">
-              Page {page} of {data?.totalPages || 1}
+            <div className="text-xs font-semibold font-mono bg-secondary/50 px-3 py-1.5 rounded-full">
+              {page} / {data?.totalPages || 1}
             </div>
             <Button 
               variant="outline" 
               size="sm"
-              className="h-8" 
+              className="h-8 rounded-full px-4 text-xs font-medium border-border/60 hover:bg-secondary" 
               onClick={() => setPage(p => p + 1)}
               disabled={page >= (data?.totalPages || 1) || isLoading}
             >

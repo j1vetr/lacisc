@@ -41,7 +41,7 @@ const settingsSchema = z.object({
 type SettingsFormValues = z.infer<typeof settingsSchema>;
 
 export default function Settings() {
-  const { data: settings, isLoading } = useGetStationSettings();
+  const { data: settings, isLoading } = useGetStationSettings({ query: { queryKey: getGetStationSettingsQueryKey() } });
   const saveMutation = useSaveStationSettings();
   const testConnectionMutation = useTestConnection();
   const syncNowMutation = useSyncNow();
@@ -77,7 +77,6 @@ export default function Settings() {
   }, [settings, form]);
 
   const onSubmit = (data: SettingsFormValues) => {
-    // Only send password if it was changed
     const payload = {
       ...data,
       password: data.password ? data.password : null,
@@ -88,12 +87,12 @@ export default function Settings() {
       { data: payload },
       {
         onSuccess: () => {
-          toast({ title: "Settings Saved", description: "Station Satcom configuration updated." });
-          form.setValue("password", ""); // Reset password field
+          toast({ title: "Settings Saved", description: "Station Satcom configuration updated successfully." });
+          form.setValue("password", ""); 
           queryClient.invalidateQueries({ queryKey: getGetStationSettingsQueryKey() });
         },
         onError: (err: any) => {
-          toast({ title: "Error", description: err.message || "Failed to save settings.", variant: "destructive" });
+          toast({ title: "Save Failed", description: err.message || "Failed to update configuration.", variant: "destructive" });
         },
       }
     );
@@ -103,13 +102,13 @@ export default function Settings() {
     testConnectionMutation.mutate(undefined, {
       onSuccess: (res) => {
         if (res.success) {
-          toast({ title: "Connection Successful", description: res.message || "Successfully connected to the portal." });
+          toast({ title: "Connection Verified", description: res.message || "Successfully authenticated with the portal." });
         } else {
-          toast({ title: "Connection Failed", description: res.message || "Failed to connect to the portal.", variant: "destructive" });
+          toast({ title: "Authentication Failed", description: res.message || "Invalid credentials or portal down.", variant: "destructive" });
         }
       },
       onError: (err: any) => {
-        toast({ title: "Error", description: err.message || "An error occurred during test.", variant: "destructive" });
+        toast({ title: "System Error", description: err.message || "Network error during test.", variant: "destructive" });
       },
     });
   };
@@ -117,27 +116,29 @@ export default function Settings() {
   const handleSyncNow = () => {
     syncNowMutation.mutate(undefined, {
       onSuccess: (res) => {
-        toast({ title: "Sync Started", description: res.message || "Manual synchronization triggered." });
+        toast({ title: "Sync Initiated", description: res.message || "Manual scraping job queued." });
       },
       onError: (err: any) => {
-        toast({ title: "Error", description: err.message || "Failed to trigger sync.", variant: "destructive" });
+        toast({ title: "Operation Failed", description: err.message || "Could not queue sync job.", variant: "destructive" });
       },
     });
   };
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-8 max-w-4xl animate-in fade-in duration-500">
         <div>
-          <Skeleton className="h-10 w-48 mb-2" />
-          <Skeleton className="h-5 w-96" />
+          <Skeleton className="h-10 w-64 mb-2 rounded-lg" />
+          <Skeleton className="h-5 w-96 rounded" />
         </div>
-        <Card>
-          <CardHeader><Skeleton className="h-8 w-64" /></CardHeader>
-          <CardContent className="space-y-4">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
+        <Card className="border-border/50 bg-card/40 backdrop-blur rounded-2xl">
+          <CardHeader><Skeleton className="h-8 w-48 rounded" /></CardHeader>
+          <CardContent className="space-y-6">
+            <Skeleton className="h-14 w-full rounded-xl" />
+            <div className="grid grid-cols-2 gap-6">
+              <Skeleton className="h-14 w-full rounded-xl" />
+              <Skeleton className="h-14 w-full rounded-xl" />
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -145,33 +146,35 @@ export default function Settings() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Portal Configuration</h1>
-        <p className="text-muted-foreground">Manage Station Satcom scraper credentials and behavior.</p>
+    <div className="space-y-8 max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
+      <div className="space-y-1">
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">System Configuration</h1>
+        <p className="text-sm font-medium text-muted-foreground">Manage headless scraper credentials and operational cadence.</p>
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <Card className="border-border shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Server className="w-5 h-5 text-primary" />
-                Connection Details
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <Card className="border-border/50 shadow-sm bg-card/40 backdrop-blur rounded-2xl overflow-hidden">
+            <CardHeader className="bg-secondary/10 border-b border-border/30 pb-5">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2.5">
+                <div className="p-1.5 bg-primary/10 rounded-md text-primary">
+                  <Server className="w-4 h-4" />
+                </div>
+                Target Portal Credentials
               </CardTitle>
-              <CardDescription>
-                Credentials used by the backend headless browser to scrape CDR data.
+              <CardDescription className="mt-1">
+                Authentication details for the third-party billing portal.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="p-6 space-y-6">
               <FormField
                 control={form.control}
                 name="portalUrl"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Portal Login URL</FormLabel>
+                    <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Login URL</FormLabel>
                     <FormControl>
-                      <Input placeholder="https://portal.stationsatcom.com/login" {...field} className="font-mono text-sm bg-secondary/30" />
+                      <Input placeholder="https://portal.stationsatcom.com/login" {...field} className="font-mono text-sm bg-background border-border/60 h-11 rounded-xl" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -183,9 +186,9 @@ export default function Settings() {
                   name="username"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Username</FormLabel>
+                      <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Admin Username</FormLabel>
                       <FormControl>
-                        <Input placeholder="admin" {...field} className="bg-secondary/30" />
+                        <Input placeholder="admin" {...field} className="bg-background border-border/60 h-11 rounded-xl font-medium" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -196,11 +199,11 @@ export default function Settings() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
+                      <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Password Override</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="•••••••• (leave blank to keep current)" {...field} className="bg-secondary/30" />
+                        <Input type="password" placeholder="•••••••• (Hidden for security)" {...field} className="bg-background border-border/60 h-11 rounded-xl font-mono" />
                       </FormControl>
-                      <FormDescription>Only enter to update the saved password.</FormDescription>
+                      <FormDescription className="text-[11px]">Leave blank to retain current key.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -209,25 +212,27 @@ export default function Settings() {
             </CardContent>
           </Card>
 
-          <Card className="border-border shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <SettingsIcon className="w-5 h-5 text-primary" />
-                Scraper Behavior
+          <Card className="border-border/50 shadow-sm bg-card/40 backdrop-blur rounded-2xl overflow-hidden">
+            <CardHeader className="bg-secondary/10 border-b border-border/30 pb-5">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2.5">
+                <div className="p-1.5 bg-purple-500/10 rounded-md text-purple-400">
+                  <SettingsIcon className="w-4 h-4" />
+                </div>
+                Scraper Cadence
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
                   name="syncIntervalMinutes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Auto-Sync Interval (minutes)</FormLabel>
+                      <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Interval (Minutes)</FormLabel>
                       <FormControl>
-                        <Input type="number" {...field} className="font-mono bg-secondary/30" />
+                        <Input type="number" {...field} className="font-mono bg-background border-border/60 h-11 rounded-xl" />
                       </FormControl>
-                      <FormDescription>How often the background job runs.</FormDescription>
+                      <FormDescription className="text-[11px]">Frequency of automated job execution.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -237,11 +242,11 @@ export default function Settings() {
                   name="defaultBillingPeriod"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Target Billing Period</FormLabel>
+                      <FormLabel className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Forced Period (Optional)</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g. 01/2024" {...field} className="font-mono bg-secondary/30" />
+                        <Input placeholder="MM/YYYY" {...field} value={field.value ?? ""} className="font-mono bg-background border-border/60 h-11 rounded-xl" />
                       </FormControl>
-                      <FormDescription>Overrides auto-detect if specified.</FormDescription>
+                      <FormDescription className="text-[11px]">Bypasses dynamic detection if set.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -251,17 +256,18 @@ export default function Settings() {
                 control={form.control}
                 name="isActive"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border p-4 bg-secondary/10">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Enable Automatic Sync</FormLabel>
-                      <FormDescription>
-                        Toggle the background scraper job on or off.
+                  <FormItem className="flex flex-row items-center justify-between rounded-xl border border-border/60 p-5 bg-background shadow-sm">
+                    <div className="space-y-1 pr-4">
+                      <FormLabel className="text-base font-semibold">Automated Sync Engine</FormLabel>
+                      <FormDescription className="text-xs">
+                        When disabled, no background fetching will occur.
                       </FormDescription>
                     </div>
                     <FormControl>
                       <Switch
                         checked={field.value}
                         onCheckedChange={field.onChange}
+                        className="data-[state=checked]:bg-primary"
                       />
                     </FormControl>
                   </FormItem>
@@ -270,34 +276,37 @@ export default function Settings() {
             </CardContent>
             
             {settings?.lastErrorMessage && (
-              <div className="mx-6 mb-6 p-4 rounded-md bg-destructive/10 border border-destructive/20 flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+              <div className="mx-6 mb-6 p-4 rounded-xl bg-destructive/5 border border-destructive/20 flex items-start gap-3">
+                <div className="p-1.5 bg-destructive/10 rounded-md shrink-0">
+                  <AlertTriangle className="w-4 h-4 text-destructive" />
+                </div>
                 <div>
-                  <p className="text-sm font-semibold text-destructive">Last Sync Error</p>
-                  <p className="text-xs font-mono mt-1 text-destructive/80 break-all">{settings.lastErrorMessage}</p>
+                  <p className="text-sm font-semibold text-destructive">Recent Execution Failure</p>
+                  <p className="text-xs font-mono mt-1.5 text-destructive/80 leading-relaxed max-h-24 overflow-y-auto">{settings.lastErrorMessage}</p>
                 </div>
               </div>
             )}
             
-            <CardFooter className="flex flex-col sm:flex-row justify-between items-center bg-secondary/10 border-t border-border gap-4 py-4">
-              <div className="text-sm text-muted-foreground">
-                Last successful sync: <span className="font-mono text-foreground">{formatDate(settings?.lastSuccessSyncAt)}</span>
+            <CardFooter className="flex flex-col sm:flex-row justify-between items-center bg-secondary/10 border-t border-border/30 gap-4 py-5 px-6">
+              <div className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${settings?.lastSuccessSyncAt ? 'bg-green-500' : 'bg-muted'}`} />
+                Last success: <span className="font-mono text-foreground/80">{formatDate(settings?.lastSuccessSyncAt)}</span>
               </div>
               <div className="flex gap-3 w-full sm:w-auto">
                 <Button 
                   type="button" 
                   variant="outline" 
-                  className="flex-1 sm:flex-none border-border"
+                  className="flex-1 sm:flex-none rounded-full border-border/60 hover:bg-secondary font-medium text-sm h-10 px-5"
                   onClick={handleTestConnection}
                   disabled={testConnectionMutation.isPending}
                 >
-                  <ShieldCheck className={`w-4 h-4 mr-2 ${testConnectionMutation.isPending ? 'animate-pulse' : ''}`} />
+                  <ShieldCheck className={`w-4 h-4 mr-2 ${testConnectionMutation.isPending ? 'animate-pulse text-primary' : 'text-muted-foreground'}`} />
                   Test Auth
                 </Button>
                 <Button 
                   type="button" 
                   variant="secondary"
-                  className="flex-1 sm:flex-none"
+                  className="flex-1 sm:flex-none rounded-full font-medium text-sm h-10 px-5"
                   onClick={handleSyncNow}
                   disabled={syncNowMutation.isPending}
                 >
@@ -306,11 +315,11 @@ export default function Settings() {
                 </Button>
                 <Button 
                   type="submit"
-                  className="flex-1 sm:flex-none font-semibold"
+                  className="flex-1 sm:flex-none rounded-full font-semibold text-sm h-10 px-6 shadow-md shadow-primary/20"
                   disabled={saveMutation.isPending}
                 >
                   <Save className="w-4 h-4 mr-2" />
-                  Save Config
+                  Commit Changes
                 </Button>
               </div>
             </CardFooter>

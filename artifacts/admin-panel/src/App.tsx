@@ -2,7 +2,7 @@ import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 // Layout
 import Layout from "./components/layout";
@@ -26,13 +26,19 @@ const queryClient = new QueryClient({
 });
 
 function ProtectedRoute({ component: Component }: { component: any }) {
-  const [, setLocation] = useLocation();
-  const token = localStorage.getItem("auth_token");
+  const [location, setLocation] = useLocation();
+  const [isReady, setIsReady] = useState(false);
 
-  if (!token) {
-    setLocation("/login");
-    return null;
-  }
+  useEffect(() => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      setLocation("/login");
+    } else {
+      setIsReady(true);
+    }
+  }, [location, setLocation]);
+
+  if (!isReady) return null;
 
   return (
     <Layout>
@@ -45,11 +51,11 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
-      <Route path="/" render={() => <ProtectedRoute component={Dashboard} />} />
-      <Route path="/cdr-records" render={() => <ProtectedRoute component={CdrRecords} />} />
-      <Route path="/kits" render={() => <ProtectedRoute component={Kits} />} />
-      <Route path="/sync-logs" render={() => <ProtectedRoute component={SyncLogs} />} />
-      <Route path="/settings" render={() => <ProtectedRoute component={Settings} />} />
+      <Route path="/">{() => <ProtectedRoute component={Dashboard} />}</Route>
+      <Route path="/cdr-records">{() => <ProtectedRoute component={CdrRecords} />}</Route>
+      <Route path="/kits">{() => <ProtectedRoute component={Kits} />}</Route>
+      <Route path="/sync-logs">{() => <ProtectedRoute component={SyncLogs} />}</Route>
+      <Route path="/settings">{() => <ProtectedRoute component={Settings} />}</Route>
       <Route component={NotFound} />
     </Switch>
   );
