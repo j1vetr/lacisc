@@ -280,35 +280,179 @@ async function readPeriodOptions(page: Page): Promise<string[]> {
 // Set the period combo to the requested YYYYMM and trigger Refresh button.
 // ---------------------------------------------------------------------------
 async function selectPeriod(page: Page, period: string): Promise<void> {
-  await page.evaluate((p) => {
+  // Step 1: probe what controls/buttons actually exist on the page. We log
+  // these once per call so production diagnostics show real IDs.
+  const probe = await page.evaluate(() => {
     const w = window as unknown as Record<string, unknown>;
-    const combo =
-      (w["ctl00_ContentPlaceHolder1_ctl00_ctl00"] as
-        | { SetValue: (v: string) => void }
-        | undefined) ?? null;
-    if (combo && typeof combo.SetValue === "function") {
-      combo.SetValue(p);
+    const combo = w["ctl00_ContentPlaceHolder1_ctl00_ctl00"] as
+      | {
+          SetValue?: (v: string, raiseEvents?: boolean) => void;
+          GetValue?: () => unknown;
+          name?: string;
+          uniqueID?: string;
+        }
+      | undefined;
+    const buttons: { id: string; tag: string; value: string; text: string }[] = [];
+    document
+      .querySelectorAll(
+        "input[type='button'], input[type='submit'], button, a[id*='btn' i]"
+      )
+      .forEach((el) => {
+        const e = el as HTMLElement & { value?: string };
+        const id = e.id || "";
+        if (
+          /btnRefresh|btnSearch|btnFilter|btnApply|btnGo|btnYenile/i.test(id) ||
+          /refresh|yenile|filtre|ara|search/i.test(e.textContent || "") ||
+          /refresh|yenile|filtre|ara|search/i.test(e.value || "")
+        ) {
+          buttons.push({
+            id,
+            tag: e.tagName,
+            value: e.value || "",
+            text: (e.textContent || "").trim().slice(0, 40),
+          });
+        }
+      });
+    return {
+      comboFound: !!combo,
+      comboPrevValue:
+        combo && typeof combo.GetValue === "function" ? String(combo.GetValue() ?? "") : null,
+      buttons: buttons.slice(0, 12),
+      hasDoPostBack: typeof (w["__doPostBack"] as unknown) === "function",
+    };
+  });
+
+  // Step 2: trigger a server-side WebForms postback. Diagnostic showed that
+  // __doPostBack against the combo's UniqueID DOES re-render the grid with
+  // the requested period — but it causes a full page navigation. So we MUST
+  // wrap it in waitForNavigation, otherwise subsequent page.evaluate calls
+  // race the navigation and crash with "execution context destroyed".
+  // Strategy: simulate the EXACT user gesture — open the combo dropdown via
+  // its real button, then click the <td>/<li> that contains the target
+  // period text. This is the only path that fires DevExpress's real
+  // SelectedIndexChanged handler (which in turn POSTs the form back).
+  // SetValue / SendPostBack / __doPostBack proven not to trigger the grid
+  // re-query on this portal.
+  let setTried: string[] = [];
+  try {
+    // Open the dropdown.
+    await page
+      .locator("#ctl00_ContentPlaceHolder1_ctl00_ctl00_B-1Img, #ctl00_ContentPlaceHolder1_ctl00_ctl00_B-1")
+      .first()
+      .click({ timeout: 5000 });
+    await page.waitForTimeout(400);
+    setTried.push("openCombo");
+
+    // Find the dropdown row containing the period text and click it inside
+    // a Promise.all with waitForNavigation, since clicking fires postback.
+    const optionLocator = page.locator(
+      `#ctl00_ContentPlaceHolder1_ctl00_ctl00_DDD_L_LBT tr:has-text("${period}"), #ctl00_ContentPlaceHolder1_ctl00_ctl00_DDD_DDTC td:has-text("${period}")`
+    );
+    const optionCount = await optionLocator.count().catch(() => 0);
+    setTried.push(`optionsFound=${optionCount}`);
+    if (optionCount > 0) {
+      await optionLocator.first().click({ timeout: 5000 });
+      setTried.push("optionClicked");
+      // Initial wait — give DevExpress's async callback time to actually
+      // begin re-rendering the grid (otherwise our first poll catches the
+      // pre-callback state and exits early thinking nothing changed).
+      await page.waitForTimeout(800);
+      // Poll the grid for the actual period. We treat EMPTY as conclusive
+      // ONLY after several consecutive empty reads — otherwise we mistake
+      // the brief loading-state for a truly empty period.
+      const deadline = Date.now() + 15000;
+      let polled = "";
+      let pollCount = 0;
+      let consecutiveEmpty = 0;
+      while (Date.now() < deadline) {
+        pollCount++;
+        const got = await page
+          .evaluate(() => {
+            const rows = Array.from(
+              document.querySelectorAll<HTMLTableRowElement>(
+                "tr.dxgvDataRow_Aqua, tr.dxgvDataRow"
+              )
+            );
+            if (rows.length === 0) return "EMPTY";
+            const cells = rows[0].querySelectorAll("td");
+            return cells[23]?.textContent?.trim() ?? "";
+          })
+          .catch(() => "");
+        polled = got;
+        if (got === period) break;
+        if (got === "EMPTY") {
+          consecutiveEmpty++;
+          // 8 consecutive empty reads (~3.2s) ⇒ this period really has no data.
+          if (consecutiveEmpty >= 8) break;
+        } else {
+          consecutiveEmpty = 0;
+        }
+        await page.waitForTimeout(400);
+      }
+      setTried.push(`polled=${polled} after ${pollCount} checks`);
+    } else {
+      // Fallback: SetValue + raise events.
+      await page.evaluate((p) => {
+        const w = window as unknown as Record<string, unknown>;
+        const combo = w["ctl00_ContentPlaceHolder1_ctl00_ctl00"] as
+          | { SetValue?: (v: string, raiseEvents?: boolean) => void }
+          | undefined;
+        if (combo && typeof combo.SetValue === "function") {
+          try { combo.SetValue(p, true); } catch { /* ignore */ }
+        }
+      }, period);
+      await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
+      setTried.push("fallbackSetValue");
     }
-  }, period);
-
-  // Click the Refresh button. The visible UI button typically has id ending
-  // in "btnRefresh" or text "Refresh"/"Yenile".
-  const refresh = page
-    .locator(
-      "[id*='btnRefresh' i], input[value='Refresh' i], input[value='Yenile' i], button:has-text('Refresh'), button:has-text('Yenile')"
-    )
-    .first();
-  if ((await refresh.count()) > 0) {
-    await refresh.click().catch(() => {});
+  } catch (e) {
+    setTried.push(`error:${(e as Error).message.slice(0, 80)}`);
   }
+  await page.waitForTimeout(400);
 
-  // Wait for grid reload (DevExpress DXMVCCallback usually). Best-effort.
-  await page.waitForLoadState("networkidle", { timeout: 20000 }).catch(() => {});
-  await page.waitForTimeout(500);
+  const setResult = {
+    tried: setTried,
+    uid: "ctl00$ContentPlaceHolder1$ctl00$ctl00",
+  };
+
+  // Step 5: verify the combo and the GRID's actual first-row period match.
+  // The combo can lie (it just shows what we set), but the grid's row[23]
+  // is the truth.
+  const after = await page.evaluate(() => {
+    const w = window as unknown as Record<string, unknown>;
+    const combo = w["ctl00_ContentPlaceHolder1_ctl00_ctl00"] as
+      | { GetValue?: () => unknown }
+      | undefined;
+    const comboVal =
+      combo && typeof combo.GetValue === "function" ? String(combo.GetValue() ?? "") : null;
+    // Snapshot the first data row's period cell (col23) without using the
+    // full parseGrid path.
+    const firstRow = document.querySelector(
+      "tr[id*='DXDataRow'], tr.dxgvDataRow, tr[class*='dxgvDataRow']"
+    );
+    let firstRowPeriod: string | null = null;
+    if (firstRow) {
+      const tds = firstRow.querySelectorAll("td");
+      if (tds.length > 23) firstRowPeriod = (tds[23].textContent || "").trim();
+    }
+    return { comboVal, firstRowPeriod };
+  });
+
+  logger.info(
+    {
+      requested: period,
+      probe,
+      setTried: setResult.tried,
+      comboUid: setResult.uid,
+      comboAfter: after.comboVal,
+      firstRowPeriodAfter: after.firstRowPeriod,
+    },
+    "selectPeriod result"
+  );
 }
 
 interface ParsedDailyRow {
   cdrId: string;
+  kitNo: string | null;
   dayDate: string | null;
   volumeGib: number | null;
   chargeUsd: number | null;
@@ -436,8 +580,13 @@ async function parseGrid(page: Page): Promise<ParsedGrid> {
       parseDayDate(cells[9]) ??
       parseShortDayWithPeriod(cells[9], period) ??
       findDayDateInRow(cells);
+    // col1 carries the KITP code itself (the row's owning kit). When we scan
+    // a multi-kit grid (bare RatedCdrs page) we MUST use this to split rows
+    // back into per-kit buckets.
+    const rowKit = (cells[1] || "").trim();
     rows.push({
       cdrId,
+      kitNo: /^KITP/i.test(rowKit) ? rowKit : null,
       // col3 is the human service label ("Background IP"); col4 is a bundle
       // ID like "SL-DF-9290337-...". Prefer col3, fall back to col4.
       service: cells[3] || cells[4] || null,
@@ -738,76 +887,84 @@ export async function runSync(
       "Sync plan"
     );
 
-    // 3) Her KIT için her period'u tara (direct URL + period combo override).
+    // 3) Per-period scrape on the BARE RatedCdrs page. The drill-down URL
+    //    `?FC=ICCID&FV=KITP...` does not have a working Refresh button, so
+    //    period switching is a no-op there. The bare page DOES have btnRefresh
+    //    AND every grid row carries its owning KIT no in cells[1], so a single
+    //    grid scrape covers all kits for a period. We then bucket rows by
+    //    kitNo and persist per (kit, period) with row-sum totals.
     let totalRows = 0;
     let totalInserted = 0;
     let totalUpdated = 0;
+    const knownKitNos = new Set(kits.map((k) => k.kitNo));
 
-    for (const kit of kits) {
-      if (!kit.iccid) {
-        logger.warn({ kitNo: kit.kitNo }, "KIT has no ICCID in detail href; skipping");
-        continue;
-      }
-      // Use the canonical capital-R casing the portal serves; lowercase can
-      // 302 to login on some IIS rewrite configs.
-      const directUrl = `${baseUrl}/RatedCdrs.aspx?FC=ICCID&FV=${encodeURIComponent(kit.iccid)}`;
-      if (kit === kits[0]) {
-        logger.info({ directUrl }, "First KIT direct URL (sample)");
-      }
+    for (const period of periods) {
       try {
-        await page.goto(directUrl, { waitUntil: "networkidle", timeout: 30000 });
-      } catch (e) {
-        logger.warn({ kitNo: kit.kitNo, err: (e as Error).message }, "Direct URL failed; skipping KIT");
-        continue;
-      }
-      // Hard guard: if the direct URL silently bounced us back to login or
-      // away from the grid, the entire KIT is unsafe to scrape — skip it
-      // rather than write zeros over previously valid period totals.
-      if (!(await isOnRatedCdrsGrid(page))) {
-        logger.warn(
-          { kitNo: kit.kitNo, url: page.url() },
-          "After direct URL, page is not on ratedCdrs grid — skipping KIT (session may be lost)"
-        );
-        continue;
-      }
-      // Wait for the grid to actually finish its initial async render so
-      // selectPeriod isn't racing an in-flight callback.
-      await waitForGridReady(page, `direct ${kit.kitNo}`);
+        // Make sure we're on the bare RatedCdrs page (no FC/FV) before each
+        // period switch. enrichShipNames may have left us on a detail page.
+        if (!(await isOnRatedCdrsGrid(page)) || /[?&]FV=/i.test(page.url())) {
+          const cdrLink = page
+            .locator("a[href*='ratedCdrs.aspx' i], a[href*='RatedCdrs.aspx' i]")
+            .first();
+          if ((await cdrLink.count()) > 0) {
+            await Promise.all([
+              page.waitForNavigation({ waitUntil: "networkidle", timeout: 20000 }).catch(() => {}),
+              cdrLink.click(),
+            ]);
+          }
+        }
 
-      for (const period of periods) {
-        try {
-          await selectPeriod(page, period);
-          // Re-check after every period switch — DevExpress callbacks
-          // occasionally trigger a logout redirect on stale sessions.
-          if (!(await isOnRatedCdrsGrid(page))) {
-            logger.warn(
-              { kitNo: kit.kitNo, period, url: page.url() },
-              "Lost grid context after period switch — skipping period (no overwrite)"
-            );
-            continue;
-          }
-          // Wait for the post-callback grid to settle (data row OR empty marker).
-          await waitForGridReady(page, `${kit.kitNo}/${period}`);
-          const parsed = await parseGrid(page);
-          // Diagnostic: if the grid had no parseable rows, dump what we saw
-          // so we can adjust selectors / column map without another round-trip.
-          if (parsed.rows.length === 0) {
-            logger.warn(
-              {
-                kitNo: kit.kitNo,
-                period,
-                diag: parsed.diag,
-                footerGib: parsed.footerGib,
-                footerUsd: parsed.footerUsd,
-              },
-              "parseGrid produced 0 rows — diagnostic snapshot"
-            );
-          }
-          // Treat as truly empty ONLY when both rows AND footer are absent
-          // AND we're still on the grid — that means the portal really has
-          // no charges for this (kit, period). We insert a 0-total stub
-          // (without overwriting an existing non-zero one).
-          if (parsed.rows.length === 0 && parsed.footerGib == null && parsed.footerUsd == null) {
+        await selectPeriod(page, period);
+        if (!(await isOnRatedCdrsGrid(page))) {
+          logger.warn(
+            { period, url: page.url() },
+            "Lost grid context after period switch — skipping period (no overwrite)"
+          );
+          continue;
+        }
+        await waitForGridReady(page, `period ${period}`);
+        const parsed = await parseGrid(page);
+
+        if (parsed.rows.length === 0) {
+          logger.warn(
+            {
+              period,
+              diag: parsed.diag,
+              footerGib: parsed.footerGib,
+              footerUsd: parsed.footerUsd,
+            },
+            "parseGrid produced 0 rows — diagnostic snapshot"
+          );
+        }
+
+        // Bucket rows by their owning kitNo (cells[1]).
+        const byKit = new Map<string, ParsedDailyRow[]>();
+        for (const r of parsed.rows) {
+          const k = r.kitNo;
+          if (!k || !knownKitNos.has(k)) continue;
+          const list = byKit.get(k) ?? [];
+          list.push(r);
+          byKit.set(k, list);
+        }
+
+        // Pagination guard: if the parsed period_cell on rows doesn't match the
+        // requested period, the grid never actually switched. Skip without
+        // overwriting good data.
+        const sampleRowPeriod = parsed.rows[0]?.period ?? null;
+        if (parsed.rows.length > 0 && sampleRowPeriod && sampleRowPeriod !== period) {
+          logger.warn(
+            { requested: period, actualOnRow: sampleRowPeriod },
+            "Grid did not switch to requested period — preserving existing totals"
+          );
+          continue;
+        }
+
+        // Persist per-kit slice. For kits with NO rows in this period we
+        // insert a 0-stub (only if the row didn't exist already) so the UI
+        // can show "no usage" without losing a previously-valid total.
+        for (const kit of kits) {
+          const kitRows = byKit.get(kit.kitNo) ?? [];
+          if (kitRows.length === 0) {
             await db
               .insert(stationKitPeriodTotal)
               .values({
@@ -822,37 +979,36 @@ export async function runSync(
               });
             continue;
           }
-          // Rows present but footer missing → almost certainly multi-page
-          // pageSize mismatch. Persist the daily rows (idempotent), but DO
-          // NOT touch the period total — leave previous value intact.
-          if (parsed.rows.length > 0 && parsed.footerGib == null && parsed.footerUsd == null) {
-            logger.warn(
-              { kitNo: kit.kitNo, period, rowCount: parsed.rows.length },
-              "Footer missing despite rows — likely multi-page (pageSize<50). Period total preserved."
-            );
-          }
-          const { inserted, updated } = await persistKitPeriod(kit.kitNo, period, parsed);
-          totalRows += parsed.rows.length;
+          // Per-kit totals = row-sum (the grid footer is grand-total across
+          // all kits, which we can't use here).
+          const sumGib =
+            Math.round(
+              kitRows.reduce((a, r) => a + (r.volumeGib ?? 0), 0) * 100
+            ) / 100;
+          const sumUsd =
+            Math.round(
+              kitRows.reduce((a, r) => a + (r.chargeUsd ?? 0), 0) * 100
+            ) / 100;
+          const synthetic: ParsedGrid = {
+            rows: kitRows,
+            footerGib: sumGib,
+            footerUsd: sumUsd,
+            diag: parsed.diag,
+          };
+          const { inserted, updated } = await persistKitPeriod(
+            kit.kitNo,
+            period,
+            synthetic
+          );
+          totalRows += kitRows.length;
           totalInserted += inserted;
           totalUpdated += updated;
-
-          // Cross-check footer vs row sum (warn only).
-          if (parsed.footerGib != null) {
-            const sumGib = parsed.rows.reduce((a, r) => a + (r.volumeGib ?? 0), 0);
-            const diff = Math.abs(sumGib - parsed.footerGib);
-            if (diff > 0.5) {
-              logger.warn(
-                { kitNo: kit.kitNo, period, footerGib: parsed.footerGib, sumGib, diff },
-                "Footer vs row-sum mismatch"
-              );
-            }
-          }
-        } catch (e) {
-          logger.warn(
-            { kitNo: kit.kitNo, period, err: (e as Error).message },
-            "Period scrape failed (continuing)"
-          );
         }
+      } catch (e) {
+        logger.warn(
+          { period, err: (e as Error).message },
+          "Period scrape failed (continuing)"
+        );
       }
     }
 
