@@ -1,0 +1,24 @@
+root@162-55-4-35:/var/www/sc.lacivertteknoloji.com# cd /var/www/sc.lacivertteknoloji.com sudo -u www-data bash -c 'set -a; source .env; set +a; pnpm --filter @workspace/db run push --force'
+sudo -u www-data env PORT=5012 BASE_PATH=/ pnpm --filter @workspace/admin-panel run build sudo -u www-data pnpm --filter @workspace/api-server run build && sudo systemctl restart lacisc-api
+-bash: cd: too many arguments
+
+> @workspace/admin-panel@0.0.0 build /var/www/sc.lacivertteknoloji.com/artifacts/admin-panel
+> vite build --config vite.config.ts sudo -u www-data pnpm --filter @workspace/api-server run build
+
+file:///var/www/sc.lacivertteknoloji.com/node_modules/.pnpm/vite@7.3.2_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/cli.js:311
+                        for (const name of Object.keys(options)) if (name !== "--" && !this.hasOption(name) && !globalCommand.hasOption(name)) throw new CACError(`Unknown option \`${name.length > 1 ? `--${name}` : `-${name}`}\``);
+                                                                                                                                                     ^
+
+CACError: Unknown option `-u`
+    at Command.checkUnknownOptions (file:///var/www/sc.lacivertteknoloji.com/node_modules/.pnpm/vite@7.3.2_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/cli.js:311:129)
+    at CAC.runMatchedCommand (file:///var/www/sc.lacivertteknoloji.com/node_modules/.pnpm/vite@7.3.2_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/cli.js:473:11)
+    at CAC.parse (file:///var/www/sc.lacivertteknoloji.com/node_modules/.pnpm/vite@7.3.2_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/cli.js:430:17)
+    at file:///var/www/sc.lacivertteknoloji.com/node_modules/.pnpm/vite@7.3.2_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/cli.js:695:5
+    at ModuleJob.run (node:internal/modules/esm/module_job:325:25)
+    at async ModuleLoader.import (node:internal/modules/esm/loader:606:24)
+
+Node.js v20.20.2
+/var/www/sc.lacivertteknoloji.com/artifacts/admin-panel:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/admin-panel@0.0.0 build: `vite build --config vite.config.ts sudo -u www-data pnpm --filter @workspace/api-server run build`
+Exit status 1
+root@162-55-4-35:/var/www/sc.lacivertteknoloji.com#
