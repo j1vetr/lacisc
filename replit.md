@@ -51,6 +51,7 @@ See `lib/db/src/schema/index.ts` and `lib/api-spec/openapi.yaml` for source-of-t
 - **Playwright externalized** in esbuild so it runs from `node_modules`, not bundled.
 - **Per-CDR daily storage**: `station_kit_daily` keeps every CDR row (PK on `kit_no, period, cdr_id`) so syncing the same period multiple times is idempotent. `station_kit_period_total` stores the portal **footer** (col12 GiB / col22 USD) per `(kit_no, period)` — this is the source of truth for monthly totals (avoids row-sum drift).
 - **Two-tier sync**: first sync after `firstFullSyncAt` is null walks every period from **202601** → current; subsequent syncs only touch current + previous period. The flag is set on first successful run.
+- **Per-(KIT × dönem) FV scrape**: bare grid `RatedCdrs.aspx` is server-capped at ~100 satır toplam, dolayısıyla bir KIT'in 50+ CDR'ı varsa kesilirdi (KITP00409812/202604: 955 GiB → 774 GiB). Sync artık her dönemde `?FC=ICCID&FV=KITPxxxx` ile her KIT'i ayrı ayrı çekiyor; tek sayfaya sığan footer = gerçek dönem grand-total. To re-fetch historical periods (202601-202603 still show old capped numbers), wipe `firstFullSyncAt` to retrigger a full backfill: `UPDATE station_credentials SET first_full_sync_at = NULL;` then trigger sync.
 
 ## Product
 

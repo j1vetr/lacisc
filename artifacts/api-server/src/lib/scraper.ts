@@ -1077,8 +1077,25 @@ export async function runSync(
     }
 
     // 1) KIT listesi + ship-name enrichment (mevcut session üzerinden).
-    const kits = await extractKitList(page);
-    logger.info({ kitCount: kits.length }, "Discovered KITs");
+    //    Bare grid is server-capped (~100 rows) so a low-activity KIT may
+    //    not appear in the current snapshot. Union with previously-known
+    //    KITs from the DB so they still get scraped.
+    const liveKits = await extractKitList(page);
+    const dbKits = await db
+      .select({ kitNo: stationKits.kitNo, shipName: stationKits.shipName })
+      .from(stationKits);
+    const kitMap = new Map<string, KitListEntry>();
+    for (const k of liveKits) kitMap.set(k.kitNo, k);
+    for (const k of dbKits) {
+      if (!kitMap.has(k.kitNo)) {
+        kitMap.set(k.kitNo, { kitNo: k.kitNo, detailHref: null, iccid: null });
+      }
+    }
+    const kits = Array.from(kitMap.values());
+    logger.info(
+      { liveCount: liveKits.length, dbCount: dbKits.length, totalCount: kits.length },
+      "Discovered KITs (union of live grid + DB)"
+    );
     if (kits.length === 0) {
       return {
         success: false,
@@ -1124,21 +1141,22 @@ export async function runSync(
       "Sync plan"
     );
 
-    // 3) Per-period scrape on the BARE RatedCdrs page. The drill-down URL
-    //    `?FC=ICCID&FV=KITP...` does not have a working Refresh button, so
-    //    period switching is a no-op there. The bare page DOES have btnRefresh
-    //    AND every grid row carries its owning KIT no in cells[1], so a single
-    //    grid scrape covers all kits for a period. We then bucket rows by
-    //    kitNo and persist per (kit, period) with row-sum totals.
+    // 3) Per-(KIT × period) scrape via the FV-filtered URL.
+    //    The bare RatedCdrs grid combines all kits but is server-capped at
+    //    ~100 rows total — so a kit with 50+ CDRs in a period only contributes
+    //    its first ~25. The drill-down URL `?FC=ICCID&FV=KITPxxxx` shows
+    //    ONLY that kit's CDRs (≤32 rows for any single period in practice),
+    //    fitting in one pager page so the footer carries the real grand
+    //    total per (kit, period).
     let totalRows = 0;
     let totalInserted = 0;
     let totalUpdated = 0;
-    const knownKitNos = new Set(kits.map((k) => k.kitNo));
+    let kitPeriodFailures = 0;
 
     for (const period of periods) {
+      // Set the session period once on the bare grid, then walk kits. The FV
+      // URL inherits the session-level period the first time we land on it.
       try {
-        // Make sure we're on the bare RatedCdrs page (no FC/FV) before each
-        // period switch. enrichShipNames may have left us on a detail page.
         if (!(await isOnRatedCdrsGrid(page)) || /[?&]FV=/i.test(page.url())) {
           const cdrLink = page
             .locator("a[href*='ratedCdrs.aspx' i], a[href*='RatedCdrs.aspx' i]")
@@ -1150,62 +1168,87 @@ export async function runSync(
             ]);
           }
         }
-
         await selectPeriod(page, period);
-        if (!(await isOnRatedCdrsGrid(page))) {
-          logger.warn(
-            { period, url: page.url() },
-            "Lost grid context after period switch — skipping period (no overwrite)"
+      } catch (e) {
+        logger.warn(
+          { period, err: (e as Error).message },
+          "Bare-grid period switch failed (will still try FV URL per kit)"
+        );
+      }
+
+      for (const kit of kits) {
+        try {
+          const fvUrl = `${baseUrl}/RatedCdrs.aspx?FC=ICCID&FV=${encodeURIComponent(
+            kit.kitNo
+          )}`;
+          let gotoOk = true;
+          await page
+            .goto(fvUrl, { waitUntil: "networkidle", timeout: 30000 })
+            .catch((e) => {
+              gotoOk = false;
+              logger.warn(
+                { period, kit: kit.kitNo, err: (e as Error).message },
+                "FV goto failed"
+              );
+            });
+          if (!gotoOk || !(await isOnRatedCdrsGrid(page))) {
+            kitPeriodFailures++;
+            logger.warn(
+              { period, kit: kit.kitNo, url: page.url() },
+              "FV URL bounced or goto failed — skipping (no overwrite, no 0-stub)"
+            );
+            continue;
+          }
+          await waitForGridReady(page, `FV ${kit.kitNo} ${period}`);
+
+          // Verify the loaded grid actually belongs to this KIT before doing
+          // ANY overwrite. If cells[1] of the first row is a different KIT,
+          // the FV navigation didn't take effect and we'd otherwise smear
+          // another kit's CDRs onto this one.
+          const firstRowProbe = await page
+            .evaluate(() => {
+              const row = document.querySelector(
+                "tr[id*='DXDataRow'], tr.dxgvDataRow"
+              );
+              if (!row) return { kitNo: null, period: null, hasRows: false };
+              const tds = row.querySelectorAll("td");
+              return {
+                kitNo: tds.length > 1 ? (tds[1].textContent || "").trim() : null,
+                period: tds.length > 23 ? (tds[23].textContent || "").trim() : null,
+                hasRows: true,
+              };
+            })
+            .catch(() => ({ kitNo: null, period: null, hasRows: false }));
+
+          if (firstRowProbe.hasRows && firstRowProbe.kitNo && firstRowProbe.kitNo !== kit.kitNo) {
+            kitPeriodFailures++;
+            logger.warn(
+              { period, kit: kit.kitNo, gridShows: firstRowProbe.kitNo },
+              "FV grid shows different KIT — skipping (no overwrite)"
+            );
+            continue;
+          }
+
+          // The FV URL initially loads with the session-level period. If a
+          // previous (kit, period) pair changed it, or if the session default
+          // doesn't match `period`, run selectPeriod here too.
+          if (firstRowProbe.period !== null && firstRowProbe.period !== period) {
+            await selectPeriod(page, period);
+            await waitForGridReady(page, `FV ${kit.kitNo} ${period} after switch`);
+          }
+
+          const parsed = await parseAllPages(page, period);
+
+          // Drop rows whose period column doesn't match — defensive; keeps us
+          // from polluting one period's row table with another's CDRs if the
+          // grid hasn't fully refreshed yet.
+          const kitRows = parsed.rows.filter(
+            (r) => r.period === period && (r.kitNo === kit.kitNo || r.kitNo === null)
           );
-          continue;
-        }
-        await waitForGridReady(page, `period ${period}`);
-        // CRITICAL: walk EVERY pager page (default pageSize=25, max=100) and
-        // accumulate rows. Without this we only see the first page (~25 CDRs)
-        // and the per-KIT row sum is wrong (e.g. 774 GiB instead of the real
-        // 955 GiB for KITP00409812 / 202604).
-        const parsed = await parseAllPages(page, period);
 
-        if (parsed.rows.length === 0) {
-          logger.warn(
-            {
-              period,
-              diag: parsed.diag,
-              footerGib: parsed.footerGib,
-              footerUsd: parsed.footerUsd,
-            },
-            "parseGrid produced 0 rows — diagnostic snapshot"
-          );
-        }
-
-        // Bucket rows by their owning kitNo (cells[1]).
-        const byKit = new Map<string, ParsedDailyRow[]>();
-        for (const r of parsed.rows) {
-          const k = r.kitNo;
-          if (!k || !knownKitNos.has(k)) continue;
-          const list = byKit.get(k) ?? [];
-          list.push(r);
-          byKit.set(k, list);
-        }
-
-        // Pagination guard: if the parsed period_cell on rows doesn't match the
-        // requested period, the grid never actually switched. Skip without
-        // overwriting good data.
-        const sampleRowPeriod = parsed.rows[0]?.period ?? null;
-        if (parsed.rows.length > 0 && sampleRowPeriod && sampleRowPeriod !== period) {
-          logger.warn(
-            { requested: period, actualOnRow: sampleRowPeriod },
-            "Grid did not switch to requested period — preserving existing totals"
-          );
-          continue;
-        }
-
-        // Persist per-kit slice. For kits with NO rows in this period we
-        // insert a 0-stub (only if the row didn't exist already) so the UI
-        // can show "no usage" without losing a previously-valid total.
-        for (const kit of kits) {
-          const kitRows = byKit.get(kit.kitNo) ?? [];
           if (kitRows.length === 0) {
+            // No usage this period: persist a 0-stub if there is no existing
+            // row (so we don't overwrite a previously valid total).
             await db
               .insert(stationKitPeriodTotal)
               .values({
@@ -1218,10 +1261,14 @@ export async function runSync(
               .onConflictDoNothing({
                 target: [stationKitPeriodTotal.kitNo, stationKitPeriodTotal.period],
               });
+            logger.info(
+              { period, kit: kit.kitNo },
+              "FV grid empty for this period — 0-stub"
+            );
             continue;
           }
-          // Per-kit totals = row-sum (the grid footer is grand-total across
-          // all kits, which we can't use here).
+
+          // Footer is the source of truth when single-page; otherwise sum.
           const sumGib =
             Math.round(
               kitRows.reduce((a, r) => a + (r.volumeGib ?? 0), 0) * 100
@@ -1230,10 +1277,13 @@ export async function runSync(
             Math.round(
               kitRows.reduce((a, r) => a + (r.chargeUsd ?? 0), 0) * 100
             ) / 100;
+          const totalGib = parsed.footerGib ?? sumGib;
+          const totalUsd = parsed.footerUsd ?? sumUsd;
+
           const synthetic: ParsedGrid = {
-            rows: kitRows,
-            footerGib: sumGib,
-            footerUsd: sumUsd,
+            rows: kitRows.map((r) => ({ ...r, kitNo: kit.kitNo })),
+            footerGib: totalGib,
+            footerUsd: totalUsd,
             diag: parsed.diag,
           };
           const { inserted, updated } = await persistKitPeriod(
@@ -1244,26 +1294,44 @@ export async function runSync(
           totalRows += kitRows.length;
           totalInserted += inserted;
           totalUpdated += updated;
+          logger.info(
+            {
+              period,
+              kit: kit.kitNo,
+              rows: kitRows.length,
+              footerGib: parsed.footerGib,
+              sumGib,
+              storedGib: totalGib,
+              footerUsd: parsed.footerUsd,
+              sumUsd,
+            },
+            "FV (kit, period) persisted"
+          );
+        } catch (e) {
+          kitPeriodFailures++;
+          logger.warn(
+            { period, kit: kit.kitNo, err: (e as Error).message },
+            "FV (kit, period) scrape failed (continuing)"
+          );
         }
-      } catch (e) {
-        logger.warn(
-          { period, err: (e as Error).message },
-          "Period scrape failed (continuing)"
-        );
       }
     }
 
-    // İlk full başarıyla bitti → bayrağı ata.
-    if (isFirstFull && creds) {
+    // İlk full bayrağı YALNIZCA hatasız tamamlandığında atılır — aksi halde
+    // sonraki sync'te tekrar full backfill denenir.
+    if (isFirstFull && creds && kitPeriodFailures === 0) {
       await db
         .update(stationCredentials)
         .set({ firstFullSyncAt: new Date(), updatedAt: new Date() })
         .where(eq(stationCredentials.id, creds.id));
     }
 
+    const partial = kitPeriodFailures > 0;
     return {
-      success: true,
-      message: `Sync OK — ${kits.length} KIT × ${periods.length} dönem (${totalRows} satır).`,
+      success: !partial,
+      message: partial
+        ? `Sync kısmen başarılı — ${kits.length} KIT × ${periods.length} dönem (${totalRows} satır, ${kitPeriodFailures} başarısız KIT-dönem).`
+        : `Sync OK — ${kits.length} KIT × ${periods.length} dönem (${totalRows} satır).`,
       recordsFound: totalRows,
       recordsInserted: totalInserted,
       recordsUpdated: totalUpdated,
