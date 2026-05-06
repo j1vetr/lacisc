@@ -65,12 +65,35 @@ function parseUsd(value: string | null | undefined): number | null {
 function parseDayDate(value: string | null | undefined): string | null {
   if (!value) return null;
   const v = value.trim();
-  // ISO-ish first
-  const iso = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  // ISO-ish anywhere in the string
+  const iso = v.match(/(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
-  // dd/mm/yyyy or dd.mm.yyyy
-  const eu = v.match(/^(\d{2})[./](\d{2})[./](\d{4})/);
+  // dd/mm/yyyy, dd.mm.yyyy, or dd-mm-yyyy anywhere in the string
+  const eu = v.match(/(\d{2})[./-](\d{2})[./-](\d{4})/);
   if (eu) return `${eu[3]}-${eu[2]}-${eu[1]}`;
+  return null;
+}
+
+// Portal cells like "01 May 00:00" (no year). Combine the day from the cell
+// with year+month from the period (YYYYMM) to produce a full ISO date.
+function parseShortDayWithPeriod(
+  value: string | null | undefined,
+  period: string | null
+): string | null {
+  if (!value || !period || !/^\d{6}$/.test(period)) return null;
+  const m = value.trim().match(/^(\d{1,2})\b/);
+  if (!m) return null;
+  const day = m[1].padStart(2, "0");
+  return `${period.slice(0, 4)}-${period.slice(4, 6)}-${day}`;
+}
+
+// Scan every cell for a date-shape and return the first match. Used when the
+// fixed col9 lookup fails (column layout differs across portal accounts).
+function findDayDateInRow(cells: string[]): string | null {
+  for (const c of cells) {
+    const d = parseDayDate(c);
+    if (d) return d;
+  }
   return null;
 }
 
@@ -395,19 +418,40 @@ async function parseGrid(page: Page): Promise<ParsedGrid> {
 
   const rows: ParsedDailyRow[] = [];
   for (const cells of data.rowCells) {
-    // Be lenient on column count: some portal layouts trim hidden cols.
-    // Require at least the indices we actually read (up to col24 = cdrId).
-    if (cells.length < 13) continue; // need at least up to col12 (GiB)
-    const cdrId = (cells[24] ?? "").trim();
+    if (cells.length < 13) continue;
+    // cdrId: prefer col24, fall back to any col holding a long numeric id.
+    let cdrId = (cells[24] ?? "").trim();
+    if (!cdrId) {
+      for (const c of cells) {
+        if (/^\d{8,}$/.test(c)) {
+          cdrId = c;
+          break;
+        }
+      }
+    }
     if (!cdrId) continue;
+    const period = /^\d{6}$/.test(cells[23] ?? "") ? cells[23] : null;
+    // dayDate: try ISO/EU first, then "DD MMM HH:MM" + period, then any cell.
+    const dayDate =
+      parseDayDate(cells[9]) ??
+      parseShortDayWithPeriod(cells[9], period) ??
+      findDayDateInRow(cells);
     rows.push({
       cdrId,
-      service: cells[4] || null,
-      dayDate: parseDayDate(cells[9]),
+      // col3 is the human service label ("Background IP"); col4 is a bundle
+      // ID like "SL-DF-9290337-...". Prefer col3, fall back to col4.
+      service: cells[3] || cells[4] || null,
+      dayDate,
       volumeGib: parseGib(cells[12]),
       chargeUsd: parseUsd(cells[22] || cells[20]),
-      period: /^\d{6}$/.test(cells[23] ?? "") ? cells[23] : null,
+      period,
     });
+  }
+  // One-time sample log so we can see real cell layout when something looks off.
+  if (data.rowCells.length > 0) {
+    const c = data.rowCells[0];
+    const sample = c.map((v, i) => `${i}=${v}`).slice(0, 26).join(" | ");
+    logger.info({ cellCount: c.length, sample }, "parseGrid first-row sample");
   }
 
   const footerGib = parseGib(data.footerCells[12]);
@@ -622,11 +666,18 @@ export async function runSync(
     const page = await browser.newPage();
     await page.setDefaultNavigationTimeout(30000);
 
-    // Strip ALL trailing slashes (and surrounding whitespace) so the saved
-    // setting "https://...satcomhost.com/" or "https://...satcomhost.com//"
-    // never produces "//ratedCdrs.aspx" which IIS bounces to /Account/Login.
-    const baseUrl = portalUrl.trim().replace(/\/+$/, "");
-    logger.info({ baseUrl }, "Sync starting with normalized baseUrl");
+    // Normalize: take only the origin (scheme://host[:port]) and discard any
+    // path/query the user may have accidentally pasted (e.g. they saved the
+    // login redirect URL "https://...satcomhost.com/Account/Login?ReturnUrl=%2F"
+    // as their portal URL — appending /RatedCdrs.aspx would 404/302 to login).
+    let baseUrl: string;
+    try {
+      baseUrl = new URL(portalUrl.trim()).origin;
+    } catch {
+      // Fallback: best-effort strip of trailing slashes if URL() rejects it.
+      baseUrl = portalUrl.trim().replace(/\/+$/, "");
+    }
+    logger.info({ baseUrl, rawPortalUrl: portalUrl }, "Sync starting with normalized baseUrl");
     await loginAndOpenRatedCdrs(page, baseUrl, username, password);
 
     if (testOnly) {
