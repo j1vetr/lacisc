@@ -296,6 +296,39 @@ interface ParsedGrid {
   rows: ParsedDailyRow[];
   footerGib: number | null;
   footerUsd: number | null;
+  diag: GridDiag;
+}
+
+interface GridDiag {
+  rowSelectorUsed: string | null;
+  rowsFound: number;
+  isEmptyMarker: boolean;
+  firstRowCellCount: number;
+  firstRowSample: string;
+  gridHtmlLen: number;
+}
+
+// Wait for either a data row OR the DevExpress "no data" marker to appear,
+// so we never parse a grid that's still loading.
+async function waitForGridReady(page: Page, label: string): Promise<void> {
+  try {
+    await page.waitForFunction(
+      () => {
+        const sels = [
+          "tr[id*='DXDataRow']",
+          "tr.dxgvDataRow",
+          "tr[class*='dxgvDataRow']",
+          "tr[id*='DXEmptyRow']",
+          "td[id*='DXEmptyRow']",
+          "tr.dxgvEmptyDataRow",
+        ];
+        return sels.some((s) => document.querySelector(s) !== null);
+      },
+      { timeout: 15000 }
+    );
+  } catch {
+    logger.warn({ label, url: page.url() }, "waitForGridReady timeout");
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -305,30 +338,66 @@ interface ParsedGrid {
 // ---------------------------------------------------------------------------
 async function parseGrid(page: Page): Promise<ParsedGrid> {
   const data = await page.evaluate(() => {
-    const dataRows = Array.from(
-      document.querySelectorAll("tr[id*='DXDataRow']")
-    ) as HTMLTableRowElement[];
+    // Try a list of known DevExpress row selectors and report which one hit.
+    const candidates: string[] = [
+      "tr[id*='DXDataRow']",
+      "tr.dxgvDataRow",
+      "tr[class*='dxgvDataRow']",
+      "[id*='gvRatedCdr'] tr[id*='DataRow']",
+    ];
+    let rowSelectorUsed: string | null = null;
+    let dataRows: HTMLTableRowElement[] = [];
+    for (const sel of candidates) {
+      const found = Array.from(document.querySelectorAll(sel)) as HTMLTableRowElement[];
+      if (found.length > 0) {
+        rowSelectorUsed = sel;
+        dataRows = found;
+        break;
+      }
+    }
     const rowCells: string[][] = dataRows.map((tr) =>
       Array.from(tr.querySelectorAll("td")).map((td) =>
         (td.textContent || "").replace(/\s+/g, " ").trim()
       )
     );
     // Footer: DXFooter row inside the same grid.
-    const footerTr = document.querySelector("tr[id*='DXFooter']") as
-      | HTMLTableRowElement
-      | null;
+    const footerTr =
+      (document.querySelector("tr[id*='DXFooter']") as HTMLTableRowElement | null) ||
+      (document.querySelector("tr.dxgvFooter") as HTMLTableRowElement | null);
     const footerCells = footerTr
       ? Array.from(footerTr.querySelectorAll("td")).map((td) =>
           (td.textContent || "").replace(/\s+/g, " ").trim()
         )
       : [];
-    return { rowCells, footerCells };
+
+    // Diagnostics — only used if rowCells is empty so we can debug.
+    const isEmptyMarker =
+      document.querySelector(
+        "tr[id*='DXEmptyRow'], td[id*='DXEmptyRow'], tr.dxgvEmptyDataRow"
+      ) !== null;
+    const grid =
+      document.querySelector("[id*='gvRatedCdr']") || document.querySelector("table");
+    const gridHtml = grid ? grid.outerHTML.slice(0, 600) : "";
+    return {
+      rowCells,
+      footerCells,
+      diag: {
+        rowSelectorUsed,
+        rowsFound: dataRows.length,
+        isEmptyMarker,
+        firstRowCellCount: rowCells[0]?.length ?? 0,
+        firstRowSample: rowCells[0] ? rowCells[0].slice(0, 26).join(" | ") : "",
+        gridHtmlLen: gridHtml.length,
+      },
+    };
   });
 
   const rows: ParsedDailyRow[] = [];
   for (const cells of data.rowCells) {
-    if (cells.length < 25) continue; // need at least up to col24
-    const cdrId = cells[24] ?? "";
+    // Be lenient on column count: some portal layouts trim hidden cols.
+    // Require at least the indices we actually read (up to col24 = cdrId).
+    if (cells.length < 13) continue; // need at least up to col12 (GiB)
+    const cdrId = (cells[24] ?? "").trim();
     if (!cdrId) continue;
     rows.push({
       cdrId,
@@ -342,7 +411,7 @@ async function parseGrid(page: Page): Promise<ParsedGrid> {
 
   const footerGib = parseGib(data.footerCells[12]);
   const footerUsd = parseUsd(data.footerCells[22] || data.footerCells[20]);
-  return { rows, footerGib, footerUsd };
+  return { rows, footerGib, footerUsd, diag: data.diag };
 }
 
 // ---------------------------------------------------------------------------
@@ -640,6 +709,9 @@ export async function runSync(
         );
         continue;
       }
+      // Wait for the grid to actually finish its initial async render so
+      // selectPeriod isn't racing an in-flight callback.
+      await waitForGridReady(page, `direct ${kit.kitNo}`);
 
       for (const period of periods) {
         try {
@@ -653,7 +725,23 @@ export async function runSync(
             );
             continue;
           }
+          // Wait for the post-callback grid to settle (data row OR empty marker).
+          await waitForGridReady(page, `${kit.kitNo}/${period}`);
           const parsed = await parseGrid(page);
+          // Diagnostic: if the grid had no parseable rows, dump what we saw
+          // so we can adjust selectors / column map without another round-trip.
+          if (parsed.rows.length === 0) {
+            logger.warn(
+              {
+                kitNo: kit.kitNo,
+                period,
+                diag: parsed.diag,
+                footerGib: parsed.footerGib,
+                footerUsd: parsed.footerUsd,
+              },
+              "parseGrid produced 0 rows — diagnostic snapshot"
+            );
+          }
           // Treat as truly empty ONLY when both rows AND footer are absent
           // AND we're still on the grid — that means the portal really has
           // no charges for this (kit, period). We insert a 0-total stub
