@@ -622,7 +622,11 @@ export async function runSync(
     const page = await browser.newPage();
     await page.setDefaultNavigationTimeout(30000);
 
-    const baseUrl = portalUrl.endsWith("/") ? portalUrl.slice(0, -1) : portalUrl;
+    // Strip ALL trailing slashes (and surrounding whitespace) so the saved
+    // setting "https://...satcomhost.com/" or "https://...satcomhost.com//"
+    // never produces "//ratedCdrs.aspx" which IIS bounces to /Account/Login.
+    const baseUrl = portalUrl.trim().replace(/\/+$/, "");
+    logger.info({ baseUrl }, "Sync starting with normalized baseUrl");
     await loginAndOpenRatedCdrs(page, baseUrl, username, password);
 
     if (testOnly) {
@@ -693,7 +697,12 @@ export async function runSync(
         logger.warn({ kitNo: kit.kitNo }, "KIT has no ICCID in detail href; skipping");
         continue;
       }
-      const directUrl = `${baseUrl}/ratedCdrs.aspx?FC=ICCID&FV=${encodeURIComponent(kit.iccid)}`;
+      // Use the canonical capital-R casing the portal serves; lowercase can
+      // 302 to login on some IIS rewrite configs.
+      const directUrl = `${baseUrl}/RatedCdrs.aspx?FC=ICCID&FV=${encodeURIComponent(kit.iccid)}`;
+      if (kit === kits[0]) {
+        logger.info({ directUrl }, "First KIT direct URL (sample)");
+      }
       try {
         await page.goto(directUrl, { waitUntil: "networkidle", timeout: 30000 });
       } catch (e) {
