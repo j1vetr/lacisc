@@ -2,14 +2,26 @@ import React, { useEffect, useRef } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Server, Settings as SettingsIcon, AlertTriangle, ShieldCheck, RefreshCw, Save } from "lucide-react";
+import { Server, Settings as SettingsIcon, AlertTriangle, ShieldCheck, RefreshCw, Save, Trash2 } from "lucide-react";
 import { 
   useGetStationSettings, 
   getGetStationSettingsQueryKey,
   useSaveStationSettings,
   useTestConnection,
-  useSyncNow
+  useSyncNow,
+  useWipeStationData
 } from "@workspace/api-client-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
@@ -48,6 +60,7 @@ export default function Settings() {
   const saveMutation = useSaveStationSettings();
   const testConnectionMutation = useTestConnection();
   const syncNowMutation = useSyncNow();
+  const wipeMutation = useWipeStationData();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   
@@ -123,6 +136,25 @@ export default function Settings() {
       },
       onError: (err: any) => {
         toast({ title: "İşlem Başarısız", description: err.message || "Senkronizasyon kuyruğa alınamadı.", variant: "destructive" });
+      },
+    });
+  };
+
+  const handleWipeData = () => {
+    wipeMutation.mutate(undefined, {
+      onSuccess: (res) => {
+        toast({
+          title: "Veriler Temizlendi",
+          description: res.message || "Tüm terminal verileri silindi.",
+        });
+        queryClient.invalidateQueries();
+      },
+      onError: (err: any) => {
+        toast({
+          title: "Temizlik Başarısız",
+          description: err?.message || "Veriler silinemedi.",
+          variant: "destructive",
+        });
       },
     });
   };
@@ -330,6 +362,63 @@ export default function Settings() {
           </div>
         </form>
       </Form>
+
+      <Card className="border border-[#cf2d56]/30 shadow-none bg-card rounded-xl overflow-hidden">
+        <CardHeader className="bg-[#cf2d56]/5 border-b border-[#cf2d56]/20 pb-5">
+          <CardTitle className="text-lg font-normal tracking-tight flex items-center gap-2.5 text-[#cf2d56]">
+            <div className="p-1.5 bg-background rounded border border-[#cf2d56]/30">
+              <AlertTriangle className="w-4 h-4 text-[#cf2d56]" />
+            </div>
+            Tehlike Bölgesi
+          </CardTitle>
+          <CardDescription className="mt-1 text-sm text-muted-foreground">
+            Aşağıdaki işlemler geri alınamaz. Yalnızca veritabanını sıfırdan kurmak istediğinizde kullanın.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-4 sm:p-6 lg:p-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 p-4 rounded-lg border border-[#cf2d56]/20 bg-background">
+            <div className="space-y-1 pr-4">
+              <p className="text-sm font-medium text-foreground">Tüm Terminal Verilerini Sil</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                KIT listesi, dönem toplamları, CDR satırları ve sync kayıtları temizlenir. Portal kimlik bilgileri korunur.
+                Bir sonraki senkronizasyon tüm geçmişi yeniden çeker.
+              </p>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-lg border-[#cf2d56]/40 text-[#cf2d56] hover:bg-[#cf2d56]/10 hover:text-[#cf2d56] font-medium text-[13px] h-10 px-4 shadow-none whitespace-nowrap shrink-0"
+                  disabled={wipeMutation.isPending}
+                >
+                  <Trash2 className={`w-4 h-4 mr-2 ${wipeMutation.isPending ? "animate-pulse" : ""}`} />
+                  Verileri Temizle
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="rounded-xl">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Tüm terminal verileri silinsin mi?</AlertDialogTitle>
+                  <AlertDialogDescription className="leading-relaxed">
+                    Bu işlem <strong>geri alınamaz</strong>. Tüm KIT'ler, dönem toplamları, CDR kayıtları ve
+                    senkronizasyon geçmişi veritabanından kalıcı olarak silinecek. Portal ayarları (URL, kullanıcı,
+                    şifre) korunur ve bir sonraki senkronizasyon tüm geçmiş dönemleri sıfırdan çekecek.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="rounded-lg">Vazgeç</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleWipeData}
+                    className="rounded-lg bg-[#cf2d56] text-white hover:bg-[#cf2d56]/90"
+                  >
+                    Evet, hepsini sil
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

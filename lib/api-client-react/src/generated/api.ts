@@ -37,6 +37,7 @@ import type {
   SyncLogsResponse,
   SyncResponse,
   TestConnectionResponse,
+  WipeDataResponse,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -660,6 +661,87 @@ export const useTestConnection = <
   TContext
 > => {
   return useMutation(getTestConnectionMutationOptions(options));
+};
+
+/**
+ * @summary Tüm terminal verilerini siler (CDR, dönem toplamları, KIT listesi, sync logları). Portal kimlik bilgileri korunur.
+ */
+export const getWipeStationDataUrl = () => {
+  return `/api/station/wipe-data`;
+};
+
+export const wipeStationData = async (
+  options?: RequestInit,
+): Promise<WipeDataResponse> => {
+  return customFetch<WipeDataResponse>(getWipeStationDataUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getWipeStationDataMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof wipeStationData>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof wipeStationData>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["wipeStationData"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof wipeStationData>>,
+    void
+  > = () => {
+    return wipeStationData(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type WipeStationDataMutationResult = NonNullable<
+  Awaited<ReturnType<typeof wipeStationData>>
+>;
+
+export type WipeStationDataMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Tüm terminal verilerini siler (CDR, dönem toplamları, KIT listesi, sync logları). Portal kimlik bilgileri korunur.
+ */
+export const useWipeStationData = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof wipeStationData>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof wipeStationData>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getWipeStationDataMutationOptions(options));
 };
 
 export const getSyncNowUrl = () => {

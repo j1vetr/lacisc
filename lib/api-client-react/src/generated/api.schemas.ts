@@ -67,6 +67,19 @@ export interface TestConnectionResponse {
   message: string;
 }
 
+export type WipeDataResponseDeleted = {
+  kitDaily: number;
+  kitPeriodTotal: number;
+  kits: number;
+  syncLogs: number;
+};
+
+export interface WipeDataResponse {
+  success: boolean;
+  message: string;
+  deleted: WipeDataResponseDeleted;
+}
+
 export interface SyncResponse {
   success: boolean;
   message: string;

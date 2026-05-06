@@ -1,5 +1,12 @@
 import { Router, type IRouter } from "express";
-import { db, stationCredentials, stationSyncLogs } from "@workspace/db";
+import {
+  db,
+  stationCredentials,
+  stationSyncLogs,
+  stationKits,
+  stationKitDaily,
+  stationKitPeriodTotal,
+} from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { encrypt, decrypt } from "../lib/crypto";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
@@ -247,6 +254,37 @@ router.post("/station/sync-now", requireAuth, async (req: AuthRequest, res): Pro
   } finally {
     syncRunning = false;
   }
+});
+
+router.post("/station/wipe-data", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  if (syncRunning) {
+    res.status(409).json({ error: "Senkronizasyon devam ediyor — önce tamamlanmasını bekleyin." });
+    return;
+  }
+
+  const dailyDel = await db.delete(stationKitDaily).returning({ id: stationKitDaily.cdrId });
+  const totalDel = await db.delete(stationKitPeriodTotal).returning({ id: stationKitPeriodTotal.kitNo });
+  const kitsDel = await db.delete(stationKits).returning({ id: stationKits.kitNo });
+  const logsDel = await db.delete(stationSyncLogs).returning({ id: stationSyncLogs.id });
+
+  // Sıfırlama: bir sonraki sync tüm geçmiş dönemleri yeniden çeksin.
+  await db
+    .update(stationCredentials)
+    .set({ firstFullSyncAt: null, lastSuccessSyncAt: null, lastErrorMessage: null, updatedAt: new Date() });
+
+  const deleted = {
+    kitDaily: dailyDel.length,
+    kitPeriodTotal: totalDel.length,
+    kits: kitsDel.length,
+    syncLogs: logsDel.length,
+  };
+  req.log.warn({ deleted }, "Station data wiped by admin");
+
+  res.json({
+    success: true,
+    message: `Veriler temizlendi: ${deleted.kits} KIT, ${deleted.kitPeriodTotal} dönem toplamı, ${deleted.kitDaily} CDR, ${deleted.syncLogs} sync kaydı silindi.`,
+    deleted,
+  });
 });
 
 export { syncRunning };

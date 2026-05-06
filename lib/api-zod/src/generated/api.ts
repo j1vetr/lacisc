@@ -103,6 +103,20 @@ export const TestConnectionResponse = zod.object({
   message: zod.string(),
 });
 
+/**
+ * @summary Tüm terminal verilerini siler (CDR, dönem toplamları, KIT listesi, sync logları). Portal kimlik bilgileri korunur.
+ */
+export const WipeStationDataResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string(),
+  deleted: zod.object({
+    kitDaily: zod.number(),
+    kitPeriodTotal: zod.number(),
+    kits: zod.number(),
+    syncLogs: zod.number(),
+  }),
+});
+
 export const SyncNowResponse = zod.object({
   success: zod.boolean(),
   message: zod.string(),
