@@ -18,6 +18,12 @@ import {
   tryClaimRun,
 } from "../lib/sync-orchestrator";
 import * as progress from "../lib/sync-progress";
+import {
+  getEmailSettings,
+  saveEmailSettings,
+  sendTestEmail,
+} from "../lib/alerts";
+import { UpdateEmailSettingsBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
@@ -185,6 +191,7 @@ router.post(
       const password = decrypt(c.encryptedPassword);
       const result = await runSync({
         credentialId: c.id,
+        credentialLabel: c.label || c.username,
         portalUrl: c.portalUrl,
         username: c.username,
         password,
@@ -326,6 +333,7 @@ router.post("/station/test-connection", requireAuth, async (req: AuthRequest, re
     const password = decrypt(settings.encryptedPassword);
     const result = await runSync({
       credentialId: settings.id,
+      credentialLabel: settings.label || settings.username,
       portalUrl: settings.portalUrl,
       username: settings.username,
       password,
@@ -476,6 +484,34 @@ router.post("/station/wipe-data", requireAuth, async (req: AuthRequest, res): Pr
         : `Tüm veriler temizlendi: ${deleted.kits} KIT, ${deleted.kitPeriodTotal} dönem toplamı, ${deleted.kitDaily} CDR, ${deleted.syncLogs} sync kaydı silindi.`,
     deleted,
   });
+});
+
+// =============================================================================
+// E-posta uyarı ayarları
+// =============================================================================
+
+router.get("/station/email-settings", requireAuth, async (_req, res): Promise<void> => {
+  const settings = await getEmailSettings();
+  res.json(settings);
+});
+
+router.put("/station/email-settings", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const parsed = UpdateEmailSettingsBody.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Geçersiz e-posta ayarları.",
+      details: parsed.error.issues,
+    });
+    return;
+  }
+  const updated = await saveEmailSettings(parsed.data);
+  res.json(updated);
+});
+
+router.post("/station/email-settings/test", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const body = (req.body ?? {}) as { to?: string };
+  const result = await sendTestEmail(body.to);
+  res.json(result);
 });
 
 // Suppress unused-import warning (sql/desc kept for future extensions).

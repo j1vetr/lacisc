@@ -7,6 +7,7 @@ import {
 } from "@workspace/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { logger } from "./logger";
+import { checkAndSendUsageAlert } from "./alerts";
 import type { Page, Browser } from "playwright";
 import * as progress from "./sync-progress";
 
@@ -22,6 +23,7 @@ export interface SyncResult {
 
 export interface RunSyncOptions {
   credentialId: number;
+  credentialLabel?: string;
   portalUrl: string;
   username: string;
   password: string;
@@ -1063,12 +1065,14 @@ async function enrichShipNames(
 export async function runSync(opts: RunSyncOptions): Promise<SyncResult> {
   const {
     credentialId,
+    credentialLabel,
     portalUrl,
     username,
     password,
     testOnly = false,
     reportProgress = false,
   } = opts;
+  const accountLabel = credentialLabel?.trim() || username;
   let browser: Browser | null = null;
   try {
     const { chromium } = await import("playwright");
@@ -1354,6 +1358,16 @@ export async function runSync(opts: RunSyncOptions): Promise<SyncResult> {
               totalGib,
               totalUsd
             );
+          // Fire-and-forget threshold alert (no await — alerts must never
+          // block or fail the sync). Idempotent via lastAlertThresholdGib.
+          void checkAndSendUsageAlert({
+            credentialId,
+            credentialLabel: accountLabel,
+            kitNo: kit.kitNo,
+            period,
+            totalGib,
+            totalUsd,
+          });
           logger.info(
             {
               period,

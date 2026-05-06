@@ -110,6 +110,7 @@ async function runAccountsInner(
         const password = decrypt(c.encryptedPassword);
         const result = await runSync({
           credentialId: c.id,
+          credentialLabel: label,
           portalUrl: c.portalUrl,
           username: c.username,
           password,

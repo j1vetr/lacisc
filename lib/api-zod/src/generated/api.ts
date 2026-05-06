@@ -279,6 +279,97 @@ export const GetSyncProgressResponse = zod.object({
 });
 
 /**
+ * @summary SMTP yapılandırması ve uyarı alıcılarını döner.
+ */
+export const GetEmailSettingsResponse = zod.object({
+  enabled: zod.boolean(),
+  smtpHost: zod.string().nullish(),
+  smtpPort: zod.number(),
+  smtpSecure: zod.boolean(),
+  smtpUser: zod.string().nullish(),
+  hasPassword: zod
+    .boolean()
+    .describe("true → kayıtlı şifre var (gerçek değer dönmez)"),
+  fromEmail: zod.string().nullish(),
+  fromName: zod.string(),
+  alertRecipients: zod
+    .string()
+    .nullish()
+    .describe("Virgülle ayrılmış e-posta listesi"),
+  thresholdStepGib: zod.number(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary SMTP / uyarı alıcılarını günceller.
+ */
+export const updateEmailSettingsBodySmtpPortMax = 65535;
+
+export const updateEmailSettingsBodyThresholdStepGibMin = 10;
+export const updateEmailSettingsBodyThresholdStepGibMax = 10000;
+
+export const UpdateEmailSettingsBody = zod.object({
+  enabled: zod.boolean().optional(),
+  smtpHost: zod.string().nullish(),
+  smtpPort: zod
+    .number()
+    .min(1)
+    .max(updateEmailSettingsBodySmtpPortMax)
+    .optional(),
+  smtpSecure: zod.boolean().optional(),
+  smtpUser: zod.string().nullish(),
+  smtpPassword: zod
+    .string()
+    .nullish()
+    .describe(
+      "undefined → değişmez, '' veya null → şifre temizlenir, dolu → yeni şifre.",
+    ),
+  fromEmail: zod.string().nullish(),
+  fromName: zod.string().optional(),
+  alertRecipients: zod.string().nullish(),
+  thresholdStepGib: zod
+    .number()
+    .min(updateEmailSettingsBodyThresholdStepGibMin)
+    .max(updateEmailSettingsBodyThresholdStepGibMax)
+    .optional(),
+});
+
+export const UpdateEmailSettingsResponse = zod.object({
+  enabled: zod.boolean(),
+  smtpHost: zod.string().nullish(),
+  smtpPort: zod.number(),
+  smtpSecure: zod.boolean(),
+  smtpUser: zod.string().nullish(),
+  hasPassword: zod
+    .boolean()
+    .describe("true → kayıtlı şifre var (gerçek değer dönmez)"),
+  fromEmail: zod.string().nullish(),
+  fromName: zod.string(),
+  alertRecipients: zod
+    .string()
+    .nullish()
+    .describe("Virgülle ayrılmış e-posta listesi"),
+  thresholdStepGib: zod.number(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Yapılandırılmış SMTP üzerinden test maili gönderir.
+ */
+export const TestEmailSettingsBody = zod.object({
+  to: zod
+    .string()
+    .optional()
+    .describe("Override recipient (CSV). Boşsa kayıtlı liste kullanılır."),
+});
+
+export const TestEmailSettingsResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string(),
+  recipients: zod.array(zod.string()).optional(),
+});
+
+/**
  * @summary KIT summary list (active period totals)
  */
 export const GetKitsQueryParams = zod.object({

@@ -93,6 +93,12 @@ export const stationKitPeriodTotal = pgTable(
     totalGib: doublePrecision("total_gib"),
     totalUsd: doublePrecision("total_usd"),
     rowCount: integer("row_count").default(0).notNull(),
+    // Highest 100-GiB step for which an alert email has already been dispatched
+    // for this (credential, kit, period). Prevents re-spamming the same
+    // threshold across daily syncs. Resets implicitly when the period changes.
+    lastAlertThresholdGib: integer("last_alert_threshold_gib")
+      .default(0)
+      .notNull(),
     scrapedAt: timestamp("scraped_at").defaultNow().notNull(),
   },
   (table) => [
@@ -103,6 +109,25 @@ export const stationKitPeriodTotal = pgTable(
     ),
   ]
 );
+
+// Single-row table (id=1) holding SMTP transport config + alert recipients
+// for usage-threshold notifications. Editable from the admin Settings page.
+export const emailSettings = pgTable("email_settings", {
+  id: integer("id").primaryKey(),
+  enabled: boolean("enabled").default(false).notNull(),
+  smtpHost: text("smtp_host"),
+  smtpPort: integer("smtp_port").default(587).notNull(),
+  smtpSecure: boolean("smtp_secure").default(false).notNull(),
+  smtpUser: text("smtp_user"),
+  smtpPasswordEncrypted: text("smtp_password_encrypted"),
+  fromEmail: text("from_email"),
+  fromName: text("from_name").default("Station Satcom Admin").notNull(),
+  // Comma-separated list of recipient addresses.
+  alertRecipients: text("alert_recipients"),
+  thresholdStepGib: integer("threshold_step_gib").default(100).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export type EmailSettings = typeof emailSettings.$inferSelect;
 
 export const stationSyncLogs = pgTable("station_sync_logs", {
   id: serial("id").primaryKey(),

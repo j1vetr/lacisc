@@ -172,6 +172,44 @@ export interface SyncProgress {
   lastMessage?: string | null;
 }
 
+export interface EmailSettings {
+  enabled: boolean;
+  smtpHost?: string | null;
+  smtpPort: number;
+  smtpSecure: boolean;
+  smtpUser?: string | null;
+  /** true → kayıtlı şifre var (gerçek değer dönmez) */
+  hasPassword: boolean;
+  fromEmail?: string | null;
+  fromName: string;
+  /** Virgülle ayrılmış e-posta listesi */
+  alertRecipients?: string | null;
+  thresholdStepGib: number;
+  updatedAt: string;
+}
+
+export interface EmailSettingsUpdate {
+  enabled?: boolean;
+  smtpHost?: string | null;
+  /**
+   * @minimum 1
+   * @maximum 65535
+   */
+  smtpPort?: number;
+  smtpSecure?: boolean;
+  smtpUser?: string | null;
+  /** undefined → değişmez, '' veya null → şifre temizlenir, dolu → yeni şifre. */
+  smtpPassword?: string | null;
+  fromEmail?: string | null;
+  fromName?: string;
+  alertRecipients?: string | null;
+  /**
+   * @minimum 10
+   * @maximum 10000
+   */
+  thresholdStepGib?: number;
+}
+
 export interface KitSummary {
   kitNo: string;
   shipName?: string | null;
@@ -246,6 +284,17 @@ export interface SyncLogsResponse {
 
 export type WipeStationDataParams = {
   credentialId?: number;
+};
+
+export type TestEmailSettingsBody = {
+  /** Override recipient (CSV). Boşsa kayıtlı liste kullanılır. */
+  to?: string;
+};
+
+export type TestEmailSettings200 = {
+  success: boolean;
+  message: string;
+  recipients?: string[];
 };
 
 export type GetKitsParams = {

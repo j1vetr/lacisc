@@ -321,6 +321,72 @@ paths:
               schema:
                 $ref: "#/components/schemas/SyncProgress"
 
+  /station/email-settings:
+    get:
+      operationId: getEmailSettings
+      tags: [station]
+      summary: SMTP yapılandırması ve uyarı alıcılarını döner.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Email settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailSettings"
+    put:
+      operationId: updateEmailSettings
+      tags: [station]
+      summary: SMTP / uyarı alıcılarını günceller.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailSettingsUpdate"
+      responses:
+        "200":
+          description: Updated email settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailSettings"
+
+  /station/email-settings/test:
+    post:
+      operationId: testEmailSettings
+      tags: [station]
+      summary: Yapılandırılmış SMTP üzerinden test maili gönderir.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                to:
+                  type: string
+                  description: Override recipient (CSV). Boşsa kayıtlı liste kullanılır.
+      responses:
+        "200":
+          description: Test result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, message]
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  recipients:
+                    type: array
+                    items: { type: string }
+
   /station/kits:
     get:
       operationId: getKits
@@ -687,6 +753,46 @@ components:
         - failures
         - events
         - accountResults
+
+    EmailSettings:
+      type: object
+      required:
+        - enabled
+        - smtpPort
+        - smtpSecure
+        - hasPassword
+        - fromName
+        - thresholdStepGib
+        - updatedAt
+      properties:
+        enabled: { type: boolean }
+        smtpHost: { type: string, nullable: true }
+        smtpPort: { type: integer }
+        smtpSecure: { type: boolean }
+        smtpUser: { type: string, nullable: true }
+        hasPassword: { type: boolean, description: "true → kayıtlı şifre var (gerçek değer dönmez)" }
+        fromEmail: { type: string, nullable: true }
+        fromName: { type: string }
+        alertRecipients: { type: string, nullable: true, description: "Virgülle ayrılmış e-posta listesi" }
+        thresholdStepGib: { type: integer }
+        updatedAt: { type: string, format: date-time }
+
+    EmailSettingsUpdate:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        smtpHost: { type: string, nullable: true }
+        smtpPort: { type: integer, minimum: 1, maximum: 65535 }
+        smtpSecure: { type: boolean }
+        smtpUser: { type: string, nullable: true }
+        smtpPassword:
+          type: string
+          nullable: true
+          description: "undefined → değişmez, '' veya null → şifre temizlenir, dolu → yeni şifre."
+        fromEmail: { type: string, nullable: true }
+        fromName: { type: string }
+        alertRecipients: { type: string, nullable: true }
+        thresholdStepGib: { type: integer, minimum: 10, maximum: 10000 }
 
     KitSummary:
       type: object
