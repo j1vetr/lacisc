@@ -675,6 +675,79 @@ async function persistKitPeriod(
   return { inserted, updated };
 }
 
+// ---------------------------------------------------------------------------
+// Bump the DevExpress grid pageSize so we get ALL CDR rows (and a real footer
+// total) on a single page. The portal user's per-session pageSize defaults to
+// 25 — which means parseGrid would only see the first 25 CDRs and the footer
+// would show only that page's subtotal (e.g. 774 GiB instead of the real 955).
+// `ASPx.GVPagerOnClick(gridId, '<size>')` is DevExpress's own pager handler
+// and is what the "Page size" dropdown in the footer actually invokes.
+// ---------------------------------------------------------------------------
+async function setGridPageSize(page: Page, size: number): Promise<void> {
+  const gridId = "ctl00_ContentPlaceHolder1_gvRatedCdr";
+  const before = await page.evaluate((gid) => {
+    const rows = document.querySelectorAll(`[id^='${gid}_DXDataRow']`).length;
+    return rows;
+  }, gridId);
+  const triggered = await page
+    .evaluate(
+      ([gid, sz]) => {
+        const w = window as unknown as Record<string, unknown>;
+        const aspx = w["ASPx"] as
+          | { GVPagerOnClick?: (id: string, val: string) => void }
+          | undefined;
+        if (aspx && typeof aspx.GVPagerOnClick === "function") {
+          try {
+            aspx.GVPagerOnClick(gid as string, String(sz));
+            return "ASPx.GVPagerOnClick";
+          } catch {
+            /* fall through */
+          }
+        }
+        return "noop";
+      },
+      [gridId, size] as const
+    )
+    .catch(() => "error");
+  // The pager click fires an async DevExpress callback. Poll the DOM row count
+  // until it grows past the previous page (or stabilises), with a hard cap.
+  const deadline = Date.now() + 12000;
+  let after = before;
+  let stableTicks = 0;
+  while (Date.now() < deadline) {
+    await page.waitForTimeout(400);
+    const n = await page
+      .evaluate(
+        (gid) => document.querySelectorAll(`[id^='${gid}_DXDataRow']`).length,
+        gridId
+      )
+      .catch(() => after);
+    if (n > before) {
+      after = n;
+      // wait one more tick to be sure rendering finished
+      await page.waitForTimeout(400);
+      after = await page
+        .evaluate(
+          (gid) => document.querySelectorAll(`[id^='${gid}_DXDataRow']`).length,
+          gridId
+        )
+        .catch(() => after);
+      break;
+    }
+    if (n === after) {
+      stableTicks++;
+      if (stableTicks >= 4) break; // 4 stable polls (~1.6s) — already single page
+    } else {
+      after = n;
+      stableTicks = 0;
+    }
+  }
+  logger.info(
+    { gridId, requestedSize: size, triggered, rowsBefore: before, rowsAfter: after },
+    "setGridPageSize result"
+  );
+}
+
 // Confirm we are still authenticated on the rated-CDRs grid. Used after every
 // goto/SetValue to detect silent session loss.
 async function isOnRatedCdrsGrid(page: Page): Promise<boolean> {
@@ -923,6 +996,10 @@ export async function runSync(
           continue;
         }
         await waitForGridReady(page, `period ${period}`);
+        // CRITICAL: bump grid pageSize so we see ALL CDR rows + the real
+        // footer total. Default per-user pageSize is 25 → footer only
+        // reflects first page (e.g. 774 GiB instead of the true 955).
+        await setGridPageSize(page, 200);
         const parsed = await parseGrid(page);
 
         if (parsed.rows.length === 0) {
