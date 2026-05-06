@@ -94,10 +94,31 @@ export async function saveEmailSettings(patch: EmailSettingsUpdate): Promise<Ema
   if (patch.thresholdStepGib !== undefined)
     update.thresholdStepGib = patch.thresholdStepGib;
 
+  // Upsert the singleton row. drizzle-kit `db push` only creates the table —
+  // it does NOT seed defaults, so the id=1 row may not exist yet on a fresh
+  // production DB. Using ON CONFLICT lets save() create-or-update in one shot.
   await db
-    .update(emailSettings)
-    .set(update)
-    .where(eq(emailSettings.id, 1));
+    .insert(emailSettings)
+    .values({
+      id: 1,
+      enabled: (update.enabled as boolean | undefined) ?? false,
+      smtpHost: (update.smtpHost as string | null | undefined) ?? null,
+      smtpPort: (update.smtpPort as number | undefined) ?? 587,
+      smtpSecure: (update.smtpSecure as boolean | undefined) ?? false,
+      smtpUser: (update.smtpUser as string | null | undefined) ?? null,
+      smtpPasswordEncrypted:
+        (update.smtpPasswordEncrypted as string | null | undefined) ?? null,
+      fromEmail: (update.fromEmail as string | null | undefined) ?? null,
+      fromName: (update.fromName as string | undefined) ?? "Station Satcom Admin",
+      alertRecipients:
+        (update.alertRecipients as string | null | undefined) ?? null,
+      thresholdStepGib: (update.thresholdStepGib as number | undefined) ?? 100,
+      updatedAt: update.updatedAt as Date,
+    })
+    .onConflictDoUpdate({
+      target: emailSettings.id,
+      set: update,
+    });
   return getEmailSettings();
 }
 
