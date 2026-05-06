@@ -11,7 +11,7 @@ const router: IRouter = Router();
 router.post("/auth/login", async (req, res): Promise<void> => {
   const { email, password } = req.body as { email?: string; password?: string };
   if (!email || !password) {
-    res.status(400).json({ error: "Email and password are required" });
+    res.status(400).json({ error: "E-posta ve şifre zorunludur." });
     return;
   }
 
@@ -21,13 +21,13 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     .where(eq(adminUsers.email, email));
 
   if (!user) {
-    res.status(401).json({ error: "Invalid email or password" });
+    res.status(401).json({ error: "E-posta veya şifre hatalı." });
     return;
   }
 
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
-    res.status(401).json({ error: "Invalid email or password" });
+    res.status(401).json({ error: "E-posta veya şifre hatalı." });
     return;
   }
 
@@ -44,7 +44,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
 });
 
 router.post("/auth/logout", (_req, res): void => {
-  res.json({ message: "Logged out successfully" });
+  res.json({ message: "Oturum kapatıldı." });
 });
 
 router.get("/auth/me", requireAuth, async (req: AuthRequest, res): Promise<void> => {
@@ -54,7 +54,7 @@ router.get("/auth/me", requireAuth, async (req: AuthRequest, res): Promise<void>
     .where(eq(adminUsers.id, req.userId!));
 
   if (!user) {
-    res.status(404).json({ error: "User not found" });
+    res.status(404).json({ error: "Kullanıcı bulunamadı." });
     return;
   }
 
@@ -73,12 +73,12 @@ router.post("/auth/change-password", requireAuth, async (req: AuthRequest, res):
   };
 
   if (!currentPassword || !newPassword) {
-    res.status(400).json({ error: "Current and new passwords are required" });
+    res.status(400).json({ error: "Mevcut ve yeni şifre zorunludur." });
     return;
   }
 
   if (newPassword.length < 8) {
-    res.status(400).json({ error: "New password must be at least 8 characters" });
+    res.status(400).json({ error: "Yeni şifre en az 8 karakter olmalıdır." });
     return;
   }
 
@@ -88,13 +88,13 @@ router.post("/auth/change-password", requireAuth, async (req: AuthRequest, res):
     .where(eq(adminUsers.id, req.userId!));
 
   if (!user) {
-    res.status(404).json({ error: "User not found" });
+    res.status(404).json({ error: "Kullanıcı bulunamadı." });
     return;
   }
 
   const valid = await bcrypt.compare(currentPassword, user.passwordHash);
   if (!valid) {
-    res.status(400).json({ error: "Current password is incorrect" });
+    res.status(400).json({ error: "Mevcut şifre hatalı." });
     return;
   }
 
@@ -105,7 +105,7 @@ router.post("/auth/change-password", requireAuth, async (req: AuthRequest, res):
     .where(eq(adminUsers.id, req.userId!));
 
   logger.info({ userId: req.userId }, "Password changed");
-  res.json({ message: "Password changed successfully" });
+  res.json({ message: "Şifre başarıyla değiştirildi." });
 });
 
 export default router;

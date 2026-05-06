@@ -312,7 +312,7 @@ export default function Settings() {
                   disabled={syncNowMutation.isPending}
                 >
                   <RefreshCw className={`w-4 h-4 mr-2 ${syncNowMutation.isPending ? 'animate-spin text-primary' : 'text-muted-foreground'}`} />
-                  Şimdi Senkronize Et
+                  ŞİMDİ SENKRONİZE ET
                 </Button>
               </div>
             </CardFooter>

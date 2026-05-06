@@ -16,7 +16,7 @@ router.get("/station/settings", requireAuth, async (_req, res): Promise<void> =>
     .limit(1);
 
   if (!settings) {
-    res.status(404).json({ error: "No settings configured" });
+    res.status(404).json({ error: "Henüz portal ayarı yapılandırılmadı." });
     return;
   }
 
@@ -52,7 +52,7 @@ router.post("/station/settings", requireAuth, async (req: AuthRequest, res): Pro
   };
 
   if (!portalUrl || !username) {
-    res.status(400).json({ error: "Portal URL and username are required" });
+    res.status(400).json({ error: "Portal adresi ve kullanıcı adı zorunludur." });
     return;
   }
 
@@ -68,7 +68,7 @@ router.post("/station/settings", requireAuth, async (req: AuthRequest, res): Pro
   }
 
   if (!encryptedPassword) {
-    res.status(400).json({ error: "Password is required for new settings" });
+    res.status(400).json({ error: "Yeni ayar oluştururken şifre zorunludur." });
     return;
   }
 
@@ -127,12 +127,12 @@ router.post("/station/test-connection", requireAuth, async (req: AuthRequest, re
     .limit(1);
 
   if (!settings) {
-    res.json({ success: false, message: "No settings configured. Please save settings first." });
+    res.json({ success: false, message: "Önce portal ayarlarını kaydedin." });
     return;
   }
 
   if (!settings.isActive) {
-    res.json({ success: false, message: "Settings are inactive. Please activate them first." });
+    res.json({ success: false, message: "Portal ayarları pasif. Önce 'Aktif' anahtarını açın." });
     return;
   }
 
@@ -147,7 +147,7 @@ router.post("/station/test-connection", requireAuth, async (req: AuthRequest, re
     res.json({ success: result.success, message: result.message });
   } catch (err) {
     req.log.error({ err }, "Test connection failed");
-    res.json({ success: false, message: `Connection failed: ${(err as Error).message}` });
+    res.json({ success: false, message: `Bağlantı başarısız: ${(err as Error).message}` });
   }
 });
 
@@ -155,7 +155,7 @@ let syncRunning = false;
 
 router.post("/station/sync-now", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   if (syncRunning) {
-    res.status(409).json({ error: "Sync is already running" });
+    res.status(409).json({ error: "Senkronizasyon zaten devam ediyor." });
     return;
   }
 
@@ -168,7 +168,7 @@ router.post("/station/sync-now", requireAuth, async (req: AuthRequest, res): Pro
   if (!settings || !settings.isActive) {
     res.json({
       success: false,
-      message: "No active settings configured",
+      message: "Aktif portal ayarı bulunamadı.",
       recordsFound: 0,
       recordsInserted: 0,
       recordsUpdated: 0,

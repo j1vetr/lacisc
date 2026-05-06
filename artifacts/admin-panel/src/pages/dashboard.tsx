@@ -155,7 +155,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-lg font-normal tracking-tight">Terminaller</CardTitle>
-                <CardDescription className="mt-1 text-sm">KIT bazında toplam kullanım ve faturalama</CardDescription>
+                <CardDescription className="mt-1 text-sm uppercase tracking-wide">KIT BAZINDA TOPLAM KULLANIM VE FATURALAMA</CardDescription>
               </div>
               <Link href="/kits">
                 <Button variant="ghost" size="sm" className="text-xs h-8 text-foreground hover:bg-secondary rounded-lg">
@@ -280,7 +280,7 @@ export default function Dashboard() {
                   className="mt-auto w-full rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-none transition-colors h-10 text-sm font-medium"
                 >
                   <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-                  {isSyncing ? "Senkronize ediliyor..." : "Şimdi senkronize et"}
+                  {isSyncing ? "SENKRONİZE EDİLİYOR..." : "ŞİMDİ SENKRONİZE ET"}
                 </Button>
               </>
             )}

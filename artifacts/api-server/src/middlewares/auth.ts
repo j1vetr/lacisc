@@ -13,7 +13,7 @@ export function requireAuth(
 ): void {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    res.status(401).json({ error: "Unauthorized" });
+    res.status(401).json({ error: "Yetkisiz erişim. Lütfen tekrar giriş yapın." });
     return;
   }
 
@@ -24,6 +24,6 @@ export function requireAuth(
     req.userEmail = payload.email;
     next();
   } catch {
-    res.status(401).json({ error: "Invalid or expired token" });
+    res.status(401).json({ error: "Oturum süresi doldu. Lütfen tekrar giriş yapın." });
   }
 }

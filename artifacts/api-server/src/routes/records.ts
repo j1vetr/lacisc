@@ -152,7 +152,7 @@ router.get("/station/kits/:kitNo", requireAuth, async (req, res): Promise<void> 
     .where(eq(stationCdrRecords.kitNo, kitNo));
 
   if ((aggAll?.recordCount ?? 0) === 0 && !kitMeta) {
-    res.status(404).json({ error: "KIT not found" });
+    res.status(404).json({ error: "KIT bulunamadı." });
     return;
   }
 
