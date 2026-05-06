@@ -53,40 +53,40 @@ export default function SyncLogs() {
   };
 
   return (
-    <div className="space-y-8 flex flex-col h-[calc(100vh-8rem)] animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-6 shrink-0">
+    <div className="space-y-6 lg:space-y-8 flex flex-col lg:h-[calc(100vh-8rem)] animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 lg:gap-6 shrink-0">
         <div className="space-y-2">
-          <h1 className="text-[40px] leading-[1.1] font-normal tracking-[-0.02em] text-foreground">Senkronizasyon Kayıtları</h1>
-          <p className="text-base text-muted-foreground">Portal üzerinden yapılan tüm veri çekme işlemlerinin kronolojik dökümü.</p>
+          <h1 className="text-[28px] sm:text-[40px] leading-[1.1] font-normal tracking-[-0.02em] text-foreground">Senkronizasyon Kayıtları</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Portal üzerinden yapılan tüm veri çekme işlemlerinin kronolojik dökümü.</p>
         </div>
       </div>
 
       {/* Data Table */}
       <div className="rounded-xl border border-border bg-card flex-1 overflow-hidden flex flex-col min-h-0 shadow-none">
-        <div className="overflow-auto flex-1 relative">
+        <div className="overflow-x-auto overflow-y-auto flex-1 relative">
           <Table className="relative w-full text-[13px]">
             <Header className="sticky top-0 z-10 bg-card shadow-[0_1px_0_0_var(--color-border)]">
               <Row className="hover:bg-transparent border-none">
-                <Head className="w-[160px] pl-8 font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Durum</Head>
+                <Head className="w-[160px] pl-4 sm:pl-8 font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Durum</Head>
                 <Head className="w-[200px] font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Başlangıç</Head>
                 <Head className="w-[100px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Süre</Head>
                 <Head className="w-[100px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Bulunan Kayıt</Head>
                 <Head className="w-[100px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Eklenen</Head>
                 <Head className="w-[100px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Güncellenen</Head>
-                <Head className="w-full pl-8 font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Hata / Mesaj</Head>
+                <Head className="w-full pl-4 sm:pl-8 font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Hata / Mesaj</Head>
               </Row>
             </Header>
             <Body className="divide-y divide-border">
               {isLoading ? (
                 Array.from({ length: 15 }).map((_, i) => (
                   <Row key={i} className="border-none h-14">
-                    <Cell className="pl-8"><Skeleton className="h-6 w-24 rounded-full" /></Cell>
+                    <Cell className="pl-4 sm:pl-8"><Skeleton className="h-6 w-24 rounded-full" /></Cell>
                     <Cell><Skeleton className="h-4 w-32 rounded" /></Cell>
                     <Cell><Skeleton className="h-4 w-12 ml-auto rounded" /></Cell>
                     <Cell><Skeleton className="h-4 w-12 ml-auto rounded" /></Cell>
                     <Cell><Skeleton className="h-4 w-12 ml-auto rounded" /></Cell>
                     <Cell><Skeleton className="h-4 w-12 ml-auto rounded" /></Cell>
-                    <Cell className="pl-8"><Skeleton className="h-4 w-full max-w-lg rounded" /></Cell>
+                    <Cell className="pl-4 sm:pl-8"><Skeleton className="h-4 w-full max-w-lg rounded" /></Cell>
                   </Row>
                 ))
               ) : data?.logs.length === 0 ? (
@@ -98,7 +98,7 @@ export default function SyncLogs() {
               ) : (
                 data?.logs.map((row) => (
                   <Row key={row.id} className="hover:bg-secondary transition-colors border-none h-14">
-                    <Cell className="pl-8">
+                    <Cell className="pl-4 sm:pl-8">
                       {getStatusBadge(row.status)}
                     </Cell>
                     <Cell className="text-[11px] font-mono text-foreground whitespace-nowrap">
@@ -116,7 +116,7 @@ export default function SyncLogs() {
                     <Cell className="text-right font-mono text-[13px] text-foreground">
                       {row.recordsUpdated != null && row.recordsUpdated > 0 ? `+${formatNumber(row.recordsUpdated, 0)}` : "-"}
                     </Cell>
-                    <Cell className="pl-8 text-xs pr-8">
+                    <Cell className="pl-4 sm:pl-8 text-xs pr-4 sm:pr-8">
                       <div className={`truncate max-w-[400px] xl:max-w-[700px] ${row.status === 'failed' ? 'text-destructive font-mono' : 'text-muted-foreground'}`} title={row.message || ""}>
                         {row.message || "-"}
                       </div>
@@ -129,12 +129,12 @@ export default function SyncLogs() {
         </div>
         
         {/* Pagination */}
-        <div className="border-t border-border p-3 px-6 flex items-center justify-between bg-card shrink-0">
-          <div className="text-[13px] text-muted-foreground flex items-center gap-3">
+        <div className="border-t border-border p-3 px-4 sm:px-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card shrink-0">
+          <div className="text-[12px] sm:text-[13px] text-muted-foreground flex items-center gap-3 flex-wrap">
             {isFetching && <span className="flex items-center text-primary"><RefreshCw className="w-3 h-3 mr-1.5 animate-spin" /> Yükleniyor</span>}
             <span>Kayıtlar {((page - 1) * limit) + 1}-{Math.min(page * limit, data?.total || 0)} / {formatNumber(data?.total || 0, 0)}</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 justify-end">
             <Button 
               variant="outline" 
               size="sm" 

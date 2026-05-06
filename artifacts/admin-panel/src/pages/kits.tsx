@@ -51,11 +51,11 @@ export default function Kits() {
   };
 
   return (
-    <div className="space-y-8 flex flex-col h-[calc(100vh-8rem)] animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-6 shrink-0">
+    <div className="space-y-6 lg:space-y-8 flex flex-col lg:h-[calc(100vh-8rem)] animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 lg:gap-6 shrink-0">
         <div className="space-y-2">
-          <h1 className="text-[40px] leading-[1.1] font-normal tracking-[-0.02em] text-foreground">KIT Özeti</h1>
-          <p className="text-base text-muted-foreground">Terminal bazlı aggregasyonlar ve toplam kullanımlar.</p>
+          <h1 className="text-[28px] sm:text-[40px] leading-[1.1] font-normal tracking-[-0.02em] text-foreground">KIT Özeti</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Terminal bazlı aggregasyonlar ve toplam kullanımlar.</p>
         </div>
       </div>
 
@@ -74,11 +74,11 @@ export default function Kits() {
 
       {/* Data Table */}
       <div className="rounded-xl border border-border bg-card flex-1 overflow-hidden flex flex-col min-h-0 shadow-none">
-        <div className="overflow-auto flex-1 relative">
+        <div className="overflow-x-auto overflow-y-auto flex-1 relative -webkit-overflow-scrolling-touch">
           <Table className="relative w-full text-[13px]">
             <Header className="sticky top-0 z-10 bg-card shadow-[0_1px_0_0_var(--color-border)]">
               <Row className="hover:bg-transparent border-none">
-                <Head className="w-[240px] pl-8 font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Terminal No</Head>
+                <Head className="w-[240px] pl-4 sm:pl-8 font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Terminal No</Head>
                 <Head className="w-[140px] text-right cursor-pointer hover:bg-secondary transition-colors group font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12" onClick={() => toggleSort("totalGib")}>
                   <div className="flex items-center justify-end">Toplam Veri (GiB) <SortIcon col="totalGib" /></div>
                 </Head>
@@ -87,7 +87,7 @@ export default function Kits() {
                 </Head>
                 <Head className="w-[100px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Kayıt Sayısı</Head>
                 <Head className="w-[120px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Son Dönem</Head>
-                <Head className="w-[180px] text-right cursor-pointer hover:bg-secondary transition-colors group font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12 pr-8" onClick={() => toggleSort("lastSeen")}>
+                <Head className="w-[180px] text-right cursor-pointer hover:bg-secondary transition-colors group font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12 pr-4 sm:pr-8" onClick={() => toggleSort("lastSeen")}>
                   <div className="flex items-center justify-end">Son Güncelleme <SortIcon col="lastSeen" /></div>
                 </Head>
               </Row>
@@ -96,12 +96,12 @@ export default function Kits() {
               {isLoading ? (
                 Array.from({ length: 12 }).map((_, i) => (
                   <Row key={i} className="border-none h-14">
-                    <Cell className="pl-8"><Skeleton className="h-4 w-32 rounded" /></Cell>
+                    <Cell className="pl-4 sm:pl-8"><Skeleton className="h-4 w-32 rounded" /></Cell>
                     <Cell><Skeleton className="h-4 w-20 ml-auto rounded" /></Cell>
                     <Cell><Skeleton className="h-4 w-24 ml-auto rounded" /></Cell>
                     <Cell><Skeleton className="h-4 w-12 ml-auto rounded" /></Cell>
                     <Cell><Skeleton className="h-4 w-16 ml-auto rounded" /></Cell>
-                    <Cell className="pr-8"><Skeleton className="h-4 w-24 ml-auto rounded" /></Cell>
+                    <Cell className="pr-4 sm:pr-8"><Skeleton className="h-4 w-24 ml-auto rounded" /></Cell>
                   </Row>
                 ))
               ) : kits?.length === 0 ? (
@@ -117,7 +117,7 @@ export default function Kits() {
                     className="hover:bg-secondary transition-all cursor-pointer group border-none h-14"
                     onClick={() => handleRowClick(row.kitNo)}
                   >
-                    <Cell className="pl-8">
+                    <Cell className="pl-4 sm:pl-8">
                       <div className="flex items-center gap-3">
                         <div className="p-1.5 rounded-md bg-secondary text-muted-foreground">
                           <Terminal className="w-4 h-4" />
@@ -142,7 +142,7 @@ export default function Kits() {
                     <Cell className="text-right font-mono text-[11px] text-foreground">
                       {row.lastPeriod || "-"}
                     </Cell>
-                    <Cell className="text-right pr-8">
+                    <Cell className="text-right pr-4 sm:pr-8">
                       <div className="flex items-center justify-end gap-3">
                         <span className="text-[11px] font-mono text-muted-foreground whitespace-nowrap">
                           {formatDate(row.lastSyncedAt)}

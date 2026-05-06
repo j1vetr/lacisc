@@ -77,9 +77,9 @@ export default function Dashboard() {
   const isSyncing = syncNowMutation.isPending || summary?.lastSyncStatus === 'running';
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-500">
+    <div className="space-y-6 lg:space-y-10 animate-in fade-in duration-500">
       {/* KPI Cards */}
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:gap-6 grid-cols-2 xl:grid-cols-4">
         <Card className="border border-border bg-card shadow-none rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
             <CardTitle className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Toplam KIT</CardTitle>
@@ -148,7 +148,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-8 md:grid-cols-12">
+      <div className="grid gap-6 lg:gap-8 grid-cols-1 md:grid-cols-12">
         {/* KIT List - Span 8 */}
         <Card className="border border-border bg-card shadow-none md:col-span-8 flex flex-col rounded-xl">
           <CardHeader className="pb-4">
@@ -189,13 +189,13 @@ export default function Dashboard() {
                           </span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-6 shrink-0">
+                      <div className="flex items-center gap-3 sm:gap-6 shrink-0">
                         <div className="text-right">
-                          <div className="font-mono text-[13px] text-foreground">{formatNumber(row.totalGib, 2)}</div>
+                          <div className="font-mono text-[12px] sm:text-[13px] text-foreground">{formatNumber(row.totalGib, 2)}</div>
                           <div className="text-[10px] uppercase tracking-widest text-muted-foreground">GB</div>
                         </div>
-                        <div className="text-right min-w-[90px]">
-                          <div className="font-mono text-[13px] text-foreground">{formatCurrency(row.totalUsd)}</div>
+                        <div className="text-right min-w-[70px] sm:min-w-[90px]">
+                          <div className="font-mono text-[12px] sm:text-[13px] text-foreground">{formatCurrency(row.totalUsd)}</div>
                           <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Tutar</div>
                         </div>
                       </div>

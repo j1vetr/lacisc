@@ -149,10 +149,10 @@ export default function Settings() {
   }
 
   return (
-    <div className="space-y-10 max-w-5xl animate-in fade-in duration-500 pb-12">
+    <div className="space-y-6 lg:space-y-10 max-w-5xl animate-in fade-in duration-500 pb-8 lg:pb-12">
       <div className="space-y-2">
-        <h1 className="text-[40px] leading-[1.1] font-normal tracking-[-0.02em] text-foreground">Ayarlar</h1>
-        <p className="text-base text-muted-foreground">Arka plan kazıyıcı kimlik bilgileri ve otomatik senkronizasyon yönetimi.</p>
+        <h1 className="text-[28px] sm:text-[40px] leading-[1.1] font-normal tracking-[-0.02em] text-foreground">Ayarlar</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">Arka plan kazıyıcı kimlik bilgileri ve otomatik senkronizasyon yönetimi.</p>
       </div>
 
       <Form {...form}>
@@ -169,7 +169,7 @@ export default function Settings() {
                 Station Satcom faturalandırma portalı için kimlik doğrulama detayları.
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-8 space-y-6">
+            <CardContent className="p-4 sm:p-6 lg:p-8 space-y-6">
               <FormField
                 control={form.control}
                 name="portalUrl"
@@ -224,7 +224,7 @@ export default function Settings() {
                 Scraper Döngüsü
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-8 space-y-6">
+            <CardContent className="p-4 sm:p-6 lg:p-8 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
@@ -279,7 +279,7 @@ export default function Settings() {
             </CardContent>
             
             {settings?.lastErrorMessage && (
-              <div className="mx-8 mb-8 p-4 rounded-lg bg-[#cf2d56]/10 border border-[#cf2d56]/20 flex items-start gap-3">
+              <div className="mx-4 sm:mx-6 lg:mx-8 mb-6 lg:mb-8 p-4 rounded-lg bg-[#cf2d56]/10 border border-[#cf2d56]/20 flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-[#cf2d56] shrink-0 mt-0.5" />
                 <div>
                   <p className="text-[13px] font-medium text-[#cf2d56]">Son Çalıştırma Hatası</p>
@@ -288,7 +288,7 @@ export default function Settings() {
               </div>
             )}
             
-            <CardFooter className="flex flex-col lg:flex-row lg:justify-between lg:items-center bg-secondary/50 border-t border-border gap-4 py-5 px-8">
+            <CardFooter className="flex flex-col lg:flex-row lg:justify-between lg:items-center bg-secondary/50 border-t border-border gap-4 py-5 px-4 sm:px-6 lg:px-8">
               <div className="text-[11px] font-mono text-muted-foreground flex items-center gap-2 shrink-0">
                 <div className={`w-2 h-2 rounded-full ${settings?.lastSuccessSyncAt ? 'bg-[#1f8a65]' : 'bg-muted-foreground'}`} />
                 Son başarılı: <span className="text-foreground">{formatDate(settings?.lastSuccessSyncAt)}</span>
