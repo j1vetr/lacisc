@@ -61,8 +61,105 @@ export const ChangePasswordResponse = zod.object({
   message: zod.string(),
 });
 
+/**
+ * @summary Tüm portal hesaplarını listele
+ */
+export const ListStationAccountsResponseItem = zod.object({
+  id: zod.number(),
+  label: zod.string().nullish(),
+  portalUrl: zod.string(),
+  username: zod.string(),
+  isActive: zod.boolean(),
+  syncIntervalMinutes: zod.number(),
+  lastSuccessSyncAt: zod.coerce.date().nullish(),
+  lastErrorMessage: zod.string().nullish(),
+  firstFullSyncAt: zod.coerce.date().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+  kitCount: zod.number(),
+});
+export const ListStationAccountsResponse = zod.array(
+  ListStationAccountsResponseItem,
+);
+
+/**
+ * @summary Yeni portal hesabı ekle
+ */
+export const CreateStationAccountBody = zod.object({
+  label: zod.string().nullish(),
+  portalUrl: zod.string(),
+  username: zod.string(),
+  password: zod.string(),
+  isActive: zod.boolean().optional(),
+  syncIntervalMinutes: zod.number().optional(),
+});
+
+export const CreateStationAccountResponse = zod.object({
+  id: zod.number(),
+  label: zod.string().nullish(),
+  portalUrl: zod.string(),
+  username: zod.string(),
+  isActive: zod.boolean(),
+  syncIntervalMinutes: zod.number(),
+  lastSuccessSyncAt: zod.coerce.date().nullish(),
+  lastErrorMessage: zod.string().nullish(),
+  firstFullSyncAt: zod.coerce.date().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+  kitCount: zod.number(),
+});
+
+export const UpdateStationAccountParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateStationAccountBody = zod.object({
+  label: zod.string().nullish(),
+  portalUrl: zod.string().optional(),
+  username: zod.string().optional(),
+  password: zod.string().nullish(),
+  isActive: zod.boolean().optional(),
+  syncIntervalMinutes: zod.number().optional(),
+});
+
+export const UpdateStationAccountResponse = zod.object({
+  id: zod.number(),
+  label: zod.string().nullish(),
+  portalUrl: zod.string(),
+  username: zod.string(),
+  isActive: zod.boolean(),
+  syncIntervalMinutes: zod.number(),
+  lastSuccessSyncAt: zod.coerce.date().nullish(),
+  lastErrorMessage: zod.string().nullish(),
+  firstFullSyncAt: zod.coerce.date().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+  kitCount: zod.number(),
+});
+
+export const DeleteStationAccountParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteStationAccountResponse = zod.object({
+  message: zod.string(),
+});
+
+export const TestStationAccountConnectionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const TestStationAccountConnectionResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string(),
+});
+
+/**
+ * @summary (Legacy) İlk hesabı döner — geriye dönük uyumluluk için.
+ */
 export const GetStationSettingsResponse = zod.object({
   id: zod.number(),
+  label: zod.string().nullish(),
   portalUrl: zod.string(),
   username: zod.string(),
   isActive: zod.boolean(),
@@ -75,6 +172,9 @@ export const GetStationSettingsResponse = zod.object({
   updatedAt: zod.coerce.date(),
 });
 
+/**
+ * @summary (Legacy) İlk hesabı günceller.
+ */
 export const SaveStationSettingsBody = zod.object({
   portalUrl: zod.string(),
   username: zod.string(),
@@ -86,6 +186,7 @@ export const SaveStationSettingsBody = zod.object({
 
 export const SaveStationSettingsResponse = zod.object({
   id: zod.number(),
+  label: zod.string().nullish(),
   portalUrl: zod.string(),
   username: zod.string(),
   isActive: zod.boolean(),
@@ -98,14 +199,21 @@ export const SaveStationSettingsResponse = zod.object({
   updatedAt: zod.coerce.date(),
 });
 
+/**
+ * @summary (Legacy) İlk hesabın bağlantısını test eder.
+ */
 export const TestConnectionResponse = zod.object({
   success: zod.boolean(),
   message: zod.string(),
 });
 
 /**
- * @summary Tüm terminal verilerini siler (CDR, dönem toplamları, KIT listesi, sync logları). Portal kimlik bilgileri korunur.
+ * @summary Terminal verilerini siler. credentialId verilmezse TÜM hesapların verisi silinir.
  */
+export const WipeStationDataQueryParams = zod.object({
+  credentialId: zod.coerce.number().optional(),
+});
+
 export const WipeStationDataResponse = zod.object({
   success: zod.boolean(),
   message: zod.string(),
@@ -117,12 +225,57 @@ export const WipeStationDataResponse = zod.object({
   }),
 });
 
+/**
+ * @summary Tüm aktif portal hesaplarını sırayla senkronize eder.
+ */
 export const SyncNowResponse = zod.object({
   success: zod.boolean(),
   message: zod.string(),
   recordsFound: zod.number(),
   recordsInserted: zod.number(),
   recordsUpdated: zod.number(),
+});
+
+/**
+ * @summary Aktif (veya son) senkronizasyonun canlı ilerleme durumu.
+ */
+export const GetSyncProgressResponse = zod.object({
+  running: zod.boolean(),
+  startedAt: zod.number().nullish(),
+  finishedAt: zod.number().nullish(),
+  totalAccounts: zod.number(),
+  currentAccountIndex: zod.number(),
+  currentAccountId: zod.number().nullish(),
+  currentAccountLabel: zod.string().nullish(),
+  totalPeriods: zod.number(),
+  currentPeriodIndex: zod.number(),
+  currentPeriod: zod.string().nullish(),
+  totalKits: zod.number(),
+  currentKitIndex: zod.number(),
+  currentKit: zod.string().nullish(),
+  rowsInserted: zod.number(),
+  rowsUpdated: zod.number(),
+  rowsFound: zod.number(),
+  failures: zod.number(),
+  events: zod.array(
+    zod.object({
+      ts: zod.number().describe("Unix epoch ms"),
+      level: zod.enum(["info", "warn", "error", "success"]),
+      message: zod.string(),
+    }),
+  ),
+  accountResults: zod.array(
+    zod.object({
+      credentialId: zod.number(),
+      label: zod.string(),
+      success: zod.boolean(),
+      message: zod.string(),
+      recordsFound: zod.number(),
+      recordsInserted: zod.number(),
+      recordsUpdated: zod.number(),
+    }),
+  ),
+  lastMessage: zod.string().nullish(),
 });
 
 /**

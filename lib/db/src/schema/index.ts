@@ -23,6 +23,7 @@ export const adminUsers = pgTable("admin_users", {
 
 export const stationCredentials = pgTable("station_credentials", {
   id: serial("id").primaryKey(),
+  label: text("label"),
   portalUrl: text("portal_url").notNull(),
   username: text("username").notNull(),
   encryptedPassword: text("encrypted_password").notNull(),
@@ -38,6 +39,9 @@ export const stationCredentials = pgTable("station_credentials", {
 
 export const stationKits = pgTable("station_kits", {
   kitNo: text("kit_no").primaryKey(),
+  credentialId: integer("credential_id")
+    .notNull()
+    .references(() => stationCredentials.id, { onDelete: "cascade" }),
   shipName: text("ship_name"),
   detailUrl: text("detail_url"),
   shipNameSyncedAt: timestamp("ship_name_synced_at"),
@@ -53,6 +57,9 @@ export const stationKitDaily = pgTable(
   "station_kit_daily",
   {
     id: serial("id").primaryKey(),
+    credentialId: integer("credential_id")
+      .notNull()
+      .references(() => stationCredentials.id, { onDelete: "cascade" }),
     kitNo: text("kit_no").notNull(),
     period: text("period").notNull(), // YYYYMM
     dayDate: date("day_date").notNull(), // YYYY-MM-DD parsed from grid col9
@@ -63,7 +70,12 @@ export const stationKitDaily = pgTable(
     scrapedAt: timestamp("scraped_at").defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("uq_kit_daily_cdr").on(table.kitNo, table.period, table.cdrId),
+    uniqueIndex("uq_kit_daily_cdr").on(
+      table.credentialId,
+      table.kitNo,
+      table.period,
+      table.cdrId
+    ),
   ]
 );
 
@@ -73,6 +85,9 @@ export const stationKitDaily = pgTable(
 export const stationKitPeriodTotal = pgTable(
   "station_kit_period_total",
   {
+    credentialId: integer("credential_id")
+      .notNull()
+      .references(() => stationCredentials.id, { onDelete: "cascade" }),
     kitNo: text("kit_no").notNull(),
     period: text("period").notNull(), // YYYYMM
     totalGib: doublePrecision("total_gib"),
@@ -81,12 +96,21 @@ export const stationKitPeriodTotal = pgTable(
     scrapedAt: timestamp("scraped_at").defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("uq_kit_period_total").on(table.kitNo, table.period),
+    uniqueIndex("uq_kit_period_total").on(
+      table.credentialId,
+      table.kitNo,
+      table.period
+    ),
   ]
 );
 
 export const stationSyncLogs = pgTable("station_sync_logs", {
   id: serial("id").primaryKey(),
+  // NULL == aggregate "all accounts" run; non-null == single account run.
+  credentialId: integer("credential_id").references(
+    () => stationCredentials.id,
+    { onDelete: "set null" }
+  ),
   status: text("status").notNull(),
   message: text("message"),
   recordsFound: integer("records_found"),

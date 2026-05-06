@@ -41,6 +41,7 @@ export interface ChangePasswordBody {
 
 export interface StationSettings {
   id: number;
+  label?: string | null;
   portalUrl: string;
   username: string;
   isActive: boolean;
@@ -51,6 +52,39 @@ export interface StationSettings {
   firstFullSyncAt?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface StationAccount {
+  id: number;
+  label?: string | null;
+  portalUrl: string;
+  username: string;
+  isActive: boolean;
+  syncIntervalMinutes: number;
+  lastSuccessSyncAt?: string | null;
+  lastErrorMessage?: string | null;
+  firstFullSyncAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  kitCount: number;
+}
+
+export interface CreateStationAccountBody {
+  label?: string | null;
+  portalUrl: string;
+  username: string;
+  password: string;
+  isActive?: boolean;
+  syncIntervalMinutes?: number;
+}
+
+export interface UpdateStationAccountBody {
+  label?: string | null;
+  portalUrl?: string;
+  username?: string;
+  password?: string | null;
+  isActive?: boolean;
+  syncIntervalMinutes?: number;
 }
 
 export interface SaveStationSettingsBody {
@@ -86,6 +120,56 @@ export interface SyncResponse {
   recordsFound: number;
   recordsInserted: number;
   recordsUpdated: number;
+}
+
+export type SyncEventLevel =
+  (typeof SyncEventLevel)[keyof typeof SyncEventLevel];
+
+export const SyncEventLevel = {
+  info: "info",
+  warn: "warn",
+  error: "error",
+  success: "success",
+} as const;
+
+export interface SyncEvent {
+  /** Unix epoch ms */
+  ts: number;
+  level: SyncEventLevel;
+  message: string;
+}
+
+export interface AccountResult {
+  credentialId: number;
+  label: string;
+  success: boolean;
+  message: string;
+  recordsFound: number;
+  recordsInserted: number;
+  recordsUpdated: number;
+}
+
+export interface SyncProgress {
+  running: boolean;
+  startedAt?: number | null;
+  finishedAt?: number | null;
+  totalAccounts: number;
+  currentAccountIndex: number;
+  currentAccountId?: number | null;
+  currentAccountLabel?: string | null;
+  totalPeriods: number;
+  currentPeriodIndex: number;
+  currentPeriod?: string | null;
+  totalKits: number;
+  currentKitIndex: number;
+  currentKit?: string | null;
+  rowsInserted: number;
+  rowsUpdated: number;
+  rowsFound: number;
+  failures: number;
+  events: SyncEvent[];
+  accountResults: AccountResult[];
+  lastMessage?: string | null;
 }
 
 export interface KitSummary {
@@ -159,6 +243,10 @@ export interface SyncLogsResponse {
   limit: number;
   totalPages: number;
 }
+
+export type WipeStationDataParams = {
+  credentialId?: number;
+};
 
 export type GetKitsParams = {
   kitNo?: string;

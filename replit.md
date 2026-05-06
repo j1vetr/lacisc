@@ -49,18 +49,21 @@ See `lib/db/src/schema/index.ts` and `lib/api-spec/openapi.yaml` for source-of-t
 - **AES-256-GCM** for portal credentials in DB; `ENCRYPTION_KEY` must be 64 hex chars.
 - **Custom fetch with auto-auth** (`lib/api-client-react/src/custom-fetch.ts`): injects `Authorization: Bearer` from `localStorage.auth_token`; 401 → logout + `/login` redirect.
 - **Playwright externalized** in esbuild so it runs from `node_modules`, not bundled.
-- **Per-CDR daily storage**: `station_kit_daily` keeps every CDR row (PK on `kit_no, period, cdr_id`) so syncing the same period multiple times is idempotent. `station_kit_period_total` stores the portal **footer** (col12 GiB / col22 USD) per `(kit_no, period)` — this is the source of truth for monthly totals (avoids row-sum drift).
+- **Multi-account portals**: `station_credentials` artık birden fazla hesap tutar (her birinin kendi `label`, `username`, `firstFullSyncAt`'i var). Tüm veri tabloları (`station_kits`, `station_kit_daily`, `station_kit_period_total`, `station_sync_logs`) `credential_id` kolonu + FK (ON DELETE CASCADE) ile bu hesaba bağlanır; unique index'ler `(credential_id, kit_no, period[, cdr_id])` olarak partition'lı. KITP kodları globally unique varsayıldığından `station_kits.kit_no` PK olarak kalır. `station_sync_logs.credential_id NULL` = aggregate ("tüm hesaplar") wrap satırı.
+- **Sync orchestrator** (`api-server/src/lib/sync-orchestrator.ts`): `POST /station/sync-now` artık fire-and-forget. Orchestrator aktif tüm hesapları sırayla işler, her biri için ayrı sync log + per-account credentials state günceller; biten her hesabın sonucu `accountResults`'a eklenir.
+- **Live progress** (`api-server/src/lib/sync-progress.ts`): in-memory snapshot (running flag, account/period/kit sayaçları, current labels, son ~50 event). `GET /station/sync-progress` polling endpoint; UI 1.5sn aralıkla çağırır. Scraper `runSync({reportProgress:true})` ile her dönem/KIT başlangıcında ve her done/failure'da hook'ları tetikler.
+- **Per-CDR daily storage**: `station_kit_daily` keeps every CDR row (PK on `credential_id, kit_no, period, cdr_id`) so syncing the same period multiple times is idempotent. `station_kit_period_total` stores the portal **footer** (col12 GiB / col22 USD) per `(credential_id, kit_no, period)` — this is the source of truth for monthly totals (avoids row-sum drift).
 - **Two-tier sync**: first sync after `firstFullSyncAt` is null walks every period from **202601** → current; subsequent syncs only touch current + previous period. The flag is set on first successful run.
-- **Per-(KIT × dönem) FV scrape**: bare grid `RatedCdrs.aspx` is server-capped at ~100 satır toplam, dolayısıyla bir KIT'in 50+ CDR'ı varsa kesilirdi (KITP00409812/202604: 955 GiB → 774 GiB). Sync artık her dönemde `?FC=ICCID&FV=KITPxxxx` ile her KIT'i ayrı ayrı çekiyor; tek sayfaya sığan footer = gerçek dönem grand-total. To re-fetch historical periods (202601-202603 still show old capped numbers), wipe `firstFullSyncAt` to retrigger a full backfill: `UPDATE station_credentials SET first_full_sync_at = NULL;` then trigger sync.
+- **Per-(KIT × dönem) FV scrape**: bare grid `RatedCdrs.aspx` is server-capped at ~100 satır toplam, dolayısıyla bir KIT'in 50+ CDR'ı varsa kesilirdi (KITP00409812/202604: 955 GiB → 774 GiB). Sync artık her dönemde `?FC=ICCID&FV=KITPxxxx` ile her KIT'i ayrı ayrı çekiyor; tek sayfaya sığan footer = gerçek dönem grand-total. To re-fetch historical periods, wipe `firstFullSyncAt` to retrigger a full backfill: `UPDATE station_credentials SET first_full_sync_at = NULL WHERE id = X;` then trigger sync.
 
 ## Product
 
 - Yönetici girişi (JWT)
-- Panel: KPI'lar (toplam KIT / GiB / USD / aktif dönem) + terminaller listesi (8/12) + sistem sağlığı + manuel sync (4/12)
+- Panel: canlı sync akış paneli (sadece çalışırken/sonuç varken görünür) + KPI'lar + terminaller listesi (8/12) + sistem sağlığı + manuel sync (4/12)
 - Terminaller: aktif dönem footer toplamlarına göre sıralı; satır → KIT detayı
 - KIT detayı (`/kits/:kitNo`): aktif dönem KPI'ları + günlük seyir (ComposedChart: GiB barları + USD çizgisi) + per-CDR satır tablosu (servis sütunlu) + aylık özet
-- Senkronizasyon kayıtları: scraper çalışmaları, durum rozetleri
-- Ayarlar: portal bilgileri, bağlantı testi, otomatik sync aralığı
+- Senkronizasyon kayıtları: scraper çalışmaları, durum rozetleri (per-account + aggregate satırlar)
+- Ayarlar: çoklu portal hesabı yönetimi (CRUD + per-account test/wipe), global tehlike bölgesi
 
 ## Design system
 

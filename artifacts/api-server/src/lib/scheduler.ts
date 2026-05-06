@@ -1,11 +1,9 @@
-import { db, stationCredentials, stationSyncLogs } from "@workspace/db";
-import { desc, eq } from "drizzle-orm";
+import { db, stationCredentials } from "@workspace/db";
+import { asc } from "drizzle-orm";
 import { logger } from "./logger";
-import { decrypt } from "./crypto";
-import { runSync } from "./scraper";
+import { runAllAccounts, isOrchestratorRunning } from "./sync-orchestrator";
 
 let schedulerTimer: ReturnType<typeof setTimeout> | null = null;
-let syncRunning = false;
 
 export function startScheduler(): void {
   scheduleNext();
@@ -23,90 +21,37 @@ function scheduleNext(): void {
   schedulerTimer = setTimeout(async () => {
     await runScheduledSync();
     scheduleNext();
-  }, 60 * 1000); // Check every minute, actual interval enforced by last sync time
+  }, 60 * 1000);
 }
 
+// Tick: if ANY active account is due (last sync older than its interval), run
+// the full multi-account orchestrator. Per-account staggering is implicitly
+// handled by `lastSuccessSyncAt`.
 async function runScheduledSync(): Promise<void> {
-  if (syncRunning) {
+  if (isOrchestratorRunning()) {
     logger.debug("Sync already running, skipping scheduler tick");
     return;
   }
-
   try {
-    const [settings] = await db
+    const accounts = await db
       .select()
       .from(stationCredentials)
-      .orderBy(desc(stationCredentials.createdAt))
-      .limit(1);
+      .orderBy(asc(stationCredentials.id));
 
-    if (!settings || !settings.isActive) {
-      return;
-    }
-
-    const intervalMs = settings.syncIntervalMinutes * 60 * 1000;
     const now = Date.now();
-    const lastSync = settings.lastSuccessSyncAt
-      ? new Date(settings.lastSuccessSyncAt).getTime()
-      : 0;
+    const dueAny = accounts.some((c) => {
+      if (!c.isActive) return false;
+      const intervalMs = c.syncIntervalMinutes * 60 * 1000;
+      const lastSync = c.lastSuccessSyncAt
+        ? new Date(c.lastSuccessSyncAt).getTime()
+        : 0;
+      return now - lastSync >= intervalMs;
+    });
+    if (!dueAny) return;
 
-    if (now - lastSync < intervalMs) {
-      return; // Not time yet
-    }
-
-    syncRunning = true;
-    logger.info({ settingsId: settings.id }, "Scheduled sync starting");
-
-    const logEntry = await db
-      .insert(stationSyncLogs)
-      .values({ status: "running", startedAt: new Date() })
-      .returning();
-    const logId = logEntry[0].id;
-
-    try {
-      const password = decrypt(settings.encryptedPassword);
-      const result = await runSync(settings.portalUrl, settings.username, password, false);
-
-      await db
-        .update(stationSyncLogs)
-        .set({
-          status: result.success ? "success" : "failed",
-          message: result.message,
-          recordsFound: result.recordsFound,
-          recordsInserted: result.recordsInserted,
-          recordsUpdated: result.recordsUpdated,
-          screenshotPath: result.screenshotPath ?? null,
-          htmlSnapshotPath: result.htmlSnapshotPath ?? null,
-          finishedAt: new Date(),
-        })
-        .where(eq(stationSyncLogs.id, logId));
-
-      if (result.success) {
-        await db
-          .update(stationCredentials)
-          .set({ lastSuccessSyncAt: new Date(), lastErrorMessage: null, updatedAt: new Date() })
-          .where(eq(stationCredentials.id, settings.id));
-        logger.info({ logId, ...result }, "Scheduled sync completed successfully");
-      } else {
-        await db
-          .update(stationCredentials)
-          .set({ lastErrorMessage: result.message, updatedAt: new Date() })
-          .where(eq(stationCredentials.id, settings.id));
-        logger.warn({ logId, message: result.message }, "Scheduled sync failed");
-      }
-    } catch (err) {
-      logger.error({ err, logId }, "Scheduled sync error");
-      await db
-        .update(stationSyncLogs)
-        .set({ status: "failed", message: (err as Error).message, finishedAt: new Date() })
-        .where(eq(stationSyncLogs.id, logId));
-      await db
-        .update(stationCredentials)
-        .set({ lastErrorMessage: (err as Error).message, updatedAt: new Date() })
-        .where(eq(stationCredentials.id, settings.id));
-    }
+    logger.info("Scheduled multi-account sync triggered");
+    await runAllAccounts();
   } catch (err) {
     logger.error({ err }, "Scheduler error");
-  } finally {
-    syncRunning = false;
   }
 }

@@ -20,6 +20,7 @@ import type {
   AdminUser,
   AuthResponse,
   ChangePasswordBody,
+  CreateStationAccountBody,
   DashboardSummary,
   ErrorResponse,
   GetKitDailyParams,
@@ -33,11 +34,15 @@ import type {
   LoginBody,
   MessageResponse,
   SaveStationSettingsBody,
+  StationAccount,
   StationSettings,
   SyncLogsResponse,
+  SyncProgress,
   SyncResponse,
   TestConnectionResponse,
+  UpdateStationAccountBody,
   WipeDataResponse,
+  WipeStationDataParams,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -440,6 +445,412 @@ export const useChangePassword = <
   return useMutation(getChangePasswordMutationOptions(options));
 };
 
+/**
+ * @summary Tüm portal hesaplarını listele
+ */
+export const getListStationAccountsUrl = () => {
+  return `/api/station/accounts`;
+};
+
+export const listStationAccounts = async (
+  options?: RequestInit,
+): Promise<StationAccount[]> => {
+  return customFetch<StationAccount[]>(getListStationAccountsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListStationAccountsQueryKey = () => {
+  return [`/api/station/accounts`] as const;
+};
+
+export const getListStationAccountsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listStationAccounts>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listStationAccounts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListStationAccountsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listStationAccounts>>
+  > = ({ signal }) => listStationAccounts({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listStationAccounts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListStationAccountsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listStationAccounts>>
+>;
+export type ListStationAccountsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Tüm portal hesaplarını listele
+ */
+
+export function useListStationAccounts<
+  TData = Awaited<ReturnType<typeof listStationAccounts>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listStationAccounts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListStationAccountsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Yeni portal hesabı ekle
+ */
+export const getCreateStationAccountUrl = () => {
+  return `/api/station/accounts`;
+};
+
+export const createStationAccount = async (
+  createStationAccountBody: CreateStationAccountBody,
+  options?: RequestInit,
+): Promise<StationAccount> => {
+  return customFetch<StationAccount>(getCreateStationAccountUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createStationAccountBody),
+  });
+};
+
+export const getCreateStationAccountMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createStationAccount>>,
+    TError,
+    { data: BodyType<CreateStationAccountBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createStationAccount>>,
+  TError,
+  { data: BodyType<CreateStationAccountBody> },
+  TContext
+> => {
+  const mutationKey = ["createStationAccount"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createStationAccount>>,
+    { data: BodyType<CreateStationAccountBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createStationAccount(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateStationAccountMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createStationAccount>>
+>;
+export type CreateStationAccountMutationBody =
+  BodyType<CreateStationAccountBody>;
+export type CreateStationAccountMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Yeni portal hesabı ekle
+ */
+export const useCreateStationAccount = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createStationAccount>>,
+    TError,
+    { data: BodyType<CreateStationAccountBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createStationAccount>>,
+  TError,
+  { data: BodyType<CreateStationAccountBody> },
+  TContext
+> => {
+  return useMutation(getCreateStationAccountMutationOptions(options));
+};
+
+export const getUpdateStationAccountUrl = (id: number) => {
+  return `/api/station/accounts/${id}`;
+};
+
+export const updateStationAccount = async (
+  id: number,
+  updateStationAccountBody: UpdateStationAccountBody,
+  options?: RequestInit,
+): Promise<StationAccount> => {
+  return customFetch<StationAccount>(getUpdateStationAccountUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateStationAccountBody),
+  });
+};
+
+export const getUpdateStationAccountMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStationAccount>>,
+    TError,
+    { id: number; data: BodyType<UpdateStationAccountBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateStationAccount>>,
+  TError,
+  { id: number; data: BodyType<UpdateStationAccountBody> },
+  TContext
+> => {
+  const mutationKey = ["updateStationAccount"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateStationAccount>>,
+    { id: number; data: BodyType<UpdateStationAccountBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateStationAccount(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateStationAccountMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateStationAccount>>
+>;
+export type UpdateStationAccountMutationBody =
+  BodyType<UpdateStationAccountBody>;
+export type UpdateStationAccountMutationError = ErrorType<unknown>;
+
+export const useUpdateStationAccount = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStationAccount>>,
+    TError,
+    { id: number; data: BodyType<UpdateStationAccountBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateStationAccount>>,
+  TError,
+  { id: number; data: BodyType<UpdateStationAccountBody> },
+  TContext
+> => {
+  return useMutation(getUpdateStationAccountMutationOptions(options));
+};
+
+export const getDeleteStationAccountUrl = (id: number) => {
+  return `/api/station/accounts/${id}`;
+};
+
+export const deleteStationAccount = async (
+  id: number,
+  options?: RequestInit,
+): Promise<MessageResponse> => {
+  return customFetch<MessageResponse>(getDeleteStationAccountUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteStationAccountMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteStationAccount>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteStationAccount>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteStationAccount"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteStationAccount>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteStationAccount(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteStationAccountMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteStationAccount>>
+>;
+
+export type DeleteStationAccountMutationError = ErrorType<unknown>;
+
+export const useDeleteStationAccount = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteStationAccount>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteStationAccount>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteStationAccountMutationOptions(options));
+};
+
+export const getTestStationAccountConnectionUrl = (id: number) => {
+  return `/api/station/accounts/${id}/test-connection`;
+};
+
+export const testStationAccountConnection = async (
+  id: number,
+  options?: RequestInit,
+): Promise<TestConnectionResponse> => {
+  return customFetch<TestConnectionResponse>(
+    getTestStationAccountConnectionUrl(id),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getTestStationAccountConnectionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testStationAccountConnection>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof testStationAccountConnection>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["testStationAccountConnection"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof testStationAccountConnection>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return testStationAccountConnection(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TestStationAccountConnectionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof testStationAccountConnection>>
+>;
+
+export type TestStationAccountConnectionMutationError = ErrorType<unknown>;
+
+export const useTestStationAccountConnection = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testStationAccountConnection>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof testStationAccountConnection>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getTestStationAccountConnectionMutationOptions(options));
+};
+
+/**
+ * @summary (Legacy) İlk hesabı döner — geriye dönük uyumluluk için.
+ */
 export const getGetStationSettingsUrl = () => {
   return `/api/station/settings`;
 };
@@ -488,6 +899,10 @@ export type GetStationSettingsQueryResult = NonNullable<
 >;
 export type GetStationSettingsQueryError = ErrorType<ErrorResponse>;
 
+/**
+ * @summary (Legacy) İlk hesabı döner — geriye dönük uyumluluk için.
+ */
+
 export function useGetStationSettings<
   TData = Awaited<ReturnType<typeof getStationSettings>>,
   TError = ErrorType<ErrorResponse>,
@@ -508,6 +923,9 @@ export function useGetStationSettings<
   return { ...query, queryKey: queryOptions.queryKey };
 }
 
+/**
+ * @summary (Legacy) İlk hesabı günceller.
+ */
 export const getSaveStationSettingsUrl = () => {
   return `/api/station/settings`;
 };
@@ -568,6 +986,9 @@ export type SaveStationSettingsMutationResult = NonNullable<
 export type SaveStationSettingsMutationBody = BodyType<SaveStationSettingsBody>;
 export type SaveStationSettingsMutationError = ErrorType<unknown>;
 
+/**
+ * @summary (Legacy) İlk hesabı günceller.
+ */
 export const useSaveStationSettings = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -588,6 +1009,9 @@ export const useSaveStationSettings = <
   return useMutation(getSaveStationSettingsMutationOptions(options));
 };
 
+/**
+ * @summary (Legacy) İlk hesabın bağlantısını test eder.
+ */
 export const getTestConnectionUrl = () => {
   return `/api/station/test-connection`;
 };
@@ -643,6 +1067,9 @@ export type TestConnectionMutationResult = NonNullable<
 
 export type TestConnectionMutationError = ErrorType<unknown>;
 
+/**
+ * @summary (Legacy) İlk hesabın bağlantısını test eder.
+ */
 export const useTestConnection = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -664,16 +1091,29 @@ export const useTestConnection = <
 };
 
 /**
- * @summary Tüm terminal verilerini siler (CDR, dönem toplamları, KIT listesi, sync logları). Portal kimlik bilgileri korunur.
+ * @summary Terminal verilerini siler. credentialId verilmezse TÜM hesapların verisi silinir.
  */
-export const getWipeStationDataUrl = () => {
-  return `/api/station/wipe-data`;
+export const getWipeStationDataUrl = (params?: WipeStationDataParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/station/wipe-data?${stringifiedParams}`
+    : `/api/station/wipe-data`;
 };
 
 export const wipeStationData = async (
+  params?: WipeStationDataParams,
   options?: RequestInit,
 ): Promise<WipeDataResponse> => {
-  return customFetch<WipeDataResponse>(getWipeStationDataUrl(), {
+  return customFetch<WipeDataResponse>(getWipeStationDataUrl(params), {
     ...options,
     method: "POST",
   });
@@ -686,14 +1126,14 @@ export const getWipeStationDataMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof wipeStationData>>,
     TError,
-    void,
+    { params?: WipeStationDataParams },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof wipeStationData>>,
   TError,
-  void,
+  { params?: WipeStationDataParams },
   TContext
 > => {
   const mutationKey = ["wipeStationData"];
@@ -707,9 +1147,11 @@ export const getWipeStationDataMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof wipeStationData>>,
-    void
-  > = () => {
-    return wipeStationData(requestOptions);
+    { params?: WipeStationDataParams }
+  > = (props) => {
+    const { params } = props ?? {};
+
+    return wipeStationData(params, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -722,7 +1164,7 @@ export type WipeStationDataMutationResult = NonNullable<
 export type WipeStationDataMutationError = ErrorType<unknown>;
 
 /**
- * @summary Tüm terminal verilerini siler (CDR, dönem toplamları, KIT listesi, sync logları). Portal kimlik bilgileri korunur.
+ * @summary Terminal verilerini siler. credentialId verilmezse TÜM hesapların verisi silinir.
  */
 export const useWipeStationData = <
   TError = ErrorType<unknown>,
@@ -731,19 +1173,22 @@ export const useWipeStationData = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof wipeStationData>>,
     TError,
-    void,
+    { params?: WipeStationDataParams },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof wipeStationData>>,
   TError,
-  void,
+  { params?: WipeStationDataParams },
   TContext
 > => {
   return useMutation(getWipeStationDataMutationOptions(options));
 };
 
+/**
+ * @summary Tüm aktif portal hesaplarını sırayla senkronize eder.
+ */
 export const getSyncNowUrl = () => {
   return `/api/station/sync-now`;
 };
@@ -797,6 +1242,9 @@ export type SyncNowMutationResult = NonNullable<
 
 export type SyncNowMutationError = ErrorType<ErrorResponse>;
 
+/**
+ * @summary Tüm aktif portal hesaplarını sırayla senkronize eder.
+ */
 export const useSyncNow = <
   TError = ErrorType<ErrorResponse>,
   TContext = unknown,
@@ -816,6 +1264,81 @@ export const useSyncNow = <
 > => {
   return useMutation(getSyncNowMutationOptions(options));
 };
+
+/**
+ * @summary Aktif (veya son) senkronizasyonun canlı ilerleme durumu.
+ */
+export const getGetSyncProgressUrl = () => {
+  return `/api/station/sync-progress`;
+};
+
+export const getSyncProgress = async (
+  options?: RequestInit,
+): Promise<SyncProgress> => {
+  return customFetch<SyncProgress>(getGetSyncProgressUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSyncProgressQueryKey = () => {
+  return [`/api/station/sync-progress`] as const;
+};
+
+export const getGetSyncProgressQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSyncProgress>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSyncProgress>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSyncProgressQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSyncProgress>>> = ({
+    signal,
+  }) => getSyncProgress({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSyncProgress>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSyncProgressQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSyncProgress>>
+>;
+export type GetSyncProgressQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Aktif (veya son) senkronizasyonun canlı ilerleme durumu.
+ */
+
+export function useGetSyncProgress<
+  TData = Awaited<ReturnType<typeof getSyncProgress>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSyncProgress>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSyncProgressQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary KIT summary list (active period totals)

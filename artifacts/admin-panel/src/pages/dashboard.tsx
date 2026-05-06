@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatNumber, formatDate } from "@/lib/format";
+import { SyncProgressPanel } from "@/components/sync-progress-panel";
 
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
@@ -78,6 +79,9 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 lg:space-y-10 animate-in fade-in duration-500">
+      {/* Live sync progress (only renders when running or has results) */}
+      <SyncProgressPanel />
+
       {/* KPI Cards */}
       <div className="grid gap-3 sm:gap-6 grid-cols-2 xl:grid-cols-4">
         <Card className="border border-border bg-card shadow-none rounded-xl">

@@ -5,9 +5,10 @@ import {
   stationKitPeriodTotal,
   stationCredentials,
 } from "@workspace/db";
-import { eq, inArray, sql, desc } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import type { Page, Browser } from "playwright";
+import * as progress from "./sync-progress";
 
 export interface SyncResult {
   success: boolean;
@@ -17,6 +18,15 @@ export interface SyncResult {
   recordsUpdated: number;
   screenshotPath?: string;
   htmlSnapshotPath?: string;
+}
+
+export interface RunSyncOptions {
+  credentialId: number;
+  portalUrl: string;
+  username: string;
+  password: string;
+  testOnly?: boolean;
+  reportProgress?: boolean;
 }
 
 const VOLUME_REGEX = /^([\d.,]+)\s*(TiB|GiB|MiB|KiB|TB|GB|MB|KB|Bytes?|B)$/i;
@@ -613,6 +623,7 @@ async function parseGrid(page: Page): Promise<ParsedGrid> {
 // station_kit_period_total.
 // ---------------------------------------------------------------------------
 async function persistKitPeriod(
+  credentialId: number,
   kitNo: string,
   period: string,
   parsed: ParsedGrid
@@ -628,11 +639,11 @@ async function persistKitPeriod(
       if (!r.dayDate) continue;
       const result = await tx.execute(sql`
         INSERT INTO station_kit_daily
-          (kit_no, period, day_date, volume_gib, charge_usd, service, cdr_id, scraped_at)
+          (credential_id, kit_no, period, day_date, volume_gib, charge_usd, service, cdr_id, scraped_at)
         VALUES
-          (${kitNo}, ${period}, ${r.dayDate}, ${r.volumeGib}, ${r.chargeUsd},
+          (${credentialId}, ${kitNo}, ${period}, ${r.dayDate}, ${r.volumeGib}, ${r.chargeUsd},
            ${r.service}, ${r.cdrId}, ${now})
-        ON CONFLICT (kit_no, period, cdr_id) DO UPDATE SET
+        ON CONFLICT (credential_id, kit_no, period, cdr_id) DO UPDATE SET
           day_date   = EXCLUDED.day_date,
           volume_gib = EXCLUDED.volume_gib,
           charge_usd = EXCLUDED.charge_usd,
@@ -654,6 +665,7 @@ async function persistKitPeriod(
       await tx
         .insert(stationKitPeriodTotal)
         .values({
+          credentialId,
           kitNo,
           period,
           totalGib: parsed.footerGib,
@@ -661,7 +673,11 @@ async function persistKitPeriod(
           rowCount: parsed.rows.length,
         })
         .onConflictDoUpdate({
-          target: [stationKitPeriodTotal.kitNo, stationKitPeriodTotal.period],
+          target: [
+            stationKitPeriodTotal.credentialId,
+            stationKitPeriodTotal.kitNo,
+            stationKitPeriodTotal.period,
+          ],
           set: {
             totalGib: parsed.footerGib,
             totalUsd: parsed.footerUsd,
@@ -930,6 +946,7 @@ async function isOnRatedCdrsGrid(page: Page): Promise<boolean> {
 // ---------------------------------------------------------------------------
 async function enrichShipNames(
   page: Page,
+  credentialId: number,
   kits: KitListEntry[]
 ): Promise<void> {
   const havingHref = kits.filter((k) => k.detailHref);
@@ -937,7 +954,12 @@ async function enrichShipNames(
   const cached = await db
     .select({ kitNo: stationKits.kitNo, shipName: stationKits.shipName })
     .from(stationKits)
-    .where(inArray(stationKits.kitNo, havingHref.map((k) => k.kitNo)));
+    .where(
+      and(
+        eq(stationKits.credentialId, credentialId),
+        inArray(stationKits.kitNo, havingHref.map((k) => k.kitNo))
+      )
+    );
   const haveShipName = new Set(
     cached.filter((c) => c.shipName && c.shipName.trim() !== "").map((c) => c.kitNo)
   );
@@ -997,6 +1019,7 @@ async function enrichShipNames(
         .insert(stationKits)
         .values({
           kitNo: k.kitNo,
+          credentialId,
           shipName,
           detailUrl: href,
           shipNameSyncedAt: shipName ? now : null,
@@ -1005,6 +1028,7 @@ async function enrichShipNames(
         .onConflictDoUpdate({
           target: stationKits.kitNo,
           set: {
+            credentialId,
             shipName: shipName ?? undefined,
             detailUrl: href,
             shipNameSyncedAt: shipName ? now : undefined,
@@ -1036,12 +1060,15 @@ async function enrichShipNames(
 //   - Subsequent syncs: only current + previous period for every KIT.
 // On the very first successful full run we set credentials.firstFullSyncAt.
 // ---------------------------------------------------------------------------
-export async function runSync(
-  portalUrl: string,
-  username: string,
-  password: string,
-  testOnly: boolean
-): Promise<SyncResult> {
+export async function runSync(opts: RunSyncOptions): Promise<SyncResult> {
+  const {
+    credentialId,
+    portalUrl,
+    username,
+    password,
+    testOnly = false,
+    reportProgress = false,
+  } = opts;
   let browser: Browser | null = null;
   try {
     const { chromium } = await import("playwright");
@@ -1083,7 +1110,8 @@ export async function runSync(
     const liveKits = await extractKitList(page);
     const dbKits = await db
       .select({ kitNo: stationKits.kitNo, shipName: stationKits.shipName })
-      .from(stationKits);
+      .from(stationKits)
+      .where(eq(stationKits.credentialId, credentialId));
     const kitMap = new Map<string, KitListEntry>();
     for (const k of liveKits) kitMap.set(k.kitNo, k);
     for (const k of dbKits) {
@@ -1093,7 +1121,7 @@ export async function runSync(
     }
     const kits = Array.from(kitMap.values());
     logger.info(
-      { liveCount: liveKits.length, dbCount: dbKits.length, totalCount: kits.length },
+      { credentialId, liveCount: liveKits.length, dbCount: dbKits.length, totalCount: kits.length },
       "Discovered KITs (union of live grid + DB)"
     );
     if (kits.length === 0) {
@@ -1105,7 +1133,7 @@ export async function runSync(
         recordsUpdated: 0,
       };
     }
-    await enrichShipNames(page, kits).catch((e) =>
+    await enrichShipNames(page, credentialId, kits).catch((e) =>
       logger.warn({ err: (e as Error).message }, "Ship-name enrichment failed (non-fatal)")
     );
 
@@ -1132,14 +1160,17 @@ export async function runSync(
     const [creds] = await db
       .select()
       .from(stationCredentials)
-      .orderBy(desc(stationCredentials.createdAt))
+      .where(eq(stationCredentials.id, credentialId))
       .limit(1);
     const isFirstFull = !creds?.firstFullSyncAt;
     const periods = isFirstFull ? allPeriods : allPeriods.slice(0, 2);
     logger.info(
-      { isFirstFull, periodCount: periods.length, periods: periods.slice(0, 5) },
+      { credentialId, isFirstFull, periodCount: periods.length, periods: periods.slice(0, 5) },
       "Sync plan"
     );
+    if (reportProgress) {
+      progress.setAccountPlan(periods.length, kits.length);
+    }
 
     // 3) Per-(KIT × period) scrape via the FV-filtered URL.
     //    The bare RatedCdrs grid combines all kits but is server-capped at
@@ -1153,7 +1184,9 @@ export async function runSync(
     let totalUpdated = 0;
     let kitPeriodFailures = 0;
 
-    for (const period of periods) {
+    for (let pIdx = 0; pIdx < periods.length; pIdx++) {
+      const period = periods[pIdx];
+      if (reportProgress) progress.startPeriod(period, pIdx + 1);
       // Set the session period once on the bare grid, then walk kits. The FV
       // URL inherits the session-level period the first time we land on it.
       try {
@@ -1176,7 +1209,9 @@ export async function runSync(
         );
       }
 
-      for (const kit of kits) {
+      for (let kIdx = 0; kIdx < kits.length; kIdx++) {
+        const kit = kits[kIdx];
+        if (reportProgress) progress.startKit(kit.kitNo, kIdx + 1);
         try {
           const fvUrl = `${baseUrl}/RatedCdrs.aspx?FC=ICCID&FV=${encodeURIComponent(
             kit.kitNo
@@ -1193,6 +1228,7 @@ export async function runSync(
             });
           if (!gotoOk || !(await isOnRatedCdrsGrid(page))) {
             kitPeriodFailures++;
+            if (reportProgress) progress.reportKitFailure(kit.kitNo, period, "FV URL bounced");
             logger.warn(
               { period, kit: kit.kitNo, url: page.url() },
               "FV URL bounced or goto failed — skipping (no overwrite, no 0-stub)"
@@ -1222,6 +1258,12 @@ export async function runSync(
 
           if (firstRowProbe.hasRows && firstRowProbe.kitNo && firstRowProbe.kitNo !== kit.kitNo) {
             kitPeriodFailures++;
+            if (reportProgress)
+              progress.reportKitFailure(
+                kit.kitNo,
+                period,
+                `farklı KIT (${firstRowProbe.kitNo})`
+              );
             logger.warn(
               { period, kit: kit.kitNo, gridShows: firstRowProbe.kitNo },
               "FV grid shows different KIT — skipping (no overwrite)"
@@ -1252,6 +1294,7 @@ export async function runSync(
             await db
               .insert(stationKitPeriodTotal)
               .values({
+                credentialId,
                 kitNo: kit.kitNo,
                 period,
                 totalGib: 0,
@@ -1259,8 +1302,14 @@ export async function runSync(
                 rowCount: 0,
               })
               .onConflictDoNothing({
-                target: [stationKitPeriodTotal.kitNo, stationKitPeriodTotal.period],
+                target: [
+                  stationKitPeriodTotal.credentialId,
+                  stationKitPeriodTotal.kitNo,
+                  stationKitPeriodTotal.period,
+                ],
               });
+            if (reportProgress)
+              progress.reportKitDone(kit.kitNo, period, 0, 0, 0, 0, 0);
             logger.info(
               { period, kit: kit.kitNo },
               "FV grid empty for this period — 0-stub"
@@ -1287,6 +1336,7 @@ export async function runSync(
             diag: parsed.diag,
           };
           const { inserted, updated } = await persistKitPeriod(
+            credentialId,
             kit.kitNo,
             period,
             synthetic
@@ -1294,6 +1344,16 @@ export async function runSync(
           totalRows += kitRows.length;
           totalInserted += inserted;
           totalUpdated += updated;
+          if (reportProgress)
+            progress.reportKitDone(
+              kit.kitNo,
+              period,
+              kitRows.length,
+              inserted,
+              updated,
+              totalGib,
+              totalUsd
+            );
           logger.info(
             {
               period,
@@ -1309,6 +1369,8 @@ export async function runSync(
           );
         } catch (e) {
           kitPeriodFailures++;
+          if (reportProgress)
+            progress.reportKitFailure(kit.kitNo, period, (e as Error).message);
           logger.warn(
             { period, kit: kit.kitNo, err: (e as Error).message },
             "FV (kit, period) scrape failed (continuing)"

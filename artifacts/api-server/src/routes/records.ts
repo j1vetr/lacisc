@@ -18,25 +18,31 @@ router.get("/station/kits", requireAuth, async (req, res): Promise<void> => {
   const allowed = new Set(["totalGib", "totalUsd", "lastSeen"]);
   const safeSort = allowed.has(sortBy) ? sortBy : "totalGib";
 
-  // For each kit, take the row from station_kit_period_total whose period is
-  // the maximum (newest) for that kit.
+  // For each (credential, kit), take the row from station_kit_period_total
+  // whose period is the maximum (newest). Joining on (credential_id, kit_no)
+  // keeps multi-account data correctly partitioned.
   const rows = await db.execute(sql`
     WITH latest AS (
-      SELECT DISTINCT ON (kit_no)
-        kit_no, period, total_gib, total_usd, row_count, scraped_at
+      SELECT DISTINCT ON (credential_id, kit_no)
+        credential_id, kit_no, period, total_gib, total_usd, row_count, scraped_at
       FROM station_kit_period_total
-      ORDER BY kit_no, period DESC
+      ORDER BY credential_id, kit_no, period DESC
     )
     SELECT
-      l.kit_no       AS "kitNo",
-      l.period       AS "lastPeriod",
-      l.total_gib    AS "totalGib",
-      l.total_usd    AS "totalUsd",
-      l.row_count    AS "rowCount",
-      l.scraped_at   AS "lastSyncedAt",
-      k.ship_name    AS "shipName"
+      l.kit_no        AS "kitNo",
+      l.period        AS "lastPeriod",
+      l.total_gib     AS "totalGib",
+      l.total_usd     AS "totalUsd",
+      l.row_count     AS "rowCount",
+      l.scraped_at    AS "lastSyncedAt",
+      k.ship_name     AS "shipName",
+      l.credential_id AS "credentialId",
+      c.label         AS "accountLabel",
+      c.username      AS "accountUsername"
     FROM latest l
-    LEFT JOIN station_kits k ON k.kit_no = l.kit_no
+    LEFT JOIN station_kits k
+      ON k.kit_no = l.kit_no AND k.credential_id = l.credential_id
+    LEFT JOIN station_credentials c ON c.id = l.credential_id
   `);
   const list = (
     rows as unknown as {
