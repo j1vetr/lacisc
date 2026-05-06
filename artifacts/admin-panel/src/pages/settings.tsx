@@ -129,7 +129,7 @@ export default function Settings() {
 
   if (isLoading) {
     return (
-      <div className="space-y-8 max-w-3xl animate-in fade-in duration-500">
+      <div className="space-y-8 max-w-5xl animate-in fade-in duration-500">
         <div>
           <Skeleton className="h-10 w-64 mb-2 rounded-lg" />
           <Skeleton className="h-5 w-96 rounded" />
@@ -149,7 +149,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="space-y-10 max-w-3xl animate-in fade-in duration-500 pb-12">
+    <div className="space-y-10 max-w-5xl animate-in fade-in duration-500 pb-12">
       <div className="space-y-2">
         <h1 className="text-[40px] leading-[1.1] font-normal tracking-[-0.02em] text-foreground">Ayarlar</h1>
         <p className="text-base text-muted-foreground">Arka plan kazıyıcı kimlik bilgileri ve otomatik senkronizasyon yönetimi.</p>
@@ -221,7 +221,7 @@ export default function Settings() {
                 <div className="p-1.5 bg-background rounded border border-border">
                   <SettingsIcon className="w-4 h-4 text-foreground" />
                 </div>
-                Kazıyıcı Döngüsü
+                Scraper Döngüsü
               </CardTitle>
             </CardHeader>
             <CardContent className="p-8 space-y-6">
@@ -288,16 +288,16 @@ export default function Settings() {
               </div>
             )}
             
-            <CardFooter className="flex flex-col sm:flex-row justify-between items-center bg-secondary/50 border-t border-border gap-4 py-5 px-8">
-              <div className="text-[11px] font-mono text-muted-foreground flex items-center gap-2">
+            <CardFooter className="flex flex-col lg:flex-row lg:justify-between lg:items-center bg-secondary/50 border-t border-border gap-4 py-5 px-8">
+              <div className="text-[11px] font-mono text-muted-foreground flex items-center gap-2 shrink-0">
                 <div className={`w-2 h-2 rounded-full ${settings?.lastSuccessSyncAt ? 'bg-[#1f8a65]' : 'bg-muted-foreground'}`} />
                 Son başarılı: <span className="text-foreground">{formatDate(settings?.lastSuccessSyncAt)}</span>
               </div>
-              <div className="flex gap-3 w-full sm:w-auto">
+              <div className="flex flex-wrap gap-3 w-full lg:w-auto lg:justify-end">
                 <Button 
                   type="button" 
                   variant="outline" 
-                  className="flex-1 sm:flex-none rounded-lg border-border hover:bg-secondary font-medium text-[13px] h-10 px-4 shadow-none text-foreground"
+                  className="flex-1 lg:flex-none rounded-lg border-border hover:bg-secondary font-medium text-[13px] h-10 px-4 shadow-none text-foreground whitespace-nowrap"
                   onClick={handleTestConnection}
                   disabled={testConnectionMutation.isPending}
                 >
@@ -307,7 +307,7 @@ export default function Settings() {
                 <Button 
                   type="button" 
                   variant="outline"
-                  className="flex-1 sm:flex-none rounded-lg border-border hover:bg-secondary font-medium text-[13px] h-10 px-4 shadow-none text-foreground"
+                  className="flex-1 lg:flex-none rounded-lg border-border hover:bg-secondary font-medium text-[13px] h-10 px-4 shadow-none text-foreground whitespace-nowrap"
                   onClick={handleSyncNow}
                   disabled={syncNowMutation.isPending}
                 >
@@ -316,7 +316,7 @@ export default function Settings() {
                 </Button>
                 <Button 
                   type="submit"
-                  className="flex-1 sm:flex-none rounded-lg font-medium text-[13px] h-10 px-5 bg-primary text-primary-foreground hover:bg-primary/90 shadow-none"
+                  className="flex-1 lg:flex-none rounded-lg font-medium text-[13px] h-10 px-5 bg-primary text-primary-foreground hover:bg-primary/90 shadow-none whitespace-nowrap"
                   disabled={saveMutation.isPending}
                 >
                   <Save className="w-4 h-4 mr-2" />
