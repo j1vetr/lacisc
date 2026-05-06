@@ -238,49 +238,115 @@ async function main(): Promise<void> {
     const valid = periodsRes.items?.find((i: any) => i.value === TRY_PERIOD);
     const comboId = periodsRes.comboPick;
     if (valid && comboId) {
+      // Shared summary helper — captures grid pager state + footer (search ALL footer-like classes) + tail HTML
+      const pageSummarySrc = `(() => {
+        const grid = (window).gvRatedCdr;
+        const out = { pageIndex: null, pageCount: null, visibleRows: 0, footers: [], dataRowCount: 0, footerHtmlSample: null };
+        if (grid) {
+          out.pageIndex = grid.GetPageIndex && grid.GetPageIndex();
+          out.pageCount = grid.GetPageCount && grid.GetPageCount();
+          out.visibleRows = grid.GetVisibleRowsOnPage && grid.GetVisibleRowsOnPage();
+        }
+        // ALL <tr> with class containing 'Footer' anywhere under the gvRatedCdr table
+        const gvTable = document.getElementById('ctl00_ContentPlaceHolder1_gvRatedCdr');
+        if (gvTable) {
+          const footRows = gvTable.querySelectorAll("tr[class*='Footer']");
+          footRows.forEach(fr => {
+            const cells = Array.from(fr.querySelectorAll('td')).map(td => (td.textContent||'').replace(/\\s+/g,' ').trim());
+            out.footers.push({ cls: fr.className, cells });
+          });
+          // Sample last 1500 chars of grid HTML for inspection
+          out.footerHtmlSample = gvTable.outerHTML.slice(-2000);
+        }
+        const rows = document.querySelectorAll("[id^='ctl00_ContentPlaceHolder1_gvRatedCdr_DXDataRow']");
+        out.dataRowCount = rows.length;
+        return out;
+      })()`;
+
       console.log(`\n[selectPeriod] switching to ${TRY_PERIOD} via combo ${comboId}`);
       await page.evaluate(`(async () => {
         const cb = window['${comboId}'];
         cb.SetValue('${TRY_PERIOD}');
-        // SelectedIndexChanged is bound to fire gvRatedCdr.Refresh(); but trigger it explicitly too
         if (typeof cb.RaiseSelectedIndexChanged === 'function') cb.RaiseSelectedIndexChanged();
         if ((window).gvRatedCdr) (window).gvRatedCdr.Refresh();
       })()`);
       await page.waitForLoadState("networkidle", { timeout: 30000 }).catch(() => {});
       await new Promise((r) => setTimeout(r, 1500));
       await dump(page, `06-period-${TRY_PERIOD}-page1`);
-
-      // Inspect pager + collect rows across pages
-      const pageSummarySrc = `(() => {
-        const grid = (window).gvRatedCdr;
-        const out = { pageIndex: null, pageCount: null, visibleRows: 0, footer: null, dataRowCount: 0 };
-        if (grid) {
-          out.pageIndex = grid.GetPageIndex && grid.GetPageIndex();
-          out.pageCount = grid.GetPageCount && grid.GetPageCount();
-          out.visibleRows = grid.GetVisibleRowsOnPage && grid.GetVisibleRowsOnPage();
-        }
-        const foot = document.querySelector('tr.dxgvFooter_MetropolisBlue');
-        if (foot) {
-          out.footer = Array.from(foot.querySelectorAll('td')).map(td => (td.textContent||'').replace(/\\s+/g,' ').trim());
-        }
-        const rows = document.querySelectorAll("[id^='ctl00_ContentPlaceHolder1_gvRatedCdr_DXDataRow']");
-        out.dataRowCount = rows.length;
-        return out;
-      })()`;
       const sum1: any = await page.evaluate(pageSummarySrc);
       console.log(`  page1: dataRows=${sum1.dataRowCount} pageIndex=${sum1.pageIndex} pageCount=${sum1.pageCount} visibleRows=${sum1.visibleRows}`);
-      console.log(`  footer cells (non-empty):`, (sum1.footer || []).map((v: string, i: number) => v ? `c${i}:${v}` : null).filter(Boolean));
+      console.log(`  footers found: ${sum1.footers.length}`);
+      sum1.footers.forEach((f: any, i: number) =>
+        console.log(`    [${i}] cls="${f.cls}" non-empty:`, f.cells.map((v: string, j: number) => v ? `c${j}:${v}` : null).filter(Boolean))
+      );
 
-      // Walk through pages if any
+      // === Walk through ALL pages until last — using REAL pager click (NOT GotoPage API) ===
       const totalPages = sum1.pageCount ?? 1;
-      for (let p = 1; p < Math.min(totalPages, 5); p++) {
-        console.log(`  → goto page ${p}`);
-        await page.evaluate(`(window).gvRatedCdr.GotoPage(${p});`);
+      let lastSum = sum1;
+      for (let p = 1; p < Math.min(totalPages, 10); p++) {
+        console.log(`  → click pager NEXT button (label page${p + 1})`);
+        // Click the pager NEXT button to mimic a real user (postback may differ from GotoPage API)
+        const clicked = await page.evaluate(`(() => {
+          const next = document.getElementById('ctl00_ContentPlaceHolder1_gvRatedCdr_DXPagerBottom_PBN');
+          if (next) { next.click(); return 'clicked'; }
+          // fallback: page-number link
+          const pn = document.querySelector('#ctl00_ContentPlaceHolder1_gvRatedCdr_DXPagerBottom a[href*=\"' + ${p + 1} + '\"]');
+          if (pn) { pn.click(); return 'clicked-pn'; }
+          (window).gvRatedCdr.GotoPage(${p});
+          return 'fallback-api';
+        })()`);
+        console.log(`    pager method: ${clicked}`);
         await page.waitForLoadState("networkidle", { timeout: 20000 }).catch(() => {});
-        await new Promise((r) => setTimeout(r, 1200));
+        await new Promise((r) => setTimeout(r, 2500));
         await dump(page, `06-period-${TRY_PERIOD}-page${p + 1}`);
-        const sumN: any = await page.evaluate(pageSummarySrc);
-        console.log(`    page${p + 1}: dataRows=${sumN.dataRowCount} pageIndex=${sumN.pageIndex} footer non-empty=${(sumN.footer || []).filter((x: string) => x).length}`);
+        lastSum = await page.evaluate(pageSummarySrc);
+        console.log(`    dataRows=${lastSum.dataRowCount} pageIndex=${lastSum.pageIndex} footers=${lastSum.footers.length}`);
+        lastSum.footers.forEach((f: any, i: number) =>
+          console.log(`      [${i}] cls="${f.cls}" non-empty:`, f.cells.map((v: string, j: number) => v ? `c${j}:${v}` : null).filter(Boolean))
+        );
+      }
+      // Save tail HTML of last page for offline inspection
+      if (lastSum.footerHtmlSample) {
+        await fs.writeFile(path.join(OUT_DIR, `06-period-${TRY_PERIOD}-LASTPAGE-tail.html`), lastSum.footerHtmlSample);
+        console.log(`  → saved last-page tail HTML for inspection`);
+      }
+
+      // === Step 6b: change pager pageSize to 200 via DevExpress's own callback ===
+      console.log(`\n[pageSize=200] using ASPx.GVPagerOnClick(grid, '200') from period 1`);
+      // First reset to period
+      await page.evaluate(`(async () => {
+        const cb = window['${comboId}'];
+        cb.SetValue('${TRY_PERIOD}');
+        if (typeof cb.RaiseSelectedIndexChanged === 'function') cb.RaiseSelectedIndexChanged();
+        if ((window).gvRatedCdr) (window).gvRatedCdr.Refresh();
+      })()`);
+      await page.waitForLoadState("networkidle", { timeout: 20000 }).catch(() => {});
+      await new Promise((r) => setTimeout(r, 2000));
+      // Now bump pageSize
+      await page.evaluate(`ASPx.GVPagerOnClick('ctl00_ContentPlaceHolder1_gvRatedCdr','200')`);
+      await page.waitForLoadState("networkidle", { timeout: 20000 }).catch(() => {});
+      await new Promise((r) => setTimeout(r, 3000));
+      await dump(page, `06b-period-${TRY_PERIOD}-pageSize200`);
+      const sumPS: any = await page.evaluate(pageSummarySrc);
+      console.log(`  afterDataRows=${sumPS.dataRowCount} pageCount=${sumPS.pageCount} footers=${sumPS.footers.length}`);
+      sumPS.footers.forEach((f: any, i: number) =>
+        console.log(`    [${i}] cls="${f.cls}" non-empty:`, f.cells.map((v: string, j: number) => v ? `c${j}:${v}` : null).filter(Boolean))
+      );
+
+      // If still paged, walk to last page on pageSize=200 and re-check footer
+      if (sumPS.pageCount && sumPS.pageCount > 1) {
+        console.log(`\n[walk-to-end] still ${sumPS.pageCount} pages even with size=200 → click NEXT until last`);
+        for (let p = 1; p < Math.min(sumPS.pageCount, 10); p++) {
+          await page.evaluate(`document.getElementById('ctl00_ContentPlaceHolder1_gvRatedCdr_DXPagerBottom_PBN')?.click();`);
+          await page.waitForLoadState("networkidle", { timeout: 20000 }).catch(() => {});
+          await new Promise((r) => setTimeout(r, 2500));
+        }
+        await dump(page, `06b-period-${TRY_PERIOD}-pageSize200-LAST`);
+        const sumLast: any = await page.evaluate(pageSummarySrc);
+        console.log(`  LAST PAGE @size=200: dataRows=${sumLast.dataRowCount} pageIndex=${sumLast.pageIndex} pageCount=${sumLast.pageCount} footers=${sumLast.footers.length}`);
+        sumLast.footers.forEach((f: any, i: number) =>
+          console.log(`    [${i}] cls="${f.cls}" non-empty:`, f.cells.map((v: string, j: number) => v ? `c${j}:${v}` : null).filter(Boolean))
+        );
       }
     } else {
       console.log(`\n[selectPeriod] period ${TRY_PERIOD} not in dropdown; skipping`);
