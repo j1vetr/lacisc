@@ -15,7 +15,6 @@ import {
 import {
   useGetDashboardSummary,
   getGetDashboardSummaryQueryKey,
-  useSyncNow,
   useGetKits,
   getGetKitsQueryKey,
 } from "@workspace/api-client-react";
@@ -24,9 +23,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatNumber, formatDate } from "@/lib/format";
-import { SyncProgressPanel } from "@/components/sync-progress-panel";
 
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
@@ -37,28 +34,7 @@ export default function Dashboard() {
     { sortBy: "totalGib" },
     { query: { queryKey: getGetKitsQueryKey({ sortBy: "totalGib" }) } }
   );
-  const syncNowMutation = useSyncNow();
   const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  const handleSync = () => {
-    syncNowMutation.mutate(undefined, {
-      onSuccess: (res) => {
-        toast({
-          title: "Senkronizasyon Başladı",
-          description: res.message || "Manuel senkronizasyon tetiklendi.",
-        });
-        queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-      },
-      onError: (err: any) => {
-        toast({
-          title: "Senkronizasyon Başarısız",
-          description: err.message || "Senkronizasyon başlatılamadı.",
-          variant: "destructive",
-        });
-      }
-    });
-  };
 
   if (isError) {
     return (
@@ -75,13 +51,8 @@ export default function Dashboard() {
     );
   }
 
-  const isSyncing = syncNowMutation.isPending || summary?.lastSyncStatus === 'running';
-
   return (
     <div className="space-y-6 lg:space-y-10 animate-in fade-in duration-500">
-      {/* Live sync progress (only renders when running or has results) */}
-      <SyncProgressPanel />
-
       {/* KPI Cards */}
       <div className="grid gap-3 sm:gap-6 grid-cols-2 xl:grid-cols-4">
         <Card className="border border-border bg-card shadow-none rounded-xl">
@@ -278,14 +249,15 @@ export default function Dashboard() {
                   </div>
                 )}
 
-                <Button
-                  onClick={handleSync}
-                  disabled={isSyncing}
-                  className="mt-auto w-full rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-none transition-colors h-10 text-sm font-medium"
-                >
-                  <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-                  {isSyncing ? "SENKRONİZE EDİLİYOR..." : "ŞİMDİ SENKRONİZE ET"}
-                </Button>
+                <Link href="/sync-logs" className="mt-auto block">
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-lg border-border hover:bg-secondary shadow-none h-10 text-sm font-medium"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    SENKRONİZASYON KAYITLARI
+                  </Button>
+                </Link>
               </>
             )}
           </CardContent>
