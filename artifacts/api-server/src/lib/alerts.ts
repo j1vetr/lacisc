@@ -112,19 +112,28 @@ function encryptPassword(plain: string): string {
 // Transport
 // ---------------------------------------------------------------------------
 
-async function buildTransporter(): Promise<{
-  transporter: Transporter;
-  from: string;
-} | null> {
+async function buildTransporter(): Promise<
+  | { transporter: Transporter; from: string }
+  | { error: string }
+> {
   const [row] = await db.select().from(emailSettings).where(eq(emailSettings.id, 1));
-  if (!row) return null;
-  if (!row.smtpHost || !row.smtpPort) return null;
-  if (!row.fromEmail) return null;
+  if (!row) return { error: "E-posta ayarları henüz kaydedilmemiş." };
+  const missing: string[] = [];
+  if (!row.smtpHost) missing.push("SMTP Host");
+  if (!row.smtpPort) missing.push("SMTP Port");
+  // Fall back to SMTP user (almost always an email) when the explicit
+  // "from" address is blank — saves operators from re-typing the same
+  // address. Only flag as missing when both are empty.
+  const fromAddress = row.fromEmail?.trim() || row.smtpUser?.trim() || "";
+  if (!fromAddress) missing.push("Gönderen E-posta");
+  if (missing.length > 0) {
+    return { error: `Eksik alan: ${missing.join(", ")}.` };
+  }
   const password = row.smtpPasswordEncrypted
     ? decrypt(row.smtpPasswordEncrypted)
     : undefined;
   const transporter = nodemailer.createTransport({
-    host: row.smtpHost,
+    host: row.smtpHost!,
     port: row.smtpPort,
     secure: row.smtpSecure,
     auth:
@@ -133,8 +142,8 @@ async function buildTransporter(): Promise<{
         : undefined,
   });
   const from = row.fromName
-    ? `"${row.fromName}" <${row.fromEmail}>`
-    : row.fromEmail;
+    ? `"${row.fromName}" <${fromAddress}>`
+    : fromAddress;
   return { transporter, from };
 }
 
@@ -164,12 +173,8 @@ export async function sendTestEmail(
 ): Promise<{ ok: boolean; message: string; recipients: string[] }> {
   try {
     const built = await buildTransporter();
-    if (!built) {
-      return {
-        ok: false,
-        message: "SMTP yapılandırması eksik (host, port, gönderen adresi).",
-        recipients: [],
-      };
+    if ("error" in built) {
+      return { ok: false, message: built.error, recipients: [] };
     }
     const settings = await getEmailSettings();
     const recipients = overrideTo
@@ -255,9 +260,9 @@ export async function checkAndSendUsageAlert(opts: {
     const shipLabel = kit?.shipName?.trim() || opts.kitNo;
 
     const built = await buildTransporter();
-    if (!built) {
+    if ("error" in built) {
       logger.warn(
-        { kitNo: opts.kitNo, period: opts.period, crossedStep },
+        { kitNo: opts.kitNo, period: opts.period, crossedStep, reason: built.error },
         "Threshold crossed but SMTP not configured — skipping email (claim already persisted)"
       );
       return;
