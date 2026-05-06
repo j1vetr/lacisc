@@ -372,12 +372,14 @@ router.post("/station/sync-now", requireAuth, async (req: AuthRequest, res): Pro
     // Since we already hold `running=true`, we need to release explicitly.
     // The simplest path: call runAllAccounts() now (inside which the no-active
     // guard fires and returns), and have its finally release the lock.
-    void runAllAccounts().catch(() => {});
+    void runAllAccounts({ forceFull: true }).catch(() => {});
     res.status(400).json({ error: "Aktif portal hesabı bulunamadı." });
     return;
   }
   // Fire-and-forget — claim already held, runAllAccounts() reuses it.
-  void runAllAccounts()
+  // Manual button always forces a full backfill (202601 → current) for every
+  // account; the nightly cron stays incremental.
+  void runAllAccounts({ forceFull: true })
     .then((r) => {
       logger.info({ ...r }, "Multi-account sync finished");
     })

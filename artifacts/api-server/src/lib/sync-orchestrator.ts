@@ -36,7 +36,7 @@ function accountLabel(c: { id: number; label: string | null; username: string })
   return c.label?.trim() || c.username || `#${c.id}`;
 }
 
-export async function runAllAccounts(): Promise<OrchestratorResult> {
+export async function runAllAccounts(opts: { forceFull?: boolean } = {}): Promise<OrchestratorResult> {
   // Atomic claim before any async work. The caller may also have called
   // tryClaimRun() to claim earlier (preferred for HTTP fire-and-forget).
   const claimedHere = tryClaimRun();
@@ -68,14 +68,15 @@ export async function runAllAccounts(): Promise<OrchestratorResult> {
       };
     }
 
-    return await runAccountsInner(accounts);
+    return await runAccountsInner(accounts, opts.forceFull ?? false);
   } finally {
     running = false;
   }
 }
 
 async function runAccountsInner(
-  accounts: Array<typeof stationCredentials.$inferSelect>
+  accounts: Array<typeof stationCredentials.$inferSelect>,
+  forceFull: boolean
 ): Promise<OrchestratorResult> {
   progress.startRun(accounts.length);
 
@@ -116,6 +117,7 @@ async function runAccountsInner(
           password,
           testOnly: false,
           reportProgress: true,
+          forceFull,
         });
 
         await db

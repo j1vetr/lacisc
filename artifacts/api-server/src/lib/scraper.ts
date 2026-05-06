@@ -29,6 +29,10 @@ export interface RunSyncOptions {
   password: string;
   testOnly?: boolean;
   reportProgress?: boolean;
+  // When true, walk every period from 202601 → current regardless of
+  // firstFullSyncAt. Used by the manual "Şimdi Senkronize Et" button so the
+  // operator can always force a full backfill from the UI without touching SQL.
+  forceFull?: boolean;
 }
 
 const VOLUME_REGEX = /^([\d.,]+)\s*(TiB|GiB|MiB|KiB|TB|GB|MB|KB|Bytes?|B)$/i;
@@ -1071,6 +1075,7 @@ export async function runSync(opts: RunSyncOptions): Promise<SyncResult> {
     password,
     testOnly = false,
     reportProgress = false,
+    forceFull = false,
   } = opts;
   const accountLabel = credentialLabel?.trim() || username;
   let browser: Browser | null = null;
@@ -1166,10 +1171,22 @@ export async function runSync(opts: RunSyncOptions): Promise<SyncResult> {
       .from(stationCredentials)
       .where(eq(stationCredentials.id, credentialId))
       .limit(1);
+    // Full-walk triggers: (a) account has never been fully synced before, OR
+    // (b) caller explicitly forced it (manual "Şimdi Senkronize Et" button).
+    // Otherwise stay incremental (current + previous period only) to keep the
+    // nightly cron fast.
     const isFirstFull = !creds?.firstFullSyncAt;
-    const periods = isFirstFull ? allPeriods : allPeriods.slice(0, 2);
+    const doFullWalk = isFirstFull || forceFull;
+    const periods = doFullWalk ? allPeriods : allPeriods.slice(0, 2);
     logger.info(
-      { credentialId, isFirstFull, periodCount: periods.length, periods: periods.slice(0, 5) },
+      {
+        credentialId,
+        isFirstFull,
+        forceFull,
+        doFullWalk,
+        periodCount: periods.length,
+        periods: periods.slice(0, 5),
+      },
       "Sync plan"
     );
     if (reportProgress) {
