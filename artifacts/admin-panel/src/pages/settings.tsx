@@ -148,7 +148,7 @@ export default function Settings() {
             Ayarlar
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground">
-            Birden fazla portal hesabı tanımlayın — her gece 01:00'da sıralı sync, manuel sync istediğiniz zaman.
+            Her gece 01:00 da senkronize sağlanır.
           </p>
         </div>
         <Button

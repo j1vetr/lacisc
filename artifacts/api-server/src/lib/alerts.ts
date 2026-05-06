@@ -8,6 +8,7 @@ import {
 } from "@workspace/db";
 import { decrypt } from "./crypto";
 import { logger } from "./logger";
+import { buildAlertEmail, buildTestEmail } from "./email-template";
 
 // ---------------------------------------------------------------------------
 // Settings helpers (single-row id=1)
@@ -208,13 +209,18 @@ export async function sendTestEmail(
         recipients: [],
       };
     }
+    const tpl = buildTestEmail({
+      recipients,
+      fromAddress: built.from,
+      thresholdStepGib: settings.thresholdStepGib,
+      smtpHost: settings.smtpHost ?? "—",
+    });
     await built.transporter.sendMail({
       from: built.from,
       to: recipients.join(", "),
-      subject: "[Station] Test E-Postası",
-      text:
-        "Bu bir test e-postasıdır. SMTP yapılandırmanız doğru çalışıyor.\n\n" +
-        `Gönderim zamanı: ${new Date().toISOString()}`,
+      subject: tpl.subject,
+      text: tpl.text,
+      html: tpl.html,
     });
     return {
       ok: true,
@@ -289,28 +295,23 @@ export async function checkAndSendUsageAlert(opts: {
       return;
     }
 
-    const periodLabel = `${opts.period.slice(0, 4)}-${opts.period.slice(4)}`;
-    const usdLine =
-      opts.totalUsd != null
-        ? `\nDönem maliyeti: $${opts.totalUsd.toFixed(2)}`
-        : "";
-
-    const subject = `[Station] ${shipLabel} (${opts.kitNo}) ${crossedStep} GiB'e ulaştı`;
-    const text =
-      `${shipLabel} terminali aktif dönemde ${crossedStep} GiB kullanım eşiğini geçti.\n\n` +
-      `Hesap: ${opts.credentialLabel}\n` +
-      `Terminal: ${opts.kitNo}` +
-      (kit?.shipName ? ` (${kit.shipName})` : "") +
-      `\n` +
-      `Dönem: ${periodLabel}\n` +
-      `Anlık tüketim: ${opts.totalGib.toFixed(2)} GiB${usdLine}\n\n` +
-      `Bilginize.`;
+    const tpl = buildAlertEmail({
+      shipLabel,
+      shipName: kit?.shipName ?? null,
+      kitNo: opts.kitNo,
+      credentialLabel: opts.credentialLabel,
+      period: opts.period,
+      totalGib: opts.totalGib,
+      totalUsd: opts.totalUsd ?? null,
+      crossedStep,
+    });
 
     await built.transporter.sendMail({
       from: built.from,
       to: recipients.join(", "),
-      subject,
-      text,
+      subject: tpl.subject,
+      text: tpl.text,
+      html: tpl.html,
     });
 
     logger.info(
