@@ -235,11 +235,66 @@ export async function sendTestEmail(
 }
 
 // ---------------------------------------------------------------------------
+// Outbound mail queue — process one alert every N seconds so we never burst
+// the SMTP server (and operator inbox) with dozens of mails when a manual
+// full-backfill discovers many KITs over threshold at once. The DB-side
+// atomic claim still happens BEFORE enqueue, so the idempotency contract
+// is preserved (a queued-but-not-yet-sent alert still counts as "claimed";
+// we accept the rare loss if the process restarts mid-queue).
+// ---------------------------------------------------------------------------
+const MAIL_SEND_INTERVAL_MS = 30_000;
+const mailQueue: Array<{ label: string; send: () => Promise<unknown> }> = [];
+let mailQueueProcessing = false;
+
+function enqueueAlertMail(label: string, send: () => Promise<unknown>): void {
+  mailQueue.push({ label, send });
+  if (!mailQueueProcessing) {
+    void processMailQueue();
+  }
+}
+
+async function processMailQueue(): Promise<void> {
+  mailQueueProcessing = true;
+  try {
+    while (mailQueue.length > 0) {
+      const job = mailQueue.shift()!;
+      try {
+        await job.send();
+        logger.info(
+          { label: job.label, queueRemaining: mailQueue.length },
+          "Queued alert mail sent"
+        );
+      } catch (err) {
+        logger.error({ err, label: job.label }, "Queued alert mail failed");
+      }
+      if (mailQueue.length > 0) {
+        await new Promise((resolve) => setTimeout(resolve, MAIL_SEND_INTERVAL_MS));
+      }
+    }
+  } finally {
+    mailQueueProcessing = false;
+  }
+}
+
+// Compute the active period (YYYYMM) using the same UTC convention the
+// scraper uses when picking the "current" period.
+function activePeriod(): string {
+  const now = new Date();
+  return `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+// ---------------------------------------------------------------------------
 // Threshold check — called by the scraper after upserting a period total.
-// We compute the highest 100-GiB step the current totalGib has crossed; if it
+// We compute the highest N-GiB step the current totalGib has crossed; if it
 // is greater than `last_alert_threshold_gib`, we send a single email naming
 // that step and persist the new value so the same threshold is never
 // re-emailed (across days, or even within the same day if sync is repeated).
+//
+// Only the ACTIVE period (current YYYYMM) is allowed to trigger alerts.
+// Historical periods are skipped silently — when the operator triggers a
+// manual full backfill we do NOT want to spam the inbox with retroactive
+// "100 GiB", "200 GiB", "300 GiB" mails for January-April. Those periods
+// are closed; their thresholds are already known.
 // ---------------------------------------------------------------------------
 export async function checkAndSendUsageAlert(opts: {
   credentialId: number;
@@ -250,6 +305,10 @@ export async function checkAndSendUsageAlert(opts: {
   totalUsd: number | null | undefined;
 }): Promise<void> {
   if (opts.totalGib == null || !Number.isFinite(opts.totalGib)) return;
+  // Active-period gate. Skip historical periods entirely (no claim, no mail)
+  // — when the next month rolls over a fresh row will be inserted with
+  // last_alert_threshold_gib=0 and alerts will resume naturally.
+  if (opts.period !== activePeriod()) return;
   try {
     const settings = await getEmailSettings();
     if (!settings.enabled) return;
@@ -306,13 +365,19 @@ export async function checkAndSendUsageAlert(opts: {
       crossedStep,
     });
 
-    await built.transporter.sendMail({
-      from: built.from,
-      to: recipients.join(", "),
-      subject: tpl.subject,
-      text: tpl.text,
-      html: tpl.html,
-    });
+    // Queue the actual SMTP send. The atomic claim above already ran, so
+    // even though delivery is deferred (up to N × interval seconds depending
+    // on queue depth), idempotency is guaranteed.
+    const queueLabel = `${opts.kitNo}@${opts.period}=${crossedStep}GiB`;
+    enqueueAlertMail(queueLabel, () =>
+      built.transporter.sendMail({
+        from: built.from,
+        to: recipients.join(", "),
+        subject: tpl.subject,
+        text: tpl.text,
+        html: tpl.html,
+      })
+    );
 
     logger.info(
       {
@@ -320,8 +385,9 @@ export async function checkAndSendUsageAlert(opts: {
         period: opts.period,
         crossedStep,
         recipients: recipients.length,
+        queueDepth: mailQueue.length,
       },
-      "Usage threshold alert email sent"
+      "Usage threshold alert queued"
     );
   } catch (err) {
     logger.error(
