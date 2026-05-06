@@ -187,7 +187,104 @@ async function main(): Promise<void> {
     await fs.writeFile(path.join(OUT_DIR, "04-probe.json"), JSON.stringify(probe, null, 2));
     console.log(`[probe] saved → ${OUT_DIR}/04-probe.json`);
     console.log(`  url=${probe.url}`);
-    console.log(`  tables=${probe.tablesCount}, selects=${probe.selects.length}, dxPeriodInputs=${probe.dxInputs.length}, sampleDateCells=${probe.sampleDateCells.length}`);
+
+    // === Step 5: enumerate combo via direct window globals ===
+    console.log(`\n[periods] reading period combo via window globals`);
+    const periodsSrc = `(async () => {
+      const out = { comboKeys: [], gridKeys: [], comboPick: null, current: null, itemCount: 0, items: [], error: null };
+      try {
+        const w = window;
+        // DevExpress publishes each created control as window[id]
+        for (const k of Object.keys(w)) {
+          const v = w[k];
+          if (!v || typeof v !== 'object') continue;
+          if (typeof v.GetItemCount === 'function' && typeof v.GetValue === 'function' && typeof v.SetValue === 'function') {
+            out.comboKeys.push({ id: k, value: v.GetValue(), itemCount: v.GetItemCount() });
+          }
+          if (typeof v.Refresh === 'function' && typeof v.GetVisibleRowsOnPage === 'function') {
+            out.gridKeys.push({ id: k, pageIndex: v.GetPageIndex && v.GetPageIndex(), pageCount: v.GetPageCount && v.GetPageCount() });
+          }
+        }
+        // Prefer the parent combo (id NOT ending in _DDD_L which is the inner listbox)
+        const periodCombo = out.comboKeys.find(c => /^\\d{6}$/.test(String(c.value || '')) && !/_DDD_L$/.test(c.id))
+          || out.comboKeys.find(c => /^\\d{6}$/.test(String(c.value || '')));
+        if (periodCombo) {
+          out.comboPick = periodCombo.id;
+          const cb = w[periodCombo.id];
+          // try opening dropdown to lazy-load items
+          if (cb.ShowDropDown) cb.ShowDropDown();
+          await new Promise(r => setTimeout(r, 2000));
+          out.itemCount = cb.GetItemCount();
+          for (let i = 0; i < out.itemCount; i++) {
+            const it = cb.GetItem(i);
+            if (it) out.items.push({ value: it.value, text: it.text });
+          }
+          if (cb.HideDropDown) cb.HideDropDown();
+          out.current = cb.GetValue();
+        }
+      } catch (e) { out.error = String(e); }
+      return out;
+    })()`;
+    const periodsRes: any = await page.evaluate(periodsSrc).catch((e) => ({ error: e.message }));
+    await fs.writeFile(path.join(OUT_DIR, "05-periods.json"), JSON.stringify(periodsRes, null, 2));
+    console.log(`  current=${periodsRes.current} count=${periodsRes.itemCount}`);
+    if (periodsRes.items?.length) {
+      console.log(`  first: ${periodsRes.items.slice(0, 5).map((i: any) => i.value).join(", ")}`);
+      console.log(`  last:  ${periodsRes.items.slice(-5).map((i: any) => i.value).join(", ")}`);
+    }
+
+    // === Step 6: select a past, full period and dump it (try 202504 = Apr 2025) ===
+    const TRY_PERIOD = process.env.TRY_PERIOD || "202504";
+    const valid = periodsRes.items?.find((i: any) => i.value === TRY_PERIOD);
+    const comboId = periodsRes.comboPick;
+    if (valid && comboId) {
+      console.log(`\n[selectPeriod] switching to ${TRY_PERIOD} via combo ${comboId}`);
+      await page.evaluate(`(async () => {
+        const cb = window['${comboId}'];
+        cb.SetValue('${TRY_PERIOD}');
+        // SelectedIndexChanged is bound to fire gvRatedCdr.Refresh(); but trigger it explicitly too
+        if (typeof cb.RaiseSelectedIndexChanged === 'function') cb.RaiseSelectedIndexChanged();
+        if ((window).gvRatedCdr) (window).gvRatedCdr.Refresh();
+      })()`);
+      await page.waitForLoadState("networkidle", { timeout: 30000 }).catch(() => {});
+      await new Promise((r) => setTimeout(r, 1500));
+      await dump(page, `06-period-${TRY_PERIOD}-page1`);
+
+      // Inspect pager + collect rows across pages
+      const pageSummarySrc = `(() => {
+        const grid = (window).gvRatedCdr;
+        const out = { pageIndex: null, pageCount: null, visibleRows: 0, footer: null, dataRowCount: 0 };
+        if (grid) {
+          out.pageIndex = grid.GetPageIndex && grid.GetPageIndex();
+          out.pageCount = grid.GetPageCount && grid.GetPageCount();
+          out.visibleRows = grid.GetVisibleRowsOnPage && grid.GetVisibleRowsOnPage();
+        }
+        const foot = document.querySelector('tr.dxgvFooter_MetropolisBlue');
+        if (foot) {
+          out.footer = Array.from(foot.querySelectorAll('td')).map(td => (td.textContent||'').replace(/\\s+/g,' ').trim());
+        }
+        const rows = document.querySelectorAll("[id^='ctl00_ContentPlaceHolder1_gvRatedCdr_DXDataRow']");
+        out.dataRowCount = rows.length;
+        return out;
+      })()`;
+      const sum1: any = await page.evaluate(pageSummarySrc);
+      console.log(`  page1: dataRows=${sum1.dataRowCount} pageIndex=${sum1.pageIndex} pageCount=${sum1.pageCount} visibleRows=${sum1.visibleRows}`);
+      console.log(`  footer cells (non-empty):`, (sum1.footer || []).map((v: string, i: number) => v ? `c${i}:${v}` : null).filter(Boolean));
+
+      // Walk through pages if any
+      const totalPages = sum1.pageCount ?? 1;
+      for (let p = 1; p < Math.min(totalPages, 5); p++) {
+        console.log(`  → goto page ${p}`);
+        await page.evaluate(`(window).gvRatedCdr.GotoPage(${p});`);
+        await page.waitForLoadState("networkidle", { timeout: 20000 }).catch(() => {});
+        await new Promise((r) => setTimeout(r, 1200));
+        await dump(page, `06-period-${TRY_PERIOD}-page${p + 1}`);
+        const sumN: any = await page.evaluate(pageSummarySrc);
+        console.log(`    page${p + 1}: dataRows=${sumN.dataRowCount} pageIndex=${sumN.pageIndex} footer non-empty=${(sumN.footer || []).filter((x: string) => x).length}`);
+      }
+    } else {
+      console.log(`\n[selectPeriod] period ${TRY_PERIOD} not in dropdown; skipping`);
+    }
 
     console.log(`\n✓ Done. Inspect ${OUT_DIR}/`);
     console.log(`  - 01-rated-cdrs.html/png  : main grid`);
