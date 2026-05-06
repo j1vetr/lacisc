@@ -156,7 +156,7 @@ async function loginAndOpenRatedCdrs(
 // href contains the ICCID (used later for direct ?FC=ICCID&FV=... URLs).
 // ---------------------------------------------------------------------------
 async function extractKitList(page: Page): Promise<KitListEntry[]> {
-  const rows: KitListEntry[] = await page.evaluate(() => {
+  const result = await page.evaluate(() => {
     const grid =
       document.querySelector("#ctl00_ContentPlaceHolder1_gvRatedCdr") ||
       document.querySelector("[id*='gvRatedCdr']") ||
@@ -164,7 +164,25 @@ async function extractKitList(page: Page): Promise<KitListEntry[]> {
       document.body;
     const links = Array.from(grid.querySelectorAll("a")) as HTMLAnchorElement[];
     const seen = new Set<string>();
-    const out: { kitNo: string; detailHref: string | null; iccid: string | null }[] = [];
+    const out: {
+      kitNo: string;
+      detailHref: string | null;
+      iccid: string | null;
+    }[] = [];
+
+    // Try multiple known param names (FV, ICCID, ICC, FilterValue) and as a
+    // last resort scan the row's sibling cells for an ICCID-shaped numeric
+    // string (15+ digits — real ICCIDs are 19–20).
+    const paramPatterns = [
+      /[?&]FV=([^&#]+)/i,
+      /[?&]ICCID=([^&#]+)/i,
+      /[?&]ICC=([^&#]+)/i,
+      /[?&]FilterValue=([^&#]+)/i,
+    ];
+
+    const hrefSamples: string[] = [];
+    const rowSamples: string[] = [];
+
     for (const a of links) {
       const text = (a.textContent || "").trim();
       if (!text.startsWith("KITP")) continue;
@@ -172,15 +190,56 @@ async function extractKitList(page: Page): Promise<KitListEntry[]> {
       seen.add(text);
       const href = a.getAttribute("href");
       let iccid: string | null = null;
+
       if (href) {
-        const m = href.match(/[?&]FV=([^&]+)/i);
-        if (m) iccid = decodeURIComponent(m[1]);
+        for (const re of paramPatterns) {
+          const m = href.match(re);
+          if (m) {
+            iccid = decodeURIComponent(m[1]);
+            break;
+          }
+        }
       }
+
+      // Fallback: walk up to the row and look for a long numeric cell.
+      if (!iccid) {
+        let tr: HTMLElement | null = a.closest("tr");
+        if (tr) {
+          const cells = Array.from(tr.querySelectorAll("td")).map((td) =>
+            (td.textContent || "").replace(/\s+/g, "").trim()
+          );
+          // capture sample for diagnostics
+          if (rowSamples.length < 2) {
+            rowSamples.push(cells.slice(0, 30).join(" | "));
+          }
+          for (const c of cells) {
+            if (/^\d{15,22}$/.test(c)) {
+              iccid = c;
+              break;
+            }
+          }
+        }
+      }
+
+      if (hrefSamples.length < 2 && href) hrefSamples.push(href);
       out.push({ kitNo: text, detailHref: href, iccid });
     }
-    return out;
+    return { rows: out, hrefSamples, rowSamples };
   });
-  return rows;
+  // Surface diagnostics so we can adjust without another round-trip.
+  const missing = result.rows.filter((r) => !r.iccid).length;
+  if (missing > 0) {
+    logger.warn(
+      {
+        totalKits: result.rows.length,
+        missingIccid: missing,
+        hrefSamples: result.hrefSamples,
+        rowSamples: result.rowSamples,
+      },
+      "extractKitList — some KITs have no ICCID; href + row samples follow"
+    );
+  }
+  return result.rows;
 }
 
 // ---------------------------------------------------------------------------
