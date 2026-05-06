@@ -676,6 +676,170 @@ async function persistKitPeriod(
 }
 
 // ---------------------------------------------------------------------------
+// Walk EVERY page of the rated-CDRs grid for the currently-selected period
+// and merge the rows. We do this because:
+//   - Default pageSize is 25; even after `setGridPageSize` (which the portal
+//     silently caps at the dropdown's max — usually 100), large periods span
+//     several pages.
+//   - DevExpress only renders the footer when `pageCount === 1`, so multi-page
+//     totals must be computed from the row sum (caller already does this per
+//     KIT bucket).
+// ---------------------------------------------------------------------------
+async function gotoGridPage(page: Page, pageIdx: number): Promise<boolean> {
+  const triggered = await page.evaluate((idx) => {
+    const w = window as unknown as Record<string, unknown>;
+    const grid = w["gvRatedCdr"] as
+      | { GotoPage?: (i: number) => void; GetPageIndex?: () => number }
+      | undefined;
+    if (!grid?.GotoPage) return false;
+    try {
+      grid.GotoPage(idx);
+      return true;
+    } catch {
+      return false;
+    }
+  }, pageIdx);
+  if (!triggered) {
+    // Fallback: click the actual pager NEXT button.
+    const ok = await page.evaluate(() => {
+      const next = document.getElementById(
+        "ctl00_ContentPlaceHolder1_gvRatedCdr_DXPagerBottom_PBN"
+      );
+      if (next) {
+        (next as HTMLElement).click();
+        return true;
+      }
+      return false;
+    });
+    if (!ok) return false;
+  }
+  // Poll until DevExpress's async callback lands on the requested page.
+  const deadline = Date.now() + 15000;
+  while (Date.now() < deadline) {
+    await page.waitForTimeout(400);
+    const cur = await page
+      .evaluate(() => {
+        const w = window as unknown as Record<string, unknown>;
+        const grid = w["gvRatedCdr"] as { GetPageIndex?: () => number } | undefined;
+        return grid?.GetPageIndex?.() ?? -1;
+      })
+      .catch(() => -1);
+    if (cur === pageIdx) {
+      await page.waitForTimeout(300);
+      return true;
+    }
+  }
+  return false;
+}
+
+async function parseAllPages(
+  page: Page,
+  period: string
+): Promise<ParsedGrid> {
+  // Bump pageSize first to minimise the number of pager round-trips.
+  await setGridPageSize(page, 100);
+
+  const startInfo = await page.evaluate(() => {
+    const w = window as unknown as Record<string, unknown>;
+    const grid = w["gvRatedCdr"] as
+      | {
+          GetPageCount?: () => number;
+          GetPageIndex?: () => number;
+          GetVisibleRowsOnPage?: () => number;
+        }
+      | undefined;
+    return {
+      pageCount: grid?.GetPageCount?.() ?? 1,
+      pageIndex: grid?.GetPageIndex?.() ?? 0,
+      visibleRows: grid?.GetVisibleRowsOnPage?.() ?? 0,
+    };
+  });
+
+  // If a previous period left us on a non-zero page, rewind first so
+  // page-1 parsing is correct.
+  if (startInfo.pageIndex !== 0 && startInfo.pageCount > 1) {
+    await gotoGridPage(page, 0);
+  }
+
+  const totalPages = Math.max(startInfo.pageCount, 1);
+  logger.info(
+    {
+      period,
+      totalPages,
+      visibleRowsOnPage1: startInfo.visibleRows,
+    },
+    "parseAllPages: starting walk"
+  );
+
+  const allRows: ParsedDailyRow[] = [];
+  const seenCdrIds = new Set<string>();
+  let firstFooterGib: number | null = null;
+  let firstFooterUsd: number | null = null;
+  let firstDiag: GridDiag | null = null;
+
+  const HARD_PAGE_CAP = 100; // sanity bound — 100×100 = 10k CDRs per period
+  const limit = Math.min(totalPages, HARD_PAGE_CAP);
+
+  for (let i = 0; i < limit; i++) {
+    if (i > 0) {
+      const ok = await gotoGridPage(page, i);
+      if (!ok) {
+        logger.warn(
+          { period, page: i, of: totalPages },
+          "parseAllPages: gotoGridPage failed — stopping walk"
+        );
+        break;
+      }
+    }
+    const parsed = await parseGrid(page);
+    if (i === 0) {
+      firstFooterGib = parsed.footerGib;
+      firstFooterUsd = parsed.footerUsd;
+      firstDiag = parsed.diag;
+    }
+    let added = 0;
+    for (const r of parsed.rows) {
+      if (seenCdrIds.has(r.cdrId)) continue;
+      seenCdrIds.add(r.cdrId);
+      allRows.push(r);
+      added++;
+    }
+    logger.info(
+      {
+        period,
+        page: i + 1,
+        of: totalPages,
+        rowsOnPage: parsed.rows.length,
+        newRows: added,
+        totalSoFar: allRows.length,
+      },
+      "parseAllPages: page parsed"
+    );
+    if (parsed.rows.length === 0) break;
+  }
+
+  // Footer values only mean "grand total" when the grid was single-page.
+  // Otherwise downstream callers compute per-KIT totals from row sums.
+  const footerGib = totalPages === 1 ? firstFooterGib : null;
+  const footerUsd = totalPages === 1 ? firstFooterUsd : null;
+
+  return {
+    rows: allRows,
+    footerGib,
+    footerUsd,
+    diag:
+      firstDiag ?? {
+        rowSelectorUsed: null,
+        rowsFound: 0,
+        isEmptyMarker: false,
+        firstRowCellCount: 0,
+        firstRowSample: "",
+        gridHtmlLen: 0,
+      },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Bump the DevExpress grid pageSize so we get ALL CDR rows (and a real footer
 // total) on a single page. The portal user's per-session pageSize defaults to
 // 25 — which means parseGrid would only see the first 25 CDRs and the footer
@@ -996,11 +1160,11 @@ export async function runSync(
           continue;
         }
         await waitForGridReady(page, `period ${period}`);
-        // CRITICAL: bump grid pageSize so we see ALL CDR rows + the real
-        // footer total. Default per-user pageSize is 25 → footer only
-        // reflects first page (e.g. 774 GiB instead of the true 955).
-        await setGridPageSize(page, 200);
-        const parsed = await parseGrid(page);
+        // CRITICAL: walk EVERY pager page (default pageSize=25, max=100) and
+        // accumulate rows. Without this we only see the first page (~25 CDRs)
+        // and the per-KIT row sum is wrong (e.g. 774 GiB instead of the real
+        // 955 GiB for KITP00409812 / 202604).
+        const parsed = await parseAllPages(page, period);
 
         if (parsed.rows.length === 0) {
           logger.warn(
