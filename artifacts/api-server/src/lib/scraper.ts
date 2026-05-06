@@ -188,17 +188,57 @@ async function extractKitList(page: Page): Promise<KitListEntry[]> {
 // ≤current YYYYMM). We do this once per sync.
 // ---------------------------------------------------------------------------
 async function readPeriodOptions(page: Page): Promise<string[]> {
-  const opts = await page.evaluate(() => {
-    // DevExpress combo: hidden <select> with id ending in DDD_L
-    const selectors = [
-      "#ctl00_ContentPlaceHolder1_ctl00_ctl00_DDD_L",
-      "select[id*='ctl00_ContentPlaceHolder1_ctl00_ctl00']",
-    ];
-    for (const sel of selectors) {
-      const el = document.querySelector(sel) as HTMLSelectElement | null;
-      if (el) return Array.from(el.options).map((o) => o.value || o.text);
+  const opts: string[] = await page.evaluate(() => {
+    const out: string[] = [];
+
+    // 1) DevExpress combo control via window global — preferred path.
+    try {
+      const w = window as unknown as Record<string, unknown>;
+      const combo = w["ctl00_ContentPlaceHolder1_ctl00_ctl00"] as
+        | {
+            GetItemCount?: () => number;
+            GetItem?: (i: number) => { value?: unknown; text?: unknown } | null;
+          }
+        | undefined;
+      if (combo && typeof combo.GetItemCount === "function" && typeof combo.GetItem === "function") {
+        const n = combo.GetItemCount();
+        for (let i = 0; i < n; i++) {
+          const item = combo.GetItem(i);
+          if (!item) continue;
+          const v = item.value ?? item.text;
+          if (v != null) out.push(String(v));
+        }
+        if (out.length > 0) return out;
+      }
+    } catch {
+      /* fall through to DOM fallback */
     }
-    return [];
+
+    // 2) Fallback — find a real <select> with options[]
+    const candidates = Array.from(
+      document.querySelectorAll(
+        "select[id*='ctl00_ContentPlaceHolder1_ctl00_ctl00'], select[id*='Period' i], select[id*='ctl00']"
+      )
+    );
+    for (const el of candidates) {
+      const sel = el as HTMLSelectElement;
+      if (sel && sel.options && sel.options.length > 0) {
+        for (const o of Array.from(sel.options)) {
+          const v = o.value || o.text;
+          if (v) out.push(v);
+        }
+        if (out.length > 0) return out;
+      }
+    }
+
+    // 3) Last resort — scan any element under the combo wrapper for items
+    //    that look like YYYYMM (DevExpress sometimes renders <td class="dxeListBoxItem">)
+    const items = Array.from(document.querySelectorAll("[id*='_DDD_L'] *, [id*='_DDD_DXI'] *"));
+    for (const it of items) {
+      const t = (it.textContent || "").trim();
+      if (/^\d{6}$/.test(t)) out.push(t);
+    }
+    return out;
   });
   const now = new Date();
   const currentPeriod = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
