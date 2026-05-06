@@ -157,7 +157,7 @@ export function buildAlertEmail(input: AlertEmailInput): {
   html: string;
 } {
   const periodLabel = `${input.period.slice(0, 4)}-${input.period.slice(4)}`;
-  const subject = `[Station] ${input.shipLabel} (${input.kitNo}) ${input.crossedStep} GiB'e ulaştı`;
+  const subject = `[Lacivert SC] ${input.shipLabel} (${input.kitNo}) ${input.crossedStep} GiB'e ulaştı`;
 
   const headline = `${input.shipLabel} terminali ${input.crossedStep} GiB eşiğini geçti.`;
 
@@ -210,7 +210,7 @@ export function buildTestEmail(opts: {
   thresholdStepGib: number;
   smtpHost: string;
 }): { subject: string; text: string; html: string } {
-  const subject = "[Station] Test e-postası — SMTP doğrulandı";
+  const subject = "[Lacivert SC] Test e-postası — SMTP doğrulandı";
   const headline = "SMTP yapılandırması doğru çalışıyor.";
   const ts = new Date().toLocaleString("tr-TR", {
     timeZone: "Europe/Istanbul",
