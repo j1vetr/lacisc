@@ -142,7 +142,7 @@ export default function Settings() {
             Ayarlar
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground">
-            Birden fazla portal hesabı tanımlayın — sync sırasında her biri sırayla işlenir.
+            Birden fazla portal hesabı tanımlayın — her gece 01:00'da sıralı sync, manuel sync istediğiniz zaman.
           </p>
         </div>
         <Button
@@ -398,8 +398,6 @@ function AccountRow({
             <span className="truncate">{account.portalUrl}</span>
             <span>·</span>
             <span>{account.username}</span>
-            <span>·</span>
-            <span>her {account.syncIntervalMinutes} dk</span>
           </div>
           <div className="text-[11px] text-muted-foreground font-mono">
             <span
@@ -737,26 +735,6 @@ function AccountFormDialog({
                 )}
               />
             </div>
-            <FormField
-              control={form.control}
-              name="syncIntervalMinutes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Sync Aralığı (dakika)
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      {...field}
-                      className="font-mono text-sm bg-background border-border h-10 rounded-lg shadow-none"
-                    />
-                  </FormControl>
-                  <FormDescription className="text-xs">5–1440 arası.</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
             <FormField
               control={form.control}
               name="isActive"
