@@ -294,9 +294,9 @@ export default function Settings() {
                 Son başarılı: <span className="text-foreground">{formatDate(settings?.lastSuccessSyncAt)}</span>
               </div>
               <div className="flex flex-wrap gap-3 w-full lg:w-auto lg:justify-end">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   className="flex-1 lg:flex-none rounded-lg border-border hover:bg-secondary font-medium text-[13px] h-10 px-4 shadow-none text-foreground whitespace-nowrap"
                   onClick={handleTestConnection}
                   disabled={testConnectionMutation.isPending}
@@ -304,8 +304,8 @@ export default function Settings() {
                   <ShieldCheck className={`w-4 h-4 mr-2 ${testConnectionMutation.isPending ? 'animate-pulse text-primary' : 'text-muted-foreground'}`} />
                   Bağlantıyı Test Et
                 </Button>
-                <Button 
-                  type="button" 
+                <Button
+                  type="button"
                   variant="outline"
                   className="flex-1 lg:flex-none rounded-lg border-border hover:bg-secondary font-medium text-[13px] h-10 px-4 shadow-none text-foreground whitespace-nowrap"
                   onClick={handleSyncNow}
@@ -314,17 +314,20 @@ export default function Settings() {
                   <RefreshCw className={`w-4 h-4 mr-2 ${syncNowMutation.isPending ? 'animate-spin text-primary' : 'text-muted-foreground'}`} />
                   Şimdi Senkronize Et
                 </Button>
-                <Button 
-                  type="submit"
-                  className="flex-1 lg:flex-none rounded-lg font-medium text-[13px] h-10 px-5 bg-primary text-primary-foreground hover:bg-primary/90 shadow-none whitespace-nowrap"
-                  disabled={saveMutation.isPending}
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  Değişiklikleri Kaydet
-                </Button>
               </div>
             </CardFooter>
           </Card>
+
+          <div className="flex justify-end pt-2">
+            <Button
+              type="submit"
+              className="rounded-lg font-medium text-[13px] h-11 px-6 bg-primary text-primary-foreground hover:bg-primary/90 shadow-none whitespace-nowrap"
+              disabled={saveMutation.isPending}
+            >
+              <Save className="w-4 h-4 mr-2" />
+              Değişiklikleri Kaydet
+            </Button>
+          </div>
         </form>
       </Form>
     </div>
