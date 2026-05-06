@@ -1,7 +1,13 @@
-import { db, stationCdrRecords, stationKits, stationKitDailySnapshots } from "@workspace/db";
-import { and, eq, isNull, or, inArray, sql } from "drizzle-orm";
+import {
+  db,
+  stationKits,
+  stationKitDaily,
+  stationKitPeriodTotal,
+  stationCredentials,
+} from "@workspace/db";
+import { eq, inArray, sql, desc } from "drizzle-orm";
 import { logger } from "./logger";
-import type { Page } from "playwright";
+import type { Page, Browser } from "playwright";
 
 export interface SyncResult {
   success: boolean;
@@ -13,277 +19,420 @@ export interface SyncResult {
   htmlSnapshotPath?: string;
 }
 
-// Matches "13.17 GiB", "234.5 MB", "0 Bytes" — both decimal (KB/MB/GB/TB)
-// and binary (KiB/MiB/GiB/TiB) units, plus plain "Bytes".
 const VOLUME_REGEX = /^([\d.,]+)\s*(TiB|GiB|MiB|KiB|TB|GB|MB|KB|Bytes?|B)$/i;
 
-function parseGb(value: string | null | undefined): number | null {
+// Parse "13.17 GiB" / "234,5 MiB" / "0 Bytes" into a GiB number.
+function parseGib(value: string | null | undefined): number | null {
   if (!value) return null;
   const m = value.trim().match(VOLUME_REGEX);
   if (!m) return null;
-  // Locale-safe number parsing: handle both "13.17" (en) and "13,17" (tr/eu).
-  // If the string contains exactly one separator and no other, treat it as the
-  // decimal mark; otherwise strip thousands separators (commas) by default.
   let raw = m[1];
   const hasDot = raw.includes(".");
   const hasComma = raw.includes(",");
-  if (hasComma && !hasDot) {
-    raw = raw.replace(",", ".");
-  } else {
-    raw = raw.replace(/,/g, "");
-  }
+  if (hasComma && !hasDot) raw = raw.replace(",", ".");
+  else raw = raw.replace(/,/g, "");
   const num = parseFloat(raw);
   if (isNaN(num)) return null;
   const unit = m[2].toLowerCase();
-
-  // Binary (1024-based) units
   if (unit === "tib") return num * 1024;
   if (unit === "gib") return num;
   if (unit === "mib") return num / 1024;
   if (unit === "kib") return num / (1024 * 1024);
-  // Decimal units (treat as approximate GB equivalents — portal mixes them)
   if (unit === "tb") return num * 1000;
   if (unit === "gb") return num;
   if (unit === "mb") return num / 1024;
   if (unit === "kb") return num / (1024 * 1024);
-  // Plain bytes
   if (unit.startsWith("byte") || unit === "b") return num / (1024 * 1024 * 1024);
   return num;
 }
 
-interface ScrapedRow {
-  kit_no: string;
-  raw_row_data: string[];
-  kit_detail_href: string | null;
+function parseUsd(value: string | null | undefined): number | null {
+  if (!value) return null;
+  let raw = value.trim().replace(/[^\d.,-]/g, "");
+  if (!raw) return null;
+  const hasDot = raw.includes(".");
+  const hasComma = raw.includes(",");
+  if (hasComma && !hasDot) raw = raw.replace(",", ".");
+  else raw = raw.replace(/,/g, "");
+  const num = parseFloat(raw);
+  return isNaN(num) ? null : num;
 }
 
-function mapRowToRecord(row: ScrapedRow): {
+// Extract YYYY-MM-DD from a portal date cell. Accepts:
+//   "2026-04-17 22:31:18" → "2026-04-17"
+//   "17/04/2026 22:31"    → "2026-04-17"
+//   "17.04.2026"          → "2026-04-17"
+function parseDayDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const v = value.trim();
+  // ISO-ish first
+  const iso = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  // dd/mm/yyyy or dd.mm.yyyy
+  const eu = v.match(/^(\d{2})[./](\d{2})[./](\d{4})/);
+  if (eu) return `${eu[3]}-${eu[2]}-${eu[1]}`;
+  return null;
+}
+
+export interface KitListEntry {
   kitNo: string;
-  product: string | null;
-  service: string | null;
-  originNumber: string | null;
-  destinationNumber: string | null;
-  customerCode: string | null;
-  totalVolumeData: string | null;
-  totalVolumeGbNumeric: number | null;
-  totalVolumeMin: string | null;
-  totalVolumeMsg: string | null;
-  currency: string | null;
-  totalPrice: string | null;
-  inBundle: string | null;
-  invoicedAmount: string | null;
-  period: string | null;
-  cdrId: string | null;
-  startCdr: string | null;
-  endCdr: string | null;
-  rawRowData: string[];
-} {
-  const cells = row.raw_row_data;
-
-  // Try to detect columns by content patterns
-  let kitNo = row.kit_no;
-  let product: string | null = null;
-  let service: string | null = null;
-  let originNumber: string | null = null;
-  let destinationNumber: string | null = null;
-  let customerCode: string | null = null;
-  let totalVolumeData: string | null = null;
-  let totalVolumeGbNumeric: number | null = null;
-  let totalVolumeMin: string | null = null;
-  let totalVolumeMsg: string | null = null;
-  let currency: string | null = null;
-  let totalPrice: string | null = null;
-  let inBundle: string | null = null;
-  let invoicedAmount: string | null = null;
-  let period: string | null = null;
-  let cdrId: string | null = null;
-  let startCdr: string | null = null;
-  let endCdr: string | null = null;
-
-  // First pass: collect all volume-like values so we can pick the largest as
-  // "total volume" (the row also contains a "0 Bytes" in-bundle column that
-  // would otherwise overwrite a real "13.17 GiB" usage value).
-  const volumes: { raw: string; gb: number }[] = [];
-  for (const c of cells) {
-    const cell = c?.trim() ?? "";
-    if (!cell) continue;
-    if (VOLUME_REGEX.test(cell)) {
-      const gb = parseGb(cell);
-      if (gb != null) volumes.push({ raw: cell, gb });
-    }
-  }
-  if (volumes.length > 0) {
-    const max = volumes.reduce((a, b) => (b.gb > a.gb ? b : a));
-    totalVolumeData = max.raw;
-    totalVolumeGbNumeric = max.gb;
-  }
-
-  // Second pass: detect the rest of the columns by content patterns.
-  for (let i = 0; i < cells.length; i++) {
-    const cell = cells[i]?.trim() ?? "";
-    if (!cell) continue;
-
-    if (cell.startsWith("KITP")) {
-      kitNo = cell;
-    } else if (/^(20\d{2})(0[1-9]|1[0-2])$/.test(cell) && !period) {
-      // YYYYMM period with valid month 01-12 (e.g. "202605"); strict check
-      // avoids stealing 6-digit numeric IDs.
-      period = cell;
-    } else if (/^20\d{2}[-/](0[1-9]|1[0-2])$/.test(cell) && !period) {
-      period = cell;
-    } else if (/^\d{4}-\d{2}-\d{2}/.test(cell) && !startCdr) {
-      startCdr = cell;
-    } else if (/^\d{4}-\d{2}-\d{2}/.test(cell) && startCdr && !endCdr) {
-      endCdr = cell;
-    } else if (/^[\d.]+\s*min/i.test(cell)) {
-      totalVolumeMin = cell;
-    } else if (/^[\d.]+\s*msg/i.test(cell)) {
-      totalVolumeMsg = cell;
-    } else if (/^(USD|EUR|GBP|TRY)$/i.test(cell)) {
-      currency = cell;
-    } else if (/^\d{5,}(\.\d+)?$/.test(cell) && !cdrId) {
-      cdrId = cell;
-    } else if (/^[A-Z]{2,}-[A-Z0-9-]+/.test(cell) && !customerCode) {
-      customerCode = cell;
-    } else if (/^[\d.]+$/.test(cell) && currency && !totalPrice) {
-      totalPrice = cell;
-    } else if (/^[\d.]+$/.test(cell) && totalPrice && !invoicedAmount) {
-      invoicedAmount = cell;
-    } else if (!product && cell.length > 2 && cell.length < 50 && !/^\d/.test(cell) && !VOLUME_REGEX.test(cell)) {
-      product = cell;
-    } else if (!service && cell.length > 2 && cell.length < 50 && !/^\d/.test(cell) && !VOLUME_REGEX.test(cell)) {
-      service = cell;
-    }
-  }
-
-  return {
-    kitNo,
-    product,
-    service,
-    originNumber,
-    destinationNumber,
-    customerCode,
-    totalVolumeData,
-    totalVolumeGbNumeric,
-    totalVolumeMin,
-    totalVolumeMsg,
-    currency,
-    totalPrice,
-    inBundle,
-    invoicedAmount,
-    period,
-    cdrId,
-    startCdr,
-    endCdr,
-    rawRowData: cells,
-  };
+  detailHref: string | null;
+  iccid: string | null;
 }
 
-// Visit each KIT detail page (only for KITs we don't yet have a ship name for)
-// and cache the ship name in station_kits. Best-effort: any failure is logged
-// and skipped so the main sync still succeeds.
-async function enrichShipNames(
+// ---------------------------------------------------------------------------
+// Login + reach the Rated CDRs grid via menu click. Returns the page that
+// is now sitting on /ratedCdrs.aspx with the grid loaded. Throws on failure.
+// ---------------------------------------------------------------------------
+async function loginAndOpenRatedCdrs(
   page: Page,
   baseUrl: string,
-  rows: ScrapedRow[]
+  username: string,
+  password: string
 ): Promise<void> {
-  // Build map of unique kit_no -> first non-empty href seen for it.
-  const kitHrefMap = new Map<string, string>();
-  for (const row of rows) {
-    if (row.kit_no && row.kit_detail_href && !kitHrefMap.has(row.kit_no)) {
-      kitHrefMap.set(row.kit_no, row.kit_detail_href);
-    }
+  await page
+    .goto(`${baseUrl}/Account/Login`, { waitUntil: "networkidle" })
+    .catch(async () => {
+      await page.goto(baseUrl, { waitUntil: "networkidle" });
+    });
+
+  const usernameInput = page
+    .locator(
+      "input[name='Email'], input[id='Email'], input[name='UserName'], input[id='UserName'], input[name*='user' i], input[id*='user' i], input[type='email'], input[type='text']:not([type='hidden'])"
+    )
+    .first();
+  if (!(await usernameInput.count())) {
+    throw new Error(`Login form not found at ${page.url()}`);
   }
-  if (kitHrefMap.size === 0) {
-    logger.info("No KIT detail hrefs captured; skipping ship-name enrichment");
-    return;
+  await usernameInput.fill(username);
+  const passwordInput = page.locator("input[type='password']").first();
+  await passwordInput.fill(password);
+
+  const submit = page
+    .locator(
+      "button[type='submit'], input[type='submit'], button:has-text('Login'), button:has-text('Giriş'), button:has-text('Sign in')"
+    )
+    .first();
+  const hasSubmit = (await submit.count()) > 0;
+  await Promise.all([
+    page.waitForNavigation({ waitUntil: "networkidle", timeout: 20000 }).catch(() => {}),
+    hasSubmit ? submit.click() : passwordInput.press("Enter"),
+  ]);
+
+  const stillOnLogin =
+    /Account\/Login/i.test(page.url()) ||
+    (await page.locator("input[type='password']").count()) > 0;
+  if (stillOnLogin) {
+    throw new Error(`Login failed (still on login page: ${page.url()})`);
   }
 
-  // Find which kits already have a ship_name cached.
-  const kitNos = Array.from(kitHrefMap.keys());
+  // Click the menu link to ratedCdrs.aspx — direct goto loses the session.
+  const cdrLink = page
+    .locator("a[href*='ratedCdrs.aspx' i], a[href*='RatedCdrs.aspx' i]")
+    .first();
+  if ((await cdrLink.count()) > 0) {
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: "networkidle", timeout: 30000 }).catch(() => {}),
+      cdrLink.click(),
+    ]);
+  } else {
+    await page
+      .goto(`${baseUrl}/ratedCdrs.aspx`, { waitUntil: "networkidle", timeout: 30000 })
+      .catch(() => {});
+  }
+
+  if (/Account\/Login/i.test(page.url())) {
+    throw new Error(`Reached login page when opening ratedCdrs (${page.url()})`);
+  }
+  await page
+    .locator("#ctl00_ContentPlaceHolder1_gvRatedCdr, [id*='gvRatedCdr'], [id*='RatedCdr']")
+    .first()
+    .waitFor({ timeout: 15000 })
+    .catch(() => {});
+}
+
+// ---------------------------------------------------------------------------
+// Read the unique KIT list from the rated-CDRs main grid. Each KITP link's
+// href contains the ICCID (used later for direct ?FC=ICCID&FV=... URLs).
+// ---------------------------------------------------------------------------
+async function extractKitList(page: Page): Promise<KitListEntry[]> {
+  const rows: KitListEntry[] = await page.evaluate(() => {
+    const grid =
+      document.querySelector("#ctl00_ContentPlaceHolder1_gvRatedCdr") ||
+      document.querySelector("[id*='gvRatedCdr']") ||
+      document.querySelector("[id*='RatedCdr']") ||
+      document.body;
+    const links = Array.from(grid.querySelectorAll("a")) as HTMLAnchorElement[];
+    const seen = new Set<string>();
+    const out: { kitNo: string; detailHref: string | null; iccid: string | null }[] = [];
+    for (const a of links) {
+      const text = (a.textContent || "").trim();
+      if (!text.startsWith("KITP")) continue;
+      if (seen.has(text)) continue;
+      seen.add(text);
+      const href = a.getAttribute("href");
+      let iccid: string | null = null;
+      if (href) {
+        const m = href.match(/[?&]FV=([^&]+)/i);
+        if (m) iccid = decodeURIComponent(m[1]);
+      }
+      out.push({ kitNo: text, detailHref: href, iccid });
+    }
+    return out;
+  });
+  return rows;
+}
+
+// ---------------------------------------------------------------------------
+// Read the period combo options on the rated-CDRs page (filtered ≥202601 and
+// ≤current YYYYMM). We do this once per sync.
+// ---------------------------------------------------------------------------
+async function readPeriodOptions(page: Page): Promise<string[]> {
+  const opts = await page.evaluate(() => {
+    // DevExpress combo: hidden <select> with id ending in DDD_L
+    const selectors = [
+      "#ctl00_ContentPlaceHolder1_ctl00_ctl00_DDD_L",
+      "select[id*='ctl00_ContentPlaceHolder1_ctl00_ctl00']",
+    ];
+    for (const sel of selectors) {
+      const el = document.querySelector(sel) as HTMLSelectElement | null;
+      if (el) return Array.from(el.options).map((o) => o.value || o.text);
+    }
+    return [];
+  });
+  const now = new Date();
+  const currentPeriod = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+  const filtered = opts
+    .map((o) => o.trim())
+    .filter((o) => /^\d{6}$/.test(o))
+    .filter((o) => o >= "202601" && o <= currentPeriod);
+  // newest first
+  filtered.sort((a, b) => (a < b ? 1 : -1));
+  // dedupe
+  return Array.from(new Set(filtered));
+}
+
+// ---------------------------------------------------------------------------
+// Set the period combo to the requested YYYYMM and trigger Refresh button.
+// ---------------------------------------------------------------------------
+async function selectPeriod(page: Page, period: string): Promise<void> {
+  await page.evaluate((p) => {
+    const w = window as unknown as Record<string, unknown>;
+    const combo =
+      (w["ctl00_ContentPlaceHolder1_ctl00_ctl00"] as
+        | { SetValue: (v: string) => void }
+        | undefined) ?? null;
+    if (combo && typeof combo.SetValue === "function") {
+      combo.SetValue(p);
+    }
+  }, period);
+
+  // Click the Refresh button. The visible UI button typically has id ending
+  // in "btnRefresh" or text "Refresh"/"Yenile".
+  const refresh = page
+    .locator(
+      "[id*='btnRefresh' i], input[value='Refresh' i], input[value='Yenile' i], button:has-text('Refresh'), button:has-text('Yenile')"
+    )
+    .first();
+  if ((await refresh.count()) > 0) {
+    await refresh.click().catch(() => {});
+  }
+
+  // Wait for grid reload (DevExpress DXMVCCallback usually). Best-effort.
+  await page.waitForLoadState("networkidle", { timeout: 20000 }).catch(() => {});
+  await page.waitForTimeout(500);
+}
+
+interface ParsedDailyRow {
+  cdrId: string;
+  dayDate: string | null;
+  volumeGib: number | null;
+  chargeUsd: number | null;
+  period: string | null;
+  service: string | null;
+}
+
+interface ParsedGrid {
+  rows: ParsedDailyRow[];
+  footerGib: number | null;
+  footerUsd: number | null;
+}
+
+// ---------------------------------------------------------------------------
+// Parse the DevExpress grid rows and footer using the fixed column map:
+//   col4=service, col9=tarih, col12=volume(GiB), col20=USD-bundle,
+//   col22=USD-grand, col23=period, col24=cdrId
+// ---------------------------------------------------------------------------
+async function parseGrid(page: Page): Promise<ParsedGrid> {
+  const data = await page.evaluate(() => {
+    const dataRows = Array.from(
+      document.querySelectorAll("tr[id*='DXDataRow']")
+    ) as HTMLTableRowElement[];
+    const rowCells: string[][] = dataRows.map((tr) =>
+      Array.from(tr.querySelectorAll("td")).map((td) =>
+        (td.textContent || "").replace(/\s+/g, " ").trim()
+      )
+    );
+    // Footer: DXFooter row inside the same grid.
+    const footerTr = document.querySelector("tr[id*='DXFooter']") as
+      | HTMLTableRowElement
+      | null;
+    const footerCells = footerTr
+      ? Array.from(footerTr.querySelectorAll("td")).map((td) =>
+          (td.textContent || "").replace(/\s+/g, " ").trim()
+        )
+      : [];
+    return { rowCells, footerCells };
+  });
+
+  const rows: ParsedDailyRow[] = [];
+  for (const cells of data.rowCells) {
+    if (cells.length < 25) continue; // need at least up to col24
+    const cdrId = cells[24] ?? "";
+    if (!cdrId) continue;
+    rows.push({
+      cdrId,
+      service: cells[4] || null,
+      dayDate: parseDayDate(cells[9]),
+      volumeGib: parseGib(cells[12]),
+      chargeUsd: parseUsd(cells[22] || cells[20]),
+      period: /^\d{6}$/.test(cells[23] ?? "") ? cells[23] : null,
+    });
+  }
+
+  const footerGib = parseGib(data.footerCells[12]);
+  const footerUsd = parseUsd(data.footerCells[22] || data.footerCells[20]);
+  return { rows, footerGib, footerUsd };
+}
+
+// ---------------------------------------------------------------------------
+// Persist parsed rows + footer into station_kit_daily and
+// station_kit_period_total.
+// ---------------------------------------------------------------------------
+async function persistKitPeriod(
+  kitNo: string,
+  period: string,
+  parsed: ParsedGrid
+): Promise<{ inserted: number; updated: number }> {
+  let inserted = 0;
+  let updated = 0;
+  const now = new Date();
+
+  // Atomic transaction: per-CDR upsert + period-total upsert. The xmax trick
+  // tells us whether each row was an insert (xmax=0) or update.
+  await db.transaction(async (tx) => {
+    for (const r of parsed.rows) {
+      if (!r.dayDate) continue;
+      const result = await tx.execute(sql`
+        INSERT INTO station_kit_daily
+          (kit_no, period, day_date, volume_gib, charge_usd, service, cdr_id, scraped_at)
+        VALUES
+          (${kitNo}, ${period}, ${r.dayDate}, ${r.volumeGib}, ${r.chargeUsd},
+           ${r.service}, ${r.cdrId}, ${now})
+        ON CONFLICT (kit_no, period, cdr_id) DO UPDATE SET
+          day_date   = EXCLUDED.day_date,
+          volume_gib = EXCLUDED.volume_gib,
+          charge_usd = EXCLUDED.charge_usd,
+          service    = EXCLUDED.service,
+          scraped_at = EXCLUDED.scraped_at
+        RETURNING (xmax = 0) AS inserted
+      `);
+      const row = (result as unknown as { rows: Array<{ inserted: boolean }> })
+        .rows[0];
+      if (row?.inserted) inserted++;
+      else updated++;
+    }
+
+    // Period total: ONLY upsert if we actually got a footer reading. The
+    // caller already decided this is a non-empty period; if the footer is
+    // missing here it means the grid was multi-page (pageSize mismatch) —
+    // do NOT overwrite a previously valid total with NULL.
+    if (parsed.footerGib != null || parsed.footerUsd != null) {
+      await tx
+        .insert(stationKitPeriodTotal)
+        .values({
+          kitNo,
+          period,
+          totalGib: parsed.footerGib,
+          totalUsd: parsed.footerUsd,
+          rowCount: parsed.rows.length,
+        })
+        .onConflictDoUpdate({
+          target: [stationKitPeriodTotal.kitNo, stationKitPeriodTotal.period],
+          set: {
+            totalGib: parsed.footerGib,
+            totalUsd: parsed.footerUsd,
+            rowCount: parsed.rows.length,
+            scrapedAt: now,
+          },
+        });
+    }
+  });
+
+  return { inserted, updated };
+}
+
+// Confirm we are still authenticated on the rated-CDRs grid. Used after every
+// goto/SetValue to detect silent session loss.
+async function isOnRatedCdrsGrid(page: Page): Promise<boolean> {
+  if (/Account\/Login/i.test(page.url())) return false;
+  if (!/ratedCdrs\.aspx/i.test(page.url())) return false;
+  const grid = page
+    .locator("#ctl00_ContentPlaceHolder1_gvRatedCdr, [id*='gvRatedCdr']")
+    .first();
+  return (await grid.count()) > 0;
+}
+
+// ---------------------------------------------------------------------------
+// Ship-name enrichment (preserved from previous scraper). Only KITs without
+// a cached ship_name are visited; we click the link from ratedCdrs to keep
+// ASP.NET viewstate / iframe wrapper.
+// ---------------------------------------------------------------------------
+async function enrichShipNames(
+  page: Page,
+  kits: KitListEntry[]
+): Promise<void> {
+  const havingHref = kits.filter((k) => k.detailHref);
+  if (havingHref.length === 0) return;
   const cached = await db
     .select({ kitNo: stationKits.kitNo, shipName: stationKits.shipName })
     .from(stationKits)
-    .where(inArray(stationKits.kitNo, kitNos));
+    .where(inArray(stationKits.kitNo, havingHref.map((k) => k.kitNo)));
   const haveShipName = new Set(
-    cached.filter((c) => c.shipName != null && c.shipName.trim() !== "").map((c) => c.kitNo)
+    cached.filter((c) => c.shipName && c.shipName.trim() !== "").map((c) => c.kitNo)
+  );
+  const toFetch = havingHref.filter((k) => !haveShipName.has(k.kitNo));
+  logger.info(
+    { totalKits: havingHref.length, alreadyCached: haveShipName.size, toFetch: toFetch.length },
+    "Ship-name enrichment plan"
   );
 
-  const toFetch = kitNos.filter((k) => !haveShipName.has(k));
-  logger.info({ totalKits: kitNos.length, alreadyCached: haveShipName.size, toFetch: toFetch.length }, "Ship-name enrichment plan");
-
-  // Save the rated-CDRs page once so we can inspect the actual link markup
-  // (href attributes vs. JS click handlers, DevExpress callback args, etc.).
-  await page.content().then((html) =>
-    import("fs").then((fs) => fs.promises.writeFile("/tmp/rated-cdrs-snapshot.html", html))
-  ).catch(() => {});
-
-  // We are currently on the ratedCdrs page. To preserve session/iframe state,
-  // we CLICK the actual KIT link in the table rather than navigating directly
-  // (direct page.goto to CardDetails.aspx returns ASP.NET ErrorPage). After
-  // each detail visit we navigate back to ratedCdrs via the menu.
-  let savedFirstDebug = false;
-  for (const kitNo of toFetch) {
-    const href = kitHrefMap.get(kitNo);
-    if (!href) continue;
+  for (const k of toFetch) {
     try {
-      // Click the KIT link from the current ratedCdrs page.
-      const linkLocator = page.locator(`a[href="${href}"]`).first();
-      const hasLink = (await linkLocator.count()) > 0;
-      if (!hasLink) {
-        logger.warn({ kitNo, href }, "KIT link not found on current page; re-navigating to ratedCdrs");
-        // Navigate back to ratedCdrs via menu and try again
-        const cdrLink = page.locator("a[href*='ratedCdrs.aspx' i], a[href*='RatedCdrs.aspx' i]").first();
-        if ((await cdrLink.count()) > 0) {
-          await Promise.all([
-            page.waitForNavigation({ waitUntil: "networkidle", timeout: 20000 }).catch(() => {}),
-            cdrLink.click(),
-          ]);
-        }
-      }
-
+      const href = k.detailHref!;
+      const link = page.locator(`a[href="${href}"]`).first();
+      if ((await link.count()) === 0) continue;
       await Promise.all([
         page.waitForNavigation({ waitUntil: "networkidle", timeout: 25000 }).catch(() => {}),
-        page.locator(`a[href="${href}"]`).first().click({ timeout: 10000 }).catch(() => {}),
+        link.click({ timeout: 10000 }).catch(() => {}),
       ]);
+      const pairs: Record<string, string> = await page
+        .evaluate(() => {
+          const out: Record<string, string> = {};
+          document.querySelectorAll("tr").forEach((tr) => {
+            const cells = Array.from(tr.querySelectorAll("td, th"));
+            if (cells.length >= 2) {
+              const label = (cells[0].textContent || "")
+                .trim()
+                .replace(/[:：]\s*$/, "");
+              const value = (cells[1].textContent || "").trim();
+              if (label && value && label.length < 80 && !out[label]) out[label] = value;
+            }
+          });
+          return out;
+        })
+        .catch(() => ({} as Record<string, string>));
 
-      // Save the first detail page HTML for debugging label structure.
-      if (!savedFirstDebug) {
-        savedFirstDebug = true;
-        const html = await page.content().catch(() => "");
-        if (html) {
-          await import("fs").then((fs) =>
-            fs.promises.writeFile("/tmp/kit-detail-debug.html", html)
-          ).catch(() => {});
-        }
-      }
-
-      // Build label -> value map from common form/table layouts.
-      const pairs: Record<string, string> = await page.evaluate(() => {
-        const out: Record<string, string> = {};
-        // <tr><td>Label</td><td>Value</td></tr> tables (very common in IBIS)
-        document.querySelectorAll("tr").forEach((tr) => {
-          const cells = Array.from(tr.querySelectorAll("td, th"));
-          if (cells.length >= 2) {
-            const label = (cells[0].textContent || "").trim().replace(/[:：]\s*$/, "");
-            const value = (cells[1].textContent || "").trim();
-            if (label && value && label.length < 80 && !out[label]) out[label] = value;
-          }
-        });
-        // <label>...<input/span> form layouts
-        document.querySelectorAll("label").forEach((l) => {
-          const label = (l.textContent || "").trim().replace(/[:：]\s*$/, "");
-          const next = l.nextElementSibling;
-          if (next && label && !out[label]) {
-            const input = next.querySelector("input, select, textarea") as HTMLInputElement | null;
-            const value = (input?.value || next.textContent || "").trim();
-            if (value && label.length < 80) out[label] = value;
-          }
-        });
-        return out;
-      }).catch(() => ({} as Record<string, string>));
-
-      // Pick best ship-name candidate (priority: explicit ship/vessel, then customer name, then description)
       const PRIORITY: RegExp[] = [
         /^(ship\s*name|vessel\s*name|gemi\s*ad[ıi]?)$/i,
         /^(ship|vessel|gemi)$/i,
@@ -294,9 +443,9 @@ async function enrichShipNames(
       ];
       let shipName: string | null = null;
       for (const re of PRIORITY) {
-        for (const [k, v] of Object.entries(pairs)) {
-          if (re.test(k) && v.length > 1 && v.length < 200 && !/^kitp/i.test(v)) {
-            shipName = v;
+        for (const [kk, vv] of Object.entries(pairs)) {
+          if (re.test(kk) && vv.length > 1 && vv.length < 200 && !/^kitp/i.test(vv)) {
+            shipName = vv;
             break;
           }
         }
@@ -307,7 +456,7 @@ async function enrichShipNames(
       await db
         .insert(stationKits)
         .values({
-          kitNo,
+          kitNo: k.kitNo,
           shipName,
           detailUrl: href,
           shipNameSyncedAt: shipName ? now : null,
@@ -322,177 +471,49 @@ async function enrichShipNames(
             updatedAt: now,
           },
         });
-      logger.info({ kitNo, shipName, pairKeys: Object.keys(pairs).slice(0, 10) }, "Ship-name fetched");
+      logger.info({ kitNo: k.kitNo, shipName }, "Ship-name fetched");
+
+      // Navigate back to ratedCdrs via menu so the next click works.
+      const cdrLink = page
+        .locator("a[href*='ratedCdrs.aspx' i], a[href*='RatedCdrs.aspx' i]")
+        .first();
+      if ((await cdrLink.count()) > 0) {
+        await Promise.all([
+          page.waitForNavigation({ waitUntil: "networkidle", timeout: 20000 }).catch(() => {}),
+          cdrLink.click(),
+        ]);
+      }
     } catch (e) {
-      logger.warn({ kitNo, err: (e as Error).message }, "Failed to fetch ship name (continuing)");
+      logger.warn({ kitNo: k.kitNo, err: (e as Error).message }, "Ship-name fetch failed (skipping)");
     }
   }
 }
 
-// Aggregate (kit_no, period) totals from CDR records and upsert one snapshot
-// per (kit_no, period) for today's date. Same-day re-runs overwrite.
-async function writeDailySnapshots(): Promise<void> {
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-  const rows = await db.execute(sql`
-    SELECT
-      kit_no AS "kitNo",
-      period,
-      SUM(total_volume_gb_numeric)::float8 AS "totalGb",
-      SUM(CAST(NULLIF(REGEXP_REPLACE(total_price, '[^0-9.]', '', 'g'), '') AS NUMERIC))::float8 AS "totalPrice",
-      MAX(currency) AS currency
-    FROM station_cdr_records
-    WHERE period IS NOT NULL
-    GROUP BY kit_no, period
-  `);
-  const now = new Date();
-  // drizzle node-postgres returns { rows: [...] }
-  const list = (rows as unknown as { rows: Array<{ kitNo: string; period: string; totalGb: number | null; totalPrice: number | null; currency: string | null }> }).rows;
-  for (const r of list) {
-    if (!r.kitNo || !r.period) continue;
-    await db
-      .insert(stationKitDailySnapshots)
-      .values({
-        kitNo: r.kitNo,
-        period: r.period,
-        snapshotDate: today,
-        totalGb: r.totalGb,
-        totalPriceNumeric: r.totalPrice,
-        currency: r.currency,
-        updatedAt: now,
-      })
-      .onConflictDoUpdate({
-        target: [stationKitDailySnapshots.kitNo, stationKitDailySnapshots.period, stationKitDailySnapshots.snapshotDate],
-        set: {
-          totalGb: r.totalGb,
-          totalPriceNumeric: r.totalPrice,
-          currency: r.currency,
-          updatedAt: now,
-        },
-      });
-  }
-  logger.info({ count: list.length, snapshotDate: today }, "Daily snapshots written");
-}
-
+// ---------------------------------------------------------------------------
+// Main entry: full or incremental scrape. Strategy:
+//   - First sync (firstFullSyncAt is null): walk every period from 202601
+//     up to current YYYYMM for every KIT.
+//   - Subsequent syncs: only current + previous period for every KIT.
+// On the very first successful full run we set credentials.firstFullSyncAt.
+// ---------------------------------------------------------------------------
 export async function runSync(
   portalUrl: string,
   username: string,
   password: string,
   testOnly: boolean
 ): Promise<SyncResult> {
-  let browser: import("playwright").Browser | null = null;
-
+  let browser: Browser | null = null;
   try {
-    // Dynamic import to avoid issues if playwright isn't installed
     const { chromium } = await import("playwright");
-
     browser = await chromium.launch({
       headless: true,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
-
     const page = await browser.newPage();
     await page.setDefaultNavigationTimeout(30000);
 
-    // Navigate directly to the MVC login page (portal is ASP.NET MVC,
-    // landing on root just redirects to /Account/Login anyway).
     const baseUrl = portalUrl.endsWith("/") ? portalUrl.slice(0, -1) : portalUrl;
-    await page.goto(`${baseUrl}/Account/Login`, { waitUntil: "networkidle" }).catch(async () => {
-      await page.goto(baseUrl, { waitUntil: "networkidle" });
-    });
-
-    // ASP.NET MVC Identity uses Email/UserName fields. Try common selectors in order.
-    const usernameInput = page
-      .locator(
-        "input[name='Email'], input[id='Email'], input[name='UserName'], input[id='UserName'], input[name*='user' i], input[id*='user' i], input[type='email'], input[type='text']:not([type='hidden'])"
-      )
-      .first();
-
-    if (!(await usernameInput.count())) {
-      const screenshotPath = "/tmp/login-form-debug.png";
-      await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => {});
-      return {
-        success: false,
-        message: `Could not find username input on login page (${page.url()})`,
-        recordsFound: 0,
-        recordsInserted: 0,
-        recordsUpdated: 0,
-        screenshotPath,
-      };
-    }
-
-    await usernameInput.fill(username);
-
-    const passwordInput = page.locator("input[type='password']").first();
-    await passwordInput.fill(password);
-
-    // Verify the values actually landed in the inputs (Playwright sometimes silently
-    // fills the wrong element if a selector matched something unexpected).
-    const filledUsername = await usernameInput.inputValue().catch(() => "");
-    const filledPassword = await passwordInput.inputValue().catch(() => "");
-    logger.info({
-      filledUsernameLen: filledUsername.length,
-      filledPasswordLen: filledPassword.length,
-      usernameMatches: filledUsername === username,
-      passwordMatches: filledPassword === password,
-      preSubmitUrl: page.url(),
-    }, "Login form filled");
-
-    // Click the actual submit button so the antiforgery token is included in the form post.
-    const submitButton = page.locator(
-      "button[type='submit'], input[type='submit'], button:has-text('Login'), button:has-text('Giriş'), button:has-text('Sign in')"
-    ).first();
-
-    const hasSubmit = (await submitButton.count()) > 0;
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: "networkidle", timeout: 20000 }).catch(() => {}),
-      hasSubmit ? submitButton.click() : passwordInput.press("Enter"),
-    ]);
-
-    // Snapshot the page IMMEDIATELY after submit to capture portal's real response
-    // (success redirect target, or "invalid credentials" error message).
-    const postSubmitUrl = page.url();
-    const postSubmitContent = await page.content().catch(() => "");
-    await page.screenshot({ path: "/tmp/post-submit-debug.png", fullPage: true }).catch(() => {});
-    await import("fs").then(fs =>
-      fs.promises.writeFile("/tmp/post-submit-debug.html", postSubmitContent)
-    ).catch(() => {});
-
-    // Look for visible validation errors that ASP.NET MVC renders inside .text-danger spans.
-    const errorTexts = await page.evaluate(() => {
-      const nodes = Array.from(document.querySelectorAll(".text-danger, .validation-summary-errors, .field-validation-error"));
-      return nodes
-        .map(n => (n.textContent || "").trim())
-        .filter(t => t.length > 0);
-    }).catch(() => [] as string[]);
-
-    logger.info({
-      postSubmitUrl,
-      hasSubmitButton: hasSubmit,
-      portalErrors: errorTexts,
-      pageHasPasswordInput: postSubmitContent.includes('type="password"'),
-    }, "Login form submitted");
-
-    // Decide login success based on the post-submit page itself, NOT by trying
-    // to reach /ratedCdrs.aspx (direct deep-link navigation loses the session
-    // on this portal — the ASP.NET app requires a click-through from the menu).
-    const stillOnLoginAfterSubmit =
-      /Account\/Login/i.test(postSubmitUrl) ||
-      postSubmitContent.includes('type="password"');
-
-    if (stillOnLoginAfterSubmit) {
-      logger.warn({ postSubmitUrl, errorTexts }, "Login truly failed (still on login page after submit)");
-      return {
-        success: false,
-        message: errorTexts.length > 0
-          ? `Login failed: ${errorTexts.join(" / ")}`
-          : `Login failed: portal kept us on the login page (url=${postSubmitUrl}). Check username/password.`,
-        recordsFound: 0,
-        recordsInserted: 0,
-        recordsUpdated: 0,
-        screenshotPath: "/tmp/post-submit-debug.png",
-        htmlSnapshotPath: "/tmp/post-submit-debug.html",
-      };
-    }
+    await loginAndOpenRatedCdrs(page, baseUrl, username, password);
 
     if (testOnly) {
       return {
@@ -504,205 +525,184 @@ export async function runSync(
       };
     }
 
-    // Reach the CDR page by clicking the menu link from the authenticated welcome
-    // page. This preserves the session that direct page.goto() loses.
-    const cdrLink = page.locator("a[href*='ratedCdrs.aspx' i], a[href*='RatedCdrs.aspx' i]").first();
-    const cdrLinkCount = await cdrLink.count();
-    logger.info({ cdrLinkCount }, "Looking for CDR menu link");
+    // 1) KIT listesi + ship-name enrichment (mevcut session üzerinden).
+    const kits = await extractKitList(page);
+    logger.info({ kitCount: kits.length }, "Discovered KITs");
+    if (kits.length === 0) {
+      return {
+        success: false,
+        message: "Rated CDRs sayfasında KITP linki bulunamadı (oturum/ payload sorunu).",
+        recordsFound: 0,
+        recordsInserted: 0,
+        recordsUpdated: 0,
+      };
+    }
+    await enrichShipNames(page, kits).catch((e) =>
+      logger.warn({ err: (e as Error).message }, "Ship-name enrichment failed (non-fatal)")
+    );
 
-    if (cdrLinkCount > 0) {
+    // 2) Period listesi belirle + full vs incremental karar ver.
+    // ratedCdrs sayfasında olduğumuzdan emin ol (enrich navigate etmiş olabilir).
+    const cdrLink = page
+      .locator("a[href*='ratedCdrs.aspx' i], a[href*='RatedCdrs.aspx' i]")
+      .first();
+    if ((await cdrLink.count()) > 0 && !/ratedCdrs\.aspx/i.test(page.url())) {
       await Promise.all([
-        page.waitForNavigation({ waitUntil: "networkidle", timeout: 30000 }).catch(() => {}),
+        page.waitForNavigation({ waitUntil: "networkidle", timeout: 20000 }).catch(() => {}),
         cdrLink.click(),
       ]);
-    } else {
-      // Fallback: try direct navigation
-      await page.goto(`${baseUrl}/ratedCdrs.aspx`, {
-        waitUntil: "networkidle",
-        timeout: 30000,
-      }).catch(() => {});
     }
 
-    const finalUrl = page.url();
-    const cdrContent = await page.content();
-    logger.info({ finalUrl, viaMenuClick: cdrLinkCount > 0 }, "Reached CDR page candidate");
-
-    if (/Account\/Login/i.test(finalUrl) || (await page.locator("input[type='password']").count()) > 0) {
-      const screenshotPath = "/tmp/rated-cdrs-debug.png";
-      const htmlSnapshotPath = "/tmp/rated-cdrs-debug.html";
-      await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => {});
-      await import("fs").then(fs => fs.promises.writeFile(htmlSnapshotPath, cdrContent)).catch(() => {});
-      return {
-        success: false,
-        message: `Reached login page when trying to open CDR page (url=${finalUrl}). The user may lack CDR access permission.`,
-        recordsFound: 0,
-        recordsInserted: 0,
-        recordsUpdated: 0,
-        screenshotPath,
-        htmlSnapshotPath,
-      };
+    const allPeriods = await readPeriodOptions(page);
+    if (allPeriods.length === 0) {
+      logger.warn("No periods read from combo; falling back to current month only");
+      const now = new Date();
+      const cur = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+      allPeriods.push(cur);
     }
 
-    // Wait for DevExpress grid
-    try {
-      await page
-        .locator(
-          "#ctl00_ContentPlaceHolder1_gvRatedCdr, [id*='gvRatedCdr'], [id*='RatedCdr'], table[class*='dxgv']"
-        )
-        .first()
-        .waitFor({ timeout: 15000 });
-    } catch {
-      logger.warn("Grid not found by primary selector, trying fallback");
-    }
+    const [creds] = await db
+      .select()
+      .from(stationCredentials)
+      .orderBy(desc(stationCredentials.createdAt))
+      .limit(1);
+    const isFirstFull = !creds?.firstFullSyncAt;
+    const periods = isFirstFull ? allPeriods : allPeriods.slice(0, 2);
+    logger.info(
+      { isFirstFull, periodCount: periods.length, periods: periods.slice(0, 5) },
+      "Sync plan"
+    );
 
-    // Extract rows
-    const rows: ScrapedRow[] = await page.evaluate(() => {
-      const grid =
-        document.querySelector("#ctl00_ContentPlaceHolder1_gvRatedCdr") ||
-        document.querySelector("[id*='gvRatedCdr']") ||
-        document.querySelector("[id*='RatedCdr']") ||
-        document.querySelector("table[class*='dxgv']") ||
-        document.body;
+    // 3) Her KIT için her period'u tara (direct URL + period combo override).
+    let totalRows = 0;
+    let totalInserted = 0;
+    let totalUpdated = 0;
 
-      const links = Array.from(grid.querySelectorAll("a"));
-      const kitLinks = links.filter((a) => {
-        const text = (a.textContent || "").trim();
-        return text.startsWith("KITP");
-      });
-
-      return kitLinks.map((a) => {
-        const tr = a.closest("tr");
-        const cells = tr
-          ? Array.from(tr.querySelectorAll("td")).map((td) =>
-              (td.textContent || "").replace(/\s+/g, " ").trim()
-            )
-          : [];
-        const href = a.getAttribute("href");
-        return {
-          kit_no: (a.textContent || "").trim(),
-          raw_row_data: cells,
-          kit_detail_href: href,
-        };
-      });
-    });
-
-    if (rows.length === 0) {
-      // Debug mode
-      const allLinks: string[] = await page.evaluate(() =>
-        Array.from(document.querySelectorAll("a")).map((a) => (a.textContent || "").trim())
-      );
-
-      const kitTexts = allLinks.filter((t) => t.includes("KIT") || t.includes("KITP"));
-
-      logger.warn({ kitTexts, allLinksCount: allLinks.length }, "No KITP links found, debug info");
-
-      const screenshotPath = "/tmp/rated-cdrs-debug.png";
-      const htmlSnapshotPath = "/tmp/rated-cdrs-debug.html";
-      await page.screenshot({ path: screenshotPath, fullPage: true });
-      const html = await page.content();
-      await import("fs").then(fs => fs.promises.writeFile(htmlSnapshotPath, html));
-
-      return {
-        success: false,
-        message: `No KITP records found on page. Found ${allLinks.length} links total. Debug files saved.`,
-        recordsFound: 0,
-        recordsInserted: 0,
-        recordsUpdated: 0,
-        screenshotPath,
-        htmlSnapshotPath,
-      };
-    }
-
-    // Upsert records
-    let inserted = 0;
-    let updated = 0;
-    const now = new Date();
-
-    for (const row of rows) {
-      const mapped = mapRowToRecord(row);
-
-      // Check for existing record
-      const conditions = [];
-      if (mapped.cdrId && mapped.period) {
-        conditions.push(eq(stationCdrRecords.cdrId, mapped.cdrId));
-        conditions.push(eq(stationCdrRecords.period, mapped.period));
-        conditions.push(eq(stationCdrRecords.kitNo, mapped.kitNo));
+    for (const kit of kits) {
+      if (!kit.iccid) {
+        logger.warn({ kitNo: kit.kitNo }, "KIT has no ICCID in detail href; skipping");
+        continue;
       }
-
-      let existing = null;
-      if (conditions.length > 0) {
-        const [found] = await db
-          .select()
-          .from(stationCdrRecords)
-          .where(and(...conditions))
-          .limit(1);
-        existing = found;
-      }
-
-      const recordData = {
-        ...mapped,
-        syncedAt: now,
-      };
-
-      if (existing) {
-        await db
-          .update(stationCdrRecords)
-          .set({ ...recordData, updatedAt: now })
-          .where(eq(stationCdrRecords.id, existing.id));
-        updated++;
-      } else {
-        await db.insert(stationCdrRecords).values(recordData).onConflictDoNothing();
-        inserted++;
-      }
-    }
-
-    // Ship-name enrichment: for any KIT we don't yet have a ship name for,
-    // visit its detail page once and cache the result. Skip kits that already
-    // have a ship_name in station_kits (cache forever).
-    if (!testOnly) {
+      const directUrl = `${baseUrl}/ratedCdrs.aspx?FC=ICCID&FV=${encodeURIComponent(kit.iccid)}`;
       try {
-        await enrichShipNames(page, baseUrl, rows);
+        await page.goto(directUrl, { waitUntil: "networkidle", timeout: 30000 });
       } catch (e) {
-        logger.warn({ err: (e as Error).message }, "Ship-name enrichment failed (non-fatal)");
+        logger.warn({ kitNo: kit.kitNo, err: (e as Error).message }, "Direct URL failed; skipping KIT");
+        continue;
+      }
+      // Hard guard: if the direct URL silently bounced us back to login or
+      // away from the grid, the entire KIT is unsafe to scrape — skip it
+      // rather than write zeros over previously valid period totals.
+      if (!(await isOnRatedCdrsGrid(page))) {
+        logger.warn(
+          { kitNo: kit.kitNo, url: page.url() },
+          "After direct URL, page is not on ratedCdrs grid — skipping KIT (session may be lost)"
+        );
+        continue;
       }
 
-      // Daily snapshots: write today's per-(kit,period) totals so we can show
-      // day-by-day evolution. Best-effort — failure here must not break sync.
-      try {
-        await writeDailySnapshots();
-      } catch (e) {
-        logger.warn({ err: (e as Error).message }, "Daily snapshot write failed (non-fatal)");
+      for (const period of periods) {
+        try {
+          await selectPeriod(page, period);
+          // Re-check after every period switch — DevExpress callbacks
+          // occasionally trigger a logout redirect on stale sessions.
+          if (!(await isOnRatedCdrsGrid(page))) {
+            logger.warn(
+              { kitNo: kit.kitNo, period, url: page.url() },
+              "Lost grid context after period switch — skipping period (no overwrite)"
+            );
+            continue;
+          }
+          const parsed = await parseGrid(page);
+          // Treat as truly empty ONLY when both rows AND footer are absent
+          // AND we're still on the grid — that means the portal really has
+          // no charges for this (kit, period). We insert a 0-total stub
+          // (without overwriting an existing non-zero one).
+          if (parsed.rows.length === 0 && parsed.footerGib == null && parsed.footerUsd == null) {
+            await db
+              .insert(stationKitPeriodTotal)
+              .values({
+                kitNo: kit.kitNo,
+                period,
+                totalGib: 0,
+                totalUsd: 0,
+                rowCount: 0,
+              })
+              .onConflictDoNothing({
+                target: [stationKitPeriodTotal.kitNo, stationKitPeriodTotal.period],
+              });
+            continue;
+          }
+          // Rows present but footer missing → almost certainly multi-page
+          // pageSize mismatch. Persist the daily rows (idempotent), but DO
+          // NOT touch the period total — leave previous value intact.
+          if (parsed.rows.length > 0 && parsed.footerGib == null && parsed.footerUsd == null) {
+            logger.warn(
+              { kitNo: kit.kitNo, period, rowCount: parsed.rows.length },
+              "Footer missing despite rows — likely multi-page (pageSize<50). Period total preserved."
+            );
+          }
+          const { inserted, updated } = await persistKitPeriod(kit.kitNo, period, parsed);
+          totalRows += parsed.rows.length;
+          totalInserted += inserted;
+          totalUpdated += updated;
+
+          // Cross-check footer vs row sum (warn only).
+          if (parsed.footerGib != null) {
+            const sumGib = parsed.rows.reduce((a, r) => a + (r.volumeGib ?? 0), 0);
+            const diff = Math.abs(sumGib - parsed.footerGib);
+            if (diff > 0.5) {
+              logger.warn(
+                { kitNo: kit.kitNo, period, footerGib: parsed.footerGib, sumGib, diff },
+                "Footer vs row-sum mismatch"
+              );
+            }
+          }
+        } catch (e) {
+          logger.warn(
+            { kitNo: kit.kitNo, period, err: (e as Error).message },
+            "Period scrape failed (continuing)"
+          );
+        }
       }
+    }
+
+    // İlk full başarıyla bitti → bayrağı ata.
+    if (isFirstFull && creds) {
+      await db
+        .update(stationCredentials)
+        .set({ firstFullSyncAt: new Date(), updatedAt: new Date() })
+        .where(eq(stationCredentials.id, creds.id));
     }
 
     return {
       success: true,
-      message: `Sync completed successfully. Found ${rows.length} records.`,
-      recordsFound: rows.length,
-      recordsInserted: inserted,
-      recordsUpdated: updated,
+      message: `Sync OK — ${kits.length} KIT × ${periods.length} dönem (${totalRows} satır).`,
+      recordsFound: totalRows,
+      recordsInserted: totalInserted,
+      recordsUpdated: totalUpdated,
     };
   } catch (err) {
     logger.error({ err }, "Scraper error");
     const screenshotPath = "/tmp/rated-cdrs-error.png";
     const htmlSnapshotPath = "/tmp/rated-cdrs-error.html";
-
     try {
       if (browser) {
         const pages = browser.contexts().flatMap((c) => c.pages());
         const page = pages[0];
         if (page) {
-          await page.screenshot({ path: screenshotPath }).catch(() => {});
+          await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => {});
           const html = await page.content().catch(() => "");
           if (html) {
-            await import("fs").then(fs => fs.promises.writeFile(htmlSnapshotPath, html));
+            await import("fs").then((fs) =>
+              fs.promises.writeFile(htmlSnapshotPath, html)
+            );
           }
         }
       }
     } catch {
-      // ignore screenshot errors
+      // ignore
     }
-
     return {
       success: false,
       message: `Sync failed: ${(err as Error).message}`,
@@ -713,8 +713,6 @@ export async function runSync(
       htmlSnapshotPath,
     };
   } finally {
-    if (browser) {
-      await browser.close().catch(() => {});
-    }
+    if (browser) await browser.close().catch(() => {});
   }
 }

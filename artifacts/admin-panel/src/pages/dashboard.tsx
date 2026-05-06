@@ -33,8 +33,8 @@ export default function Dashboard() {
   useDocumentTitle("Panel");
   const { data: summary, isLoading, isError, error } = useGetDashboardSummary({ query: { queryKey: getGetDashboardSummaryQueryKey() } });
   const { data: kits, isLoading: kitsLoading } = useGetKits(
-    { sortBy: "totalGb" },
-    { query: { queryKey: getGetKitsQueryKey({ sortBy: "totalGb" }) } }
+    { sortBy: "totalGib" },
+    { query: { queryKey: getGetKitsQueryKey({ sortBy: "totalGib" }) } }
   );
   const syncNowMutation = useSyncNow();
   const queryClient = useQueryClient();
@@ -98,7 +98,7 @@ export default function Dashboard() {
         
         <Card className="border border-border bg-card shadow-none rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
-            <CardTitle className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Toplam GB</CardTitle>
+            <CardTitle className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Toplam GiB</CardTitle>
             <HardDrive className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -107,7 +107,7 @@ export default function Dashboard() {
             ) : (
               <div className="flex items-baseline gap-2">
                 <div className="text-3xl font-normal tracking-tight text-foreground font-mono">
-                  {formatNumber(summary?.totalGb, 2)}
+                  {formatNumber(summary?.totalGib, 2)}
                 </div>
                 <span className="text-sm font-medium text-muted-foreground">GB</span>
               </div>
@@ -191,11 +191,11 @@ export default function Dashboard() {
                       </div>
                       <div className="flex items-center gap-6 shrink-0">
                         <div className="text-right">
-                          <div className="font-mono text-[13px] text-foreground">{formatNumber(row.totalGb, 2)}</div>
+                          <div className="font-mono text-[13px] text-foreground">{formatNumber(row.totalGib, 2)}</div>
                           <div className="text-[10px] uppercase tracking-widest text-muted-foreground">GB</div>
                         </div>
                         <div className="text-right min-w-[90px]">
-                          <div className="font-mono text-[13px] text-foreground">{formatCurrency(row.totalPrice)}</div>
+                          <div className="font-mono text-[13px] text-foreground">{formatCurrency(row.totalUsd)}</div>
                           <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Tutar</div>
                         </div>
                       </div>

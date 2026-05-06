@@ -182,7 +182,7 @@ async function main(): Promise<void> {
         periodHits: Array.from(new Set(periodHits)),
       };
     })()`;
-    const probe = await page.evaluate(probeSrc);
+    const probe = (await page.evaluate(probeSrc)) as { url?: string; [k: string]: unknown };
 
     await fs.writeFile(path.join(OUT_DIR, "04-probe.json"), JSON.stringify(probe, null, 2));
     console.log(`[probe] saved → ${OUT_DIR}/04-probe.json`);

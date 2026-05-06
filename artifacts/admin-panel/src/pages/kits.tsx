@@ -22,7 +22,7 @@ export default function Kits() {
   useDocumentTitle("KIT Özeti");
   const [, setLocation] = useLocation();
   const [kitNo, setKitNo] = useState("");
-  const [sortBy, setSortBy] = useState<"totalGb" | "totalPrice" | "lastSeen" | undefined>("totalPrice");
+  const [sortBy, setSortBy] = useState<"totalGib" | "totalUsd" | "lastSeen" | undefined>("totalUsd");
   const [debouncedKitNo, setDebouncedKitNo] = useState("");
 
   React.useEffect(() => {
@@ -37,7 +37,7 @@ export default function Kits() {
     { query: { queryKey: getGetKitsQueryKey({ kitNo: debouncedKitNo, sortBy }) } }
   );
 
-  const toggleSort = (col: "totalGb" | "totalPrice" | "lastSeen") => {
+  const toggleSort = (col: "totalGib" | "totalUsd" | "lastSeen") => {
     setSortBy(col);
   };
 
@@ -79,11 +79,11 @@ export default function Kits() {
             <Header className="sticky top-0 z-10 bg-card shadow-[0_1px_0_0_var(--color-border)]">
               <Row className="hover:bg-transparent border-none">
                 <Head className="w-[240px] pl-8 font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Terminal No</Head>
-                <Head className="w-[140px] text-right cursor-pointer hover:bg-secondary transition-colors group font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12" onClick={() => toggleSort("totalGb")}>
-                  <div className="flex items-center justify-end">Toplam Veri (GB) <SortIcon col="totalGb" /></div>
+                <Head className="w-[140px] text-right cursor-pointer hover:bg-secondary transition-colors group font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12" onClick={() => toggleSort("totalGib")}>
+                  <div className="flex items-center justify-end">Toplam Veri (GiB) <SortIcon col="totalGib" /></div>
                 </Head>
-                <Head className="w-[160px] text-right cursor-pointer hover:bg-secondary transition-colors group font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12" onClick={() => toggleSort("totalPrice")}>
-                  <div className="flex items-center justify-end">Toplam Tutar <SortIcon col="totalPrice" /></div>
+                <Head className="w-[160px] text-right cursor-pointer hover:bg-secondary transition-colors group font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12" onClick={() => toggleSort("totalUsd")}>
+                  <div className="flex items-center justify-end">Toplam Tutar <SortIcon col="totalUsd" /></div>
                 </Head>
                 <Head className="w-[100px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Kayıt Sayısı</Head>
                 <Head className="w-[120px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Son Dönem</Head>
@@ -131,13 +131,13 @@ export default function Kits() {
                       </div>
                     </Cell>
                     <Cell className="text-right font-mono text-[13px] text-foreground">
-                      {formatNumber(row.totalGb, 2)}
+                      {formatNumber(row.totalGib, 2)}
                     </Cell>
                     <Cell className="text-right font-mono text-[13px] text-foreground">
-                      {formatCurrency(row.totalPrice)}
+                      {formatCurrency(row.totalUsd)}
                     </Cell>
                     <Cell className="text-right font-mono text-xs text-muted-foreground">
-                      {formatNumber(row.recordCount, 0)}
+                      {formatNumber(row.rowCount, 0)}
                     </Cell>
                     <Cell className="text-right font-mono text-[11px] text-foreground">
                       {row.lastPeriod || "-"}

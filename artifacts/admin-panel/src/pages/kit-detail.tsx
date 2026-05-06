@@ -19,7 +19,8 @@ import {
 } from "lucide-react";
 import {
   ResponsiveContainer,
-  LineChart,
+  ComposedChart,
+  Bar,
   Line,
   XAxis,
   YAxis,
@@ -49,19 +50,17 @@ import { useDocumentTitle } from "@/hooks/use-document-title";
 
 function formatPeriodLabel(period?: string | null) {
   if (!period) return "-";
-  // YYYYMM -> "MM/YYYY"
   if (/^\d{6}$/.test(period)) {
     return `${period.slice(4, 6)}/${period.slice(0, 4)}`;
   }
   return period;
 }
 
-function formatDay(snapshotDate: string) {
-  // YYYY-MM-DD -> DD.MM
-  if (/^\d{4}-\d{2}-\d{2}$/.test(snapshotDate)) {
-    return `${snapshotDate.slice(8, 10)}.${snapshotDate.slice(5, 7)}`;
+function formatDay(dayDate: string) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dayDate)) {
+    return `${dayDate.slice(8, 10)}.${dayDate.slice(5, 7)}`;
   }
-  return snapshotDate;
+  return dayDate;
 }
 
 export default function KitDetail() {
@@ -80,47 +79,35 @@ export default function KitDetail() {
   });
 
   const dailyParams = selectedPeriod ? { period: selectedPeriod } : {};
-  const { data: daily, isLoading: dailyLoading } = useGetKitDaily(
-    kitNo,
-    dailyParams,
-    {
-      query: {
-        queryKey: getGetKitDailyQueryKey(kitNo, dailyParams),
-        enabled: Boolean(kitNo),
-      },
-    }
-  );
+  const { data: daily, isLoading: dailyLoading } = useGetKitDaily(kitNo, dailyParams, {
+    query: {
+      queryKey: getGetKitDailyQueryKey(kitNo, dailyParams),
+      enabled: Boolean(kitNo),
+    },
+  });
 
   const activePeriod = selectedPeriod ?? detail?.currentPeriod ?? null;
-
-  const dailyWithDeltas = useMemo(() => {
-    if (!daily) return [];
-    return daily.map((row, i) => {
-      const prev = i > 0 ? daily[i - 1] : null;
-      const deltaGb =
-        row.totalGb != null && prev?.totalGb != null ? row.totalGb - prev.totalGb : null;
-      const deltaPrice =
-        row.totalPrice != null && prev?.totalPrice != null
-          ? row.totalPrice - prev.totalPrice
-          : null;
-      return { ...row, deltaGb, deltaPrice };
-    });
-  }, [daily]);
-
-  const chartData = useMemo(
-    () =>
-      (daily ?? []).map((p) => ({
-        day: formatDay(p.snapshotDate),
-        gb: p.totalGb ?? 0,
-        price: p.totalPrice ?? 0,
-      })),
-    [daily]
-  );
-
-  const currency = detail?.currency || "USD";
+  const currency = "USD";
   const periodLabel = formatPeriodLabel(activePeriod);
 
-  // Period options: union of monthly periods + currentPeriod, sorted desc.
+  // Group CDR rows by day so the chart shows one bar per day, while the
+  // table still lists every CDR. Each row in `daily` is one CDR line item.
+  const chartData = useMemo(() => {
+    const byDay = new Map<string, { day: string; gib: number; usd: number }>();
+    for (const r of daily ?? []) {
+      const key = r.dayDate;
+      const cur =
+        byDay.get(key) ?? { day: formatDay(r.dayDate), gib: 0, usd: 0 };
+      cur.gib += r.volumeGib ?? 0;
+      cur.usd += r.chargeUsd ?? 0;
+      byDay.set(key, cur);
+    }
+    return Array.from(byDay.entries())
+      .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+      .map(([, v]) => v);
+  }, [daily]);
+
+  // Period options: union of monthly periods + currentPeriod.
   const periodOptions = useMemo(() => {
     const set = new Set<string>();
     if (detail?.currentPeriod) set.add(detail.currentPeriod);
@@ -190,9 +177,9 @@ export default function KitDetail() {
             ) : (
               <div className="flex items-baseline gap-2">
                 <div className="text-2xl font-normal tracking-tight text-foreground font-mono">
-                  {formatNumber(detail?.totalGb, 2)}
+                  {formatNumber(detail?.totalGib, 2)}
                 </div>
-                <span className="text-sm font-medium text-muted-foreground">GB</span>
+                <span className="text-sm font-medium text-muted-foreground">GiB</span>
               </div>
             )}
           </CardContent>
@@ -210,7 +197,7 @@ export default function KitDetail() {
               <Skeleton className="h-9 w-36 rounded" />
             ) : (
               <div className="text-2xl font-normal tracking-tight text-foreground font-mono">
-                {formatCurrency(detail?.totalPrice, currency)}
+                {formatCurrency(detail?.totalUsd, currency)}
               </div>
             )}
           </CardContent>
@@ -235,21 +222,18 @@ export default function KitDetail() {
         </Card>
       </div>
 
-      {/* Daily trend */}
+      {/* Daily breakdown */}
       <Card className="border border-border bg-card shadow-none rounded-xl">
         <CardHeader className="pb-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <CardTitle className="text-lg font-normal tracking-tight">Günlük Seyir</CardTitle>
+              <CardTitle className="text-lg font-normal tracking-tight">Günlük Kullanım</CardTitle>
               <CardDescription className="mt-1 text-sm">
-                {periodLabel} dönemi içerisinde gün sonu toplamları (her gün için en son senkronizasyon değeri).
+                {periodLabel} dönemi içinde gün gün veri tüketimi (GiB) ve fatura kalemi (USD).
               </CardDescription>
             </div>
             {periodOptions.length > 0 && (
-              <Select
-                value={activePeriod ?? undefined}
-                onValueChange={(v) => setSelectedPeriod(v)}
-              >
+              <Select value={activePeriod ?? undefined} onValueChange={(v) => setSelectedPeriod(v)}>
                 <SelectTrigger className="w-[160px] h-9 rounded-lg border-border shadow-none font-mono text-[12px] shrink-0">
                   <SelectValue placeholder="Dönem seç" />
                 </SelectTrigger>
@@ -269,13 +253,13 @@ export default function KitDetail() {
             <Skeleton className="h-56 w-full rounded-lg" />
           ) : chartData.length === 0 ? (
             <div className="text-center py-12 text-sm text-muted-foreground border border-dashed border-border rounded-lg">
-              Bu dönem için henüz günlük snapshot verisi yok. Bir senkronizasyon çalıştığında ilk veri yazılacak.
+              Bu dönem için kayıt bulunamadı.
             </div>
           ) : (
             <>
               <div className="h-56 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData} margin={{ top: 10, right: 24, left: 0, bottom: 0 }}>
+                  <ComposedChart data={chartData} margin={{ top: 10, right: 24, left: 0, bottom: 0 }}>
                     <CartesianGrid stroke="#e6e5e0" strokeDasharray="2 4" vertical={false} />
                     <XAxis
                       dataKey="day"
@@ -285,14 +269,14 @@ export default function KitDetail() {
                       axisLine={{ stroke: "#e6e5e0" }}
                     />
                     <YAxis
-                      yAxisId="gb"
+                      yAxisId="gib"
                       stroke="#9fbbe0"
                       tick={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}
                       tickLine={false}
                       axisLine={false}
                     />
                     <YAxis
-                      yAxisId="price"
+                      yAxisId="usd"
                       orientation="right"
                       stroke="#dfa88f"
                       tick={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}
@@ -308,30 +292,28 @@ export default function KitDetail() {
                         fontSize: 12,
                       }}
                       formatter={(value: number, name: string) => {
-                        if (name === "gb") return [`${formatNumber(value, 2)} GB`, "Veri"];
-                        if (name === "price") return [formatCurrency(value, currency), "Tutar"];
+                        if (name === "gib") return [`${formatNumber(value, 2)} GiB`, "Veri"];
+                        if (name === "usd") return [formatCurrency(value, currency), "Tutar"];
                         return [value, name];
                       }}
                     />
-                    <Line
-                      yAxisId="gb"
-                      type="monotone"
-                      dataKey="gb"
-                      stroke="#9fbbe0"
-                      strokeWidth={2}
-                      dot={{ r: 3, fill: "#9fbbe0" }}
-                      activeDot={{ r: 5 }}
+                    <Bar
+                      yAxisId="gib"
+                      dataKey="gib"
+                      fill="#9fbbe0"
+                      radius={[3, 3, 0, 0]}
+                      maxBarSize={28}
                     />
                     <Line
-                      yAxisId="price"
+                      yAxisId="usd"
                       type="monotone"
-                      dataKey="price"
+                      dataKey="usd"
                       stroke="#dfa88f"
                       strokeWidth={2}
                       dot={{ r: 3, fill: "#dfa88f" }}
                       activeDot={{ r: 5 }}
                     />
-                  </LineChart>
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
 
@@ -342,55 +324,31 @@ export default function KitDetail() {
                       <Head className="pl-6 font-semibold uppercase tracking-widest text-[10px] text-muted-foreground h-10">
                         Tarih
                       </Head>
-                      <Head className="text-right font-semibold uppercase tracking-widest text-[10px] text-muted-foreground h-10">
-                        Toplam GB
+                      <Head className="font-semibold uppercase tracking-widest text-[10px] text-muted-foreground h-10">
+                        Servis
                       </Head>
                       <Head className="text-right font-semibold uppercase tracking-widest text-[10px] text-muted-foreground h-10">
-                        Δ GB
-                      </Head>
-                      <Head className="text-right font-semibold uppercase tracking-widest text-[10px] text-muted-foreground h-10">
-                        Toplam Tutar
+                        Veri (GiB)
                       </Head>
                       <Head className="text-right pr-6 font-semibold uppercase tracking-widest text-[10px] text-muted-foreground h-10">
-                        Δ Tutar
+                        Tutar (USD)
                       </Head>
                     </Row>
                   </Header>
                   <Body className="divide-y divide-border">
-                    {dailyWithDeltas.map((row) => (
-                      <Row key={row.snapshotDate} className="border-none h-11 hover:bg-secondary/30">
+                    {(daily ?? []).map((row) => (
+                      <Row key={row.cdrId} className="border-none h-11 hover:bg-secondary/30">
                         <Cell className="pl-6 font-mono text-[12px] text-foreground">
-                          {row.snapshotDate}
+                          {row.dayDate}
+                        </Cell>
+                        <Cell className="text-[12px] text-foreground/80 truncate max-w-[280px]">
+                          {row.service ?? "-"}
                         </Cell>
                         <Cell className="text-right font-mono text-[12px] text-foreground">
-                          {formatNumber(row.totalGb, 2)}
+                          {formatNumber(row.volumeGib, 3)}
                         </Cell>
-                        <Cell className="text-right font-mono text-[11px]">
-                          {row.deltaGb == null ? (
-                            <span className="text-muted-foreground">—</span>
-                          ) : row.deltaGb > 0 ? (
-                            <span className="text-foreground">+{formatNumber(row.deltaGb, 2)}</span>
-                          ) : (
-                            <span className="text-muted-foreground">
-                              {formatNumber(row.deltaGb, 2)}
-                            </span>
-                          )}
-                        </Cell>
-                        <Cell className="text-right font-mono text-[12px] text-foreground">
-                          {formatCurrency(row.totalPrice, row.currency || currency)}
-                        </Cell>
-                        <Cell className="text-right pr-6 font-mono text-[11px]">
-                          {row.deltaPrice == null ? (
-                            <span className="text-muted-foreground">—</span>
-                          ) : row.deltaPrice > 0 ? (
-                            <span className="text-foreground">
-                              +{formatCurrency(row.deltaPrice, row.currency || currency)}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">
-                              {formatCurrency(row.deltaPrice, row.currency || currency)}
-                            </span>
-                          )}
+                        <Cell className="text-right pr-6 font-mono text-[12px] text-foreground">
+                          {formatCurrency(row.chargeUsd, currency)}
                         </Cell>
                       </Row>
                     ))}
@@ -409,7 +367,7 @@ export default function KitDetail() {
             <div>
               <CardTitle className="text-lg font-normal tracking-tight">Aylık Özet</CardTitle>
               <CardDescription className="mt-1 text-sm">
-                Her dönem için kaydedilen son snapshot.
+                Her dönem için portal footer toplamı (GiB & USD).
               </CardDescription>
             </div>
             <Activity className="w-4 h-4 text-muted-foreground" />
@@ -431,30 +389,40 @@ export default function KitDetail() {
                       Dönem
                     </Head>
                     <Head className="text-right font-semibold uppercase tracking-widest text-[10px] text-muted-foreground h-10">
-                      Toplam GB
+                      Toplam GiB
                     </Head>
                     <Head className="text-right font-semibold uppercase tracking-widest text-[10px] text-muted-foreground h-10">
-                      Toplam Tutar
+                      Toplam USD
+                    </Head>
+                    <Head className="text-right font-semibold uppercase tracking-widest text-[10px] text-muted-foreground h-10">
+                      Satır
                     </Head>
                     <Head className="text-right pr-6 font-semibold uppercase tracking-widest text-[10px] text-muted-foreground h-10">
-                      Son Snapshot
+                      Tarama
                     </Head>
                   </Row>
                 </Header>
                 <Body className="divide-y divide-border">
                   {monthly.map((row) => (
-                    <Row key={row.period} className="border-none h-11 hover:bg-secondary/30">
+                    <Row
+                      key={row.period}
+                      className="border-none h-11 hover:bg-secondary/30 cursor-pointer"
+                      onClick={() => setSelectedPeriod(row.period)}
+                    >
                       <Cell className="pl-6 font-mono text-[12px] text-foreground">
                         {formatPeriodLabel(row.period)}
                       </Cell>
                       <Cell className="text-right font-mono text-[12px] text-foreground">
-                        {formatNumber(row.totalGb, 2)}
+                        {formatNumber(row.totalGib, 2)}
                       </Cell>
                       <Cell className="text-right font-mono text-[12px] text-foreground">
-                        {formatCurrency(row.totalPrice, row.currency || currency)}
+                        {formatCurrency(row.totalUsd, currency)}
+                      </Cell>
+                      <Cell className="text-right font-mono text-[12px] text-foreground">
+                        {row.rowCount}
                       </Cell>
                       <Cell className="text-right pr-6 font-mono text-[11px] text-muted-foreground">
-                        {row.lastSnapshotDate || "-"}
+                        {row.scrapedAt ? formatDate(row.scrapedAt) : "-"}
                       </Cell>
                     </Row>
                   ))}

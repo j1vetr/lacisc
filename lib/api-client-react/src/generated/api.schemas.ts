@@ -48,6 +48,7 @@ export interface StationSettings {
   syncIntervalMinutes: number;
   lastSuccessSyncAt?: string | null;
   lastErrorMessage?: string | null;
+  firstFullSyncAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -74,45 +75,12 @@ export interface SyncResponse {
   recordsUpdated: number;
 }
 
-export interface CdrRecord {
-  id: number;
-  kitNo: string;
-  shipName?: string | null;
-  product?: string | null;
-  service?: string | null;
-  originNumber?: string | null;
-  destinationNumber?: string | null;
-  customerCode?: string | null;
-  totalVolumeData?: string | null;
-  totalVolumeGbNumeric?: number | null;
-  totalVolumeMin?: string | null;
-  totalVolumeMsg?: string | null;
-  currency?: string | null;
-  totalPrice?: string | null;
-  inBundle?: string | null;
-  invoicedAmount?: string | null;
-  period?: string | null;
-  cdrId?: string | null;
-  startCdr?: string | null;
-  endCdr?: string | null;
-  syncedAt: string;
-  createdAt: string;
-}
-
-export interface CdrRecordsResponse {
-  records: CdrRecord[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
 export interface KitSummary {
   kitNo: string;
   shipName?: string | null;
-  totalGb: number;
-  totalPrice: number;
-  recordCount: number;
+  totalGib?: number | null;
+  totalUsd?: number | null;
+  rowCount: number;
   lastPeriod?: string | null;
   lastSyncedAt?: string | null;
 }
@@ -121,31 +89,32 @@ export interface KitDetail {
   kitNo: string;
   shipName?: string | null;
   currentPeriod?: string | null;
-  totalGb?: number | null;
-  totalPrice?: number | null;
-  currency?: string | null;
-  recordCount: number;
+  totalGib?: number | null;
+  totalUsd?: number | null;
+  rowCount: number;
   lastSyncedAt?: string | null;
 }
 
 export interface KitDailyPoint {
-  snapshotDate: string;
-  totalGb?: number | null;
-  totalPrice?: number | null;
-  currency?: string | null;
+  /** YYYY-MM-DD */
+  dayDate: string;
+  volumeGib?: number | null;
+  chargeUsd?: number | null;
+  service?: string | null;
+  cdrId: string;
 }
 
 export interface KitMonthlyPoint {
   period: string;
-  totalGb?: number | null;
-  totalPrice?: number | null;
-  currency?: string | null;
-  lastSnapshotDate?: string | null;
+  totalGib?: number | null;
+  totalUsd?: number | null;
+  rowCount: number;
+  scrapedAt?: string | null;
 }
 
 export interface DashboardSummary {
   totalKits: number;
-  totalGb: number;
+  totalGib: number;
   totalUsd: number;
   activePeriod?: string | null;
   lastSuccessSyncAt?: string | null;
@@ -178,36 +147,6 @@ export interface SyncLogsResponse {
   totalPages: number;
 }
 
-export type GetCdrRecordsParams = {
-  page?: number;
-  limit?: number;
-  kitNo?: string;
-  period?: string;
-  customerCode?: string;
-  product?: string;
-  service?: string;
-  sortBy?: GetCdrRecordsSortBy;
-  sortOrder?: GetCdrRecordsSortOrder;
-};
-
-export type GetCdrRecordsSortBy =
-  (typeof GetCdrRecordsSortBy)[keyof typeof GetCdrRecordsSortBy];
-
-export const GetCdrRecordsSortBy = {
-  totalVolumeGbNumeric: "totalVolumeGbNumeric",
-  totalPrice: "totalPrice",
-  syncedAt: "syncedAt",
-  startCdr: "startCdr",
-} as const;
-
-export type GetCdrRecordsSortOrder =
-  (typeof GetCdrRecordsSortOrder)[keyof typeof GetCdrRecordsSortOrder];
-
-export const GetCdrRecordsSortOrder = {
-  asc: "asc",
-  desc: "desc",
-} as const;
-
 export type GetKitsParams = {
   kitNo?: string;
   sortBy?: GetKitsSortBy;
@@ -216,8 +155,8 @@ export type GetKitsParams = {
 export type GetKitsSortBy = (typeof GetKitsSortBy)[keyof typeof GetKitsSortBy];
 
 export const GetKitsSortBy = {
-  totalGb: "totalGb",
-  totalPrice: "totalPrice",
+  totalGib: "totalGib",
+  totalUsd: "totalUsd",
   lastSeen: "lastSeen",
 } as const;
 
@@ -228,9 +167,4 @@ export type GetKitDailyParams = {
 export type GetSyncLogsParams = {
   page?: number;
   limit?: number;
-};
-
-export type ExportCsvParams = {
-  kitNo?: string;
-  period?: string;
 };

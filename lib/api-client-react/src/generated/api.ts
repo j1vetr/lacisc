@@ -19,12 +19,9 @@ import type {
 import type {
   AdminUser,
   AuthResponse,
-  CdrRecordsResponse,
   ChangePasswordBody,
   DashboardSummary,
   ErrorResponse,
-  ExportCsvParams,
-  GetCdrRecordsParams,
   GetKitDailyParams,
   GetKitsParams,
   GetSyncLogsParams,
@@ -442,9 +439,6 @@ export const useChangePassword = <
   return useMutation(getChangePasswordMutationOptions(options));
 };
 
-/**
- * @summary Get Station Satcom settings
- */
 export const getGetStationSettingsUrl = () => {
   return `/api/station/settings`;
 };
@@ -493,10 +487,6 @@ export type GetStationSettingsQueryResult = NonNullable<
 >;
 export type GetStationSettingsQueryError = ErrorType<ErrorResponse>;
 
-/**
- * @summary Get Station Satcom settings
- */
-
 export function useGetStationSettings<
   TData = Awaited<ReturnType<typeof getStationSettings>>,
   TError = ErrorType<ErrorResponse>,
@@ -517,9 +507,6 @@ export function useGetStationSettings<
   return { ...query, queryKey: queryOptions.queryKey };
 }
 
-/**
- * @summary Save Station Satcom settings
- */
 export const getSaveStationSettingsUrl = () => {
   return `/api/station/settings`;
 };
@@ -580,9 +567,6 @@ export type SaveStationSettingsMutationResult = NonNullable<
 export type SaveStationSettingsMutationBody = BodyType<SaveStationSettingsBody>;
 export type SaveStationSettingsMutationError = ErrorType<unknown>;
 
-/**
- * @summary Save Station Satcom settings
- */
 export const useSaveStationSettings = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -603,9 +587,6 @@ export const useSaveStationSettings = <
   return useMutation(getSaveStationSettingsMutationOptions(options));
 };
 
-/**
- * @summary Test Station Satcom connection
- */
 export const getTestConnectionUrl = () => {
   return `/api/station/test-connection`;
 };
@@ -661,9 +642,6 @@ export type TestConnectionMutationResult = NonNullable<
 
 export type TestConnectionMutationError = ErrorType<unknown>;
 
-/**
- * @summary Test Station Satcom connection
- */
 export const useTestConnection = <
   TError = ErrorType<unknown>,
   TContext = unknown,
@@ -684,9 +662,6 @@ export const useTestConnection = <
   return useMutation(getTestConnectionMutationOptions(options));
 };
 
-/**
- * @summary Trigger manual sync
- */
 export const getSyncNowUrl = () => {
   return `/api/station/sync-now`;
 };
@@ -740,9 +715,6 @@ export type SyncNowMutationResult = NonNullable<
 
 export type SyncNowMutationError = ErrorType<ErrorResponse>;
 
-/**
- * @summary Trigger manual sync
- */
 export const useSyncNow = <
   TError = ErrorType<ErrorResponse>,
   TContext = unknown,
@@ -764,101 +736,7 @@ export const useSyncNow = <
 };
 
 /**
- * @summary Get CDR records
- */
-export const getGetCdrRecordsUrl = (params?: GetCdrRecordsParams) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/station/cdr-records?${stringifiedParams}`
-    : `/api/station/cdr-records`;
-};
-
-export const getCdrRecords = async (
-  params?: GetCdrRecordsParams,
-  options?: RequestInit,
-): Promise<CdrRecordsResponse> => {
-  return customFetch<CdrRecordsResponse>(getGetCdrRecordsUrl(params), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getGetCdrRecordsQueryKey = (params?: GetCdrRecordsParams) => {
-  return [`/api/station/cdr-records`, ...(params ? [params] : [])] as const;
-};
-
-export const getGetCdrRecordsQueryOptions = <
-  TData = Awaited<ReturnType<typeof getCdrRecords>>,
-  TError = ErrorType<unknown>,
->(
-  params?: GetCdrRecordsParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getCdrRecords>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey = queryOptions?.queryKey ?? getGetCdrRecordsQueryKey(params);
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCdrRecords>>> = ({
-    signal,
-  }) => getCdrRecords(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getCdrRecords>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type GetCdrRecordsQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getCdrRecords>>
->;
-export type GetCdrRecordsQueryError = ErrorType<unknown>;
-
-/**
- * @summary Get CDR records
- */
-
-export function useGetCdrRecords<
-  TData = Awaited<ReturnType<typeof getCdrRecords>>,
-  TError = ErrorType<unknown>,
->(
-  params?: GetCdrRecordsParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getCdrRecords>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetCdrRecordsQueryOptions(params, options);
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-/**
- * @summary Get KIT summary
+ * @summary KIT summary list (active period totals)
  */
 export const getGetKitsUrl = (params?: GetKitsParams) => {
   const normalizedParams = new URLSearchParams();
@@ -921,7 +799,7 @@ export type GetKitsQueryResult = NonNullable<
 export type GetKitsQueryError = ErrorType<unknown>;
 
 /**
- * @summary Get KIT summary
+ * @summary KIT summary list (active period totals)
  */
 
 export function useGetKits<
@@ -943,9 +821,6 @@ export function useGetKits<
   return { ...query, queryKey: queryOptions.queryKey };
 }
 
-/**
- * @summary Get a single KIT with current period summary
- */
 export const getGetKitDetailUrl = (kitNo: string) => {
   return `/api/station/kits/${kitNo}`;
 };
@@ -1003,10 +878,6 @@ export type GetKitDetailQueryResult = NonNullable<
 >;
 export type GetKitDetailQueryError = ErrorType<ErrorResponse>;
 
-/**
- * @summary Get a single KIT with current period summary
- */
-
 export function useGetKitDetail<
   TData = Awaited<ReturnType<typeof getKitDetail>>,
   TError = ErrorType<ErrorResponse>,
@@ -1031,7 +902,7 @@ export function useGetKitDetail<
 }
 
 /**
- * @summary Get day-by-day snapshots for a KIT in a period
+ * @summary Day-by-day CDR rows for a KIT in a period
  */
 export const getGetKitDailyUrl = (
   kitNo: string,
@@ -1115,7 +986,7 @@ export type GetKitDailyQueryResult = NonNullable<
 export type GetKitDailyQueryError = ErrorType<unknown>;
 
 /**
- * @summary Get day-by-day snapshots for a KIT in a period
+ * @summary Day-by-day CDR rows for a KIT in a period
  */
 
 export function useGetKitDaily<
@@ -1143,7 +1014,7 @@ export function useGetKitDaily<
 }
 
 /**
- * @summary Get month-by-month last snapshot for a KIT
+ * @summary Period totals for a KIT (all months)
  */
 export const getGetKitMonthlyUrl = (kitNo: string) => {
   return `/api/station/kits/${kitNo}/monthly`;
@@ -1203,7 +1074,7 @@ export type GetKitMonthlyQueryResult = NonNullable<
 export type GetKitMonthlyQueryError = ErrorType<unknown>;
 
 /**
- * @summary Get month-by-month last snapshot for a KIT
+ * @summary Period totals for a KIT (all months)
  */
 
 export function useGetKitMonthly<
@@ -1229,9 +1100,6 @@ export function useGetKitMonthly<
   return { ...query, queryKey: queryOptions.queryKey };
 }
 
-/**
- * @summary Get dashboard summary
- */
 export const getGetDashboardSummaryUrl = () => {
   return `/api/station/summary`;
 };
@@ -1280,10 +1148,6 @@ export type GetDashboardSummaryQueryResult = NonNullable<
 >;
 export type GetDashboardSummaryQueryError = ErrorType<unknown>;
 
-/**
- * @summary Get dashboard summary
- */
-
 export function useGetDashboardSummary<
   TData = Awaited<ReturnType<typeof getDashboardSummary>>,
   TError = ErrorType<unknown>,
@@ -1304,9 +1168,6 @@ export function useGetDashboardSummary<
   return { ...query, queryKey: queryOptions.queryKey };
 }
 
-/**
- * @summary Get sync logs
- */
 export const getGetSyncLogsUrl = (params?: GetSyncLogsParams) => {
   const normalizedParams = new URLSearchParams();
 
@@ -1371,10 +1232,6 @@ export type GetSyncLogsQueryResult = NonNullable<
 >;
 export type GetSyncLogsQueryError = ErrorType<unknown>;
 
-/**
- * @summary Get sync logs
- */
-
 export function useGetSyncLogs<
   TData = Awaited<ReturnType<typeof getSyncLogs>>,
   TError = ErrorType<unknown>,
@@ -1390,100 +1247,6 @@ export function useGetSyncLogs<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetSyncLogsQueryOptions(params, options);
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-/**
- * @summary Export CDR records as CSV
- */
-export const getExportCsvUrl = (params?: ExportCsvParams) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/station/export-csv?${stringifiedParams}`
-    : `/api/station/export-csv`;
-};
-
-export const exportCsv = async (
-  params?: ExportCsvParams,
-  options?: RequestInit,
-): Promise<string> => {
-  return customFetch<string>(getExportCsvUrl(params), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getExportCsvQueryKey = (params?: ExportCsvParams) => {
-  return [`/api/station/export-csv`, ...(params ? [params] : [])] as const;
-};
-
-export const getExportCsvQueryOptions = <
-  TData = Awaited<ReturnType<typeof exportCsv>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportCsvParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportCsv>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey = queryOptions?.queryKey ?? getExportCsvQueryKey(params);
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof exportCsv>>> = ({
-    signal,
-  }) => exportCsv(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof exportCsv>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type ExportCsvQueryResult = NonNullable<
-  Awaited<ReturnType<typeof exportCsv>>
->;
-export type ExportCsvQueryError = ErrorType<unknown>;
-
-/**
- * @summary Export CDR records as CSV
- */
-
-export function useExportCsv<
-  TData = Awaited<ReturnType<typeof exportCsv>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportCsvParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportCsv>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getExportCsvQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

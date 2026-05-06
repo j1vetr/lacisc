@@ -6,7 +6,7 @@ import {
   integer,
   doublePrecision,
   timestamp,
-  jsonb,
+  date,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -31,67 +31,10 @@ export const stationCredentials = pgTable("station_credentials", {
   syncIntervalMinutes: integer("sync_interval_minutes").default(30).notNull(),
   lastSuccessSyncAt: timestamp("last_success_sync_at"),
   lastErrorMessage: text("last_error_message"),
+  firstFullSyncAt: timestamp("first_full_sync_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
-
-export const stationCdrRecords = pgTable(
-  "station_cdr_records",
-  {
-    id: serial("id").primaryKey(),
-    kitNo: text("kit_no").notNull(),
-    product: text("product"),
-    service: text("service"),
-    originNumber: text("origin_number"),
-    destinationNumber: text("destination_number"),
-    customerCode: text("customer_code"),
-    totalVolumeData: text("total_volume_data"),
-    totalVolumeGbNumeric: doublePrecision("total_volume_gb_numeric"),
-    totalVolumeMin: text("total_volume_min"),
-    totalVolumeMsg: text("total_volume_msg"),
-    currency: text("currency"),
-    totalPrice: text("total_price"),
-    inBundle: text("in_bundle"),
-    invoicedAmount: text("invoiced_amount"),
-    period: text("period"),
-    cdrId: text("cdr_id"),
-    startCdr: text("start_cdr"),
-    endCdr: text("end_cdr"),
-    rawRowData: jsonb("raw_row_data"),
-    syncedAt: timestamp("synced_at").defaultNow().notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  },
-  (table) => [
-    uniqueIndex("uq_cdr_period_kit_cdrid").on(
-      table.period,
-      table.kitNo,
-      table.cdrId
-    ),
-  ]
-);
-
-export const stationKitDailySnapshots = pgTable(
-  "station_kit_daily_snapshots",
-  {
-    id: serial("id").primaryKey(),
-    kitNo: text("kit_no").notNull(),
-    period: text("period").notNull(),
-    snapshotDate: text("snapshot_date").notNull(),
-    totalGb: doublePrecision("total_gb"),
-    totalPriceNumeric: doublePrecision("total_price_numeric"),
-    currency: text("currency"),
-    capturedAt: timestamp("captured_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  },
-  (table) => [
-    uniqueIndex("uq_kit_daily_snapshot").on(
-      table.kitNo,
-      table.period,
-      table.snapshotDate
-    ),
-  ]
-);
 
 export const stationKits = pgTable("station_kits", {
   kitNo: text("kit_no").primaryKey(),
@@ -101,6 +44,46 @@ export const stationKits = pgTable("station_kits", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// One row per individual CDR (charge line) inside a (kit, period). The portal
+// renders these as gün-gün satırlar in the rated CDR grid. We keep cdr_id in
+// the PK so multiple charges on the same day for the same KIT+period (rare
+// but possible) don't overwrite each other.
+export const stationKitDaily = pgTable(
+  "station_kit_daily",
+  {
+    id: serial("id").primaryKey(),
+    kitNo: text("kit_no").notNull(),
+    period: text("period").notNull(), // YYYYMM
+    dayDate: date("day_date").notNull(), // YYYY-MM-DD parsed from grid col9
+    volumeGib: doublePrecision("volume_gib"),
+    chargeUsd: doublePrecision("charge_usd"),
+    service: text("service"),
+    cdrId: text("cdr_id").notNull(),
+    scrapedAt: timestamp("scraped_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("uq_kit_daily_cdr").on(table.kitNo, table.period, table.cdrId),
+  ]
+);
+
+// One row per (kit, period) — the period footer totals from the DevExpress
+// grid (col12 / col22), plus the row count we observed. Updated on every
+// sync that visits this period.
+export const stationKitPeriodTotal = pgTable(
+  "station_kit_period_total",
+  {
+    kitNo: text("kit_no").notNull(),
+    period: text("period").notNull(), // YYYYMM
+    totalGib: doublePrecision("total_gib"),
+    totalUsd: doublePrecision("total_usd"),
+    rowCount: integer("row_count").default(0).notNull(),
+    scrapedAt: timestamp("scraped_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("uq_kit_period_total").on(table.kitNo, table.period),
+  ]
+);
 
 export const stationSyncLogs = pgTable("station_sync_logs", {
   id: serial("id").primaryKey(),
@@ -132,11 +115,18 @@ export type InsertStationCredentials = z.infer<
 >;
 export type StationCredentials = typeof stationCredentials.$inferSelect;
 
-export const insertCdrRecordSchema = createInsertSchema(stationCdrRecords).omit(
-  { id: true, createdAt: true, updatedAt: true }
-);
-export type InsertCdrRecord = z.infer<typeof insertCdrRecordSchema>;
-export type CdrRecord = typeof stationCdrRecords.$inferSelect;
+export const insertKitDailySchema = createInsertSchema(stationKitDaily).omit({
+  id: true,
+  scrapedAt: true,
+});
+export type InsertKitDaily = z.infer<typeof insertKitDailySchema>;
+export type KitDaily = typeof stationKitDaily.$inferSelect;
+
+export const insertKitPeriodTotalSchema = createInsertSchema(
+  stationKitPeriodTotal
+).omit({ scrapedAt: true });
+export type InsertKitPeriodTotal = z.infer<typeof insertKitPeriodTotalSchema>;
+export type KitPeriodTotal = typeof stationKitPeriodTotal.$inferSelect;
 
 export const insertSyncLogSchema = createInsertSchema(stationSyncLogs).omit({
   id: true,

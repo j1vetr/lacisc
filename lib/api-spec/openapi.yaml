@@ -9,13 +9,9 @@ servers:
     description: Base API path
 tags:
   - name: health
-    description: Health operations
   - name: auth
-    description: Authentication operations
   - name: station
-    description: Station Satcom operations
   - name: records
-    description: CDR records operations
 
 paths:
   /healthz:
@@ -121,7 +117,6 @@ paths:
     get:
       operationId: getStationSettings
       tags: [station]
-      summary: Get Station Satcom settings
       security:
         - bearerAuth: []
       responses:
@@ -140,7 +135,6 @@ paths:
     post:
       operationId: saveStationSettings
       tags: [station]
-      summary: Save Station Satcom settings
       security:
         - bearerAuth: []
       requestBody:
@@ -161,7 +155,6 @@ paths:
     post:
       operationId: testConnection
       tags: [station]
-      summary: Test Station Satcom connection
       security:
         - bearerAuth: []
       responses:
@@ -176,7 +169,6 @@ paths:
     post:
       operationId: syncNow
       tags: [station]
-      summary: Trigger manual sync
       security:
         - bearerAuth: []
       responses:
@@ -193,79 +185,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /station/cdr-records:
-    get:
-      operationId: getCdrRecords
-      tags: [records]
-      summary: Get CDR records
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: page
-          in: query
-          schema:
-            type: integer
-            default: 1
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 50
-        - name: kitNo
-          in: query
-          schema:
-            type: string
-        - name: period
-          in: query
-          schema:
-            type: string
-        - name: customerCode
-          in: query
-          schema:
-            type: string
-        - name: product
-          in: query
-          schema:
-            type: string
-        - name: service
-          in: query
-          schema:
-            type: string
-        - name: sortBy
-          in: query
-          schema:
-            type: string
-            enum: [totalVolumeGbNumeric, totalPrice, syncedAt, startCdr]
-        - name: sortOrder
-          in: query
-          schema:
-            type: string
-            enum: [asc, desc]
-      responses:
-        "200":
-          description: CDR records list
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CdrRecordsResponse"
-
   /station/kits:
     get:
       operationId: getKits
       tags: [records]
-      summary: Get KIT summary
+      summary: KIT summary list (active period totals)
       security:
         - bearerAuth: []
       parameters:
         - name: kitNo
           in: query
-          schema:
-            type: string
+          schema: { type: string }
         - name: sortBy
           in: query
           schema:
             type: string
-            enum: [totalGb, totalPrice, lastSeen]
+            enum: [totalGib, totalUsd, lastSeen]
       responses:
         "200":
           description: KIT summaries
@@ -280,15 +215,13 @@ paths:
     get:
       operationId: getKitDetail
       tags: [records]
-      summary: Get a single KIT with current period summary
       security:
         - bearerAuth: []
       parameters:
         - name: kitNo
           in: path
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         "200":
           description: KIT detail
@@ -307,22 +240,20 @@ paths:
     get:
       operationId: getKitDaily
       tags: [records]
-      summary: Get day-by-day snapshots for a KIT in a period
+      summary: Day-by-day CDR rows for a KIT in a period
       security:
         - bearerAuth: []
       parameters:
         - name: kitNo
           in: path
           required: true
-          schema:
-            type: string
+          schema: { type: string }
         - name: period
           in: query
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         "200":
-          description: Daily snapshot points
+          description: Daily points
           content:
             application/json:
               schema:
@@ -334,18 +265,17 @@ paths:
     get:
       operationId: getKitMonthly
       tags: [records]
-      summary: Get month-by-month last snapshot for a KIT
+      summary: Period totals for a KIT (all months)
       security:
         - bearerAuth: []
       parameters:
         - name: kitNo
           in: path
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         "200":
-          description: Monthly snapshot points
+          description: Monthly totals
           content:
             application/json:
               schema:
@@ -357,7 +287,6 @@ paths:
     get:
       operationId: getDashboardSummary
       tags: [records]
-      summary: Get dashboard summary
       security:
         - bearerAuth: []
       responses:
@@ -372,20 +301,15 @@ paths:
     get:
       operationId: getSyncLogs
       tags: [records]
-      summary: Get sync logs
       security:
         - bearerAuth: []
       parameters:
         - name: page
           in: query
-          schema:
-            type: integer
-            default: 1
+          schema: { type: integer, default: 1 }
         - name: limit
           in: query
-          schema:
-            type: integer
-            default: 20
+          schema: { type: integer, default: 20 }
       responses:
         "200":
           description: Sync logs
@@ -393,30 +317,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SyncLogsResponse"
-
-  /station/export-csv:
-    get:
-      operationId: exportCsv
-      tags: [records]
-      summary: Export CDR records as CSV
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: kitNo
-          in: query
-          schema:
-            type: string
-        - name: period
-          in: query
-          schema:
-            type: string
-      responses:
-        "200":
-          description: CSV file
-          content:
-            text/csv:
-              schema:
-                type: string
 
 components:
   securitySchemes:
@@ -429,108 +329,66 @@ components:
     HealthStatus:
       type: object
       properties:
-        status:
-          type: string
-      required:
-        - status
+        status: { type: string }
+      required: [status]
 
     ErrorResponse:
       type: object
       properties:
-        error:
-          type: string
-      required:
-        - error
+        error: { type: string }
+      required: [error]
 
     MessageResponse:
       type: object
       properties:
-        message:
-          type: string
-      required:
-        - message
+        message: { type: string }
+      required: [message]
 
     LoginBody:
       type: object
       properties:
-        email:
-          type: string
-          format: email
-        password:
-          type: string
-      required:
-        - email
-        - password
+        email: { type: string, format: email }
+        password: { type: string }
+      required: [email, password]
 
     AuthResponse:
       type: object
       properties:
-        token:
-          type: string
+        token: { type: string }
         user:
           $ref: "#/components/schemas/AdminUser"
-      required:
-        - token
-        - user
+      required: [token, user]
 
     AdminUser:
       type: object
       properties:
-        id:
-          type: integer
-        name:
-          type: string
-        email:
-          type: string
-        createdAt:
-          type: string
-          format: date-time
-      required:
-        - id
-        - name
-        - email
-        - createdAt
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string }
+        createdAt: { type: string, format: date-time }
+      required: [id, name, email, createdAt]
 
     ChangePasswordBody:
       type: object
       properties:
-        currentPassword:
-          type: string
-        newPassword:
-          type: string
-      required:
-        - currentPassword
-        - newPassword
+        currentPassword: { type: string }
+        newPassword: { type: string }
+      required: [currentPassword, newPassword]
 
     StationSettings:
       type: object
       properties:
-        id:
-          type: integer
-        portalUrl:
-          type: string
-        username:
-          type: string
-        isActive:
-          type: boolean
-        defaultBillingPeriod:
-          type: string
-          nullable: true
-        syncIntervalMinutes:
-          type: integer
-        lastSuccessSyncAt:
-          type: string
-          format: date-time
-          nullable: true
-        lastErrorMessage:
-          type: string
-          nullable: true
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
+        id: { type: integer }
+        portalUrl: { type: string }
+        username: { type: string }
+        isActive: { type: boolean }
+        defaultBillingPeriod: { type: string, nullable: true }
+        syncIntervalMinutes: { type: integer }
+        lastSuccessSyncAt: { type: string, format: date-time, nullable: true }
+        lastErrorMessage: { type: string, nullable: true }
+        firstFullSyncAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
       required:
         - id
         - portalUrl
@@ -543,322 +401,105 @@ components:
     SaveStationSettingsBody:
       type: object
       properties:
-        portalUrl:
-          type: string
-        username:
-          type: string
-        password:
-          type: string
-          nullable: true
-        isActive:
-          type: boolean
-        defaultBillingPeriod:
-          type: string
-          nullable: true
-        syncIntervalMinutes:
-          type: integer
-      required:
-        - portalUrl
-        - username
-        - isActive
-        - syncIntervalMinutes
+        portalUrl: { type: string }
+        username: { type: string }
+        password: { type: string, nullable: true }
+        isActive: { type: boolean }
+        defaultBillingPeriod: { type: string, nullable: true }
+        syncIntervalMinutes: { type: integer }
+      required: [portalUrl, username, isActive, syncIntervalMinutes]
 
     TestConnectionResponse:
       type: object
       properties:
-        success:
-          type: boolean
-        message:
-          type: string
-      required:
-        - success
-        - message
+        success: { type: boolean }
+        message: { type: string }
+      required: [success, message]
 
     SyncResponse:
       type: object
       properties:
-        success:
-          type: boolean
-        message:
-          type: string
-        recordsFound:
-          type: integer
-        recordsInserted:
-          type: integer
-        recordsUpdated:
-          type: integer
-      required:
-        - success
-        - message
-        - recordsFound
-        - recordsInserted
-        - recordsUpdated
-
-    CdrRecord:
-      type: object
-      properties:
-        id:
-          type: integer
-        kitNo:
-          type: string
-        shipName:
-          type: string
-          nullable: true
-        product:
-          type: string
-          nullable: true
-        service:
-          type: string
-          nullable: true
-        originNumber:
-          type: string
-          nullable: true
-        destinationNumber:
-          type: string
-          nullable: true
-        customerCode:
-          type: string
-          nullable: true
-        totalVolumeData:
-          type: string
-          nullable: true
-        totalVolumeGbNumeric:
-          type: number
-          nullable: true
-        totalVolumeMin:
-          type: string
-          nullable: true
-        totalVolumeMsg:
-          type: string
-          nullable: true
-        currency:
-          type: string
-          nullable: true
-        totalPrice:
-          type: string
-          nullable: true
-        inBundle:
-          type: string
-          nullable: true
-        invoicedAmount:
-          type: string
-          nullable: true
-        period:
-          type: string
-          nullable: true
-        cdrId:
-          type: string
-          nullable: true
-        startCdr:
-          type: string
-          nullable: true
-        endCdr:
-          type: string
-          nullable: true
-        syncedAt:
-          type: string
-          format: date-time
-        createdAt:
-          type: string
-          format: date-time
-      required:
-        - id
-        - kitNo
-        - syncedAt
-        - createdAt
-
-    CdrRecordsResponse:
-      type: object
-      properties:
-        records:
-          type: array
-          items:
-            $ref: "#/components/schemas/CdrRecord"
-        total:
-          type: integer
-        page:
-          type: integer
-        limit:
-          type: integer
-        totalPages:
-          type: integer
-      required:
-        - records
-        - total
-        - page
-        - limit
-        - totalPages
+        success: { type: boolean }
+        message: { type: string }
+        recordsFound: { type: integer }
+        recordsInserted: { type: integer }
+        recordsUpdated: { type: integer }
+      required: [success, message, recordsFound, recordsInserted, recordsUpdated]
 
     KitSummary:
       type: object
       properties:
-        kitNo:
-          type: string
-        shipName:
-          type: string
-          nullable: true
-        totalGb:
-          type: number
-        totalPrice:
-          type: number
-        recordCount:
-          type: integer
-        lastPeriod:
-          type: string
-          nullable: true
-        lastSyncedAt:
-          type: string
-          format: date-time
-          nullable: true
-      required:
-        - kitNo
-        - totalGb
-        - totalPrice
-        - recordCount
+        kitNo: { type: string }
+        shipName: { type: string, nullable: true }
+        totalGib: { type: number, nullable: true }
+        totalUsd: { type: number, nullable: true }
+        rowCount: { type: integer }
+        lastPeriod: { type: string, nullable: true }
+        lastSyncedAt: { type: string, format: date-time, nullable: true }
+      required: [kitNo, rowCount]
 
     KitDetail:
       type: object
       properties:
-        kitNo:
-          type: string
-        shipName:
-          type: string
-          nullable: true
-        currentPeriod:
-          type: string
-          nullable: true
-        totalGb:
-          type: number
-          nullable: true
-        totalPrice:
-          type: number
-          nullable: true
-        currency:
-          type: string
-          nullable: true
-        recordCount:
-          type: integer
-        lastSyncedAt:
-          type: string
-          format: date-time
-          nullable: true
-      required:
-        - kitNo
-        - recordCount
+        kitNo: { type: string }
+        shipName: { type: string, nullable: true }
+        currentPeriod: { type: string, nullable: true }
+        totalGib: { type: number, nullable: true }
+        totalUsd: { type: number, nullable: true }
+        rowCount: { type: integer }
+        lastSyncedAt: { type: string, format: date-time, nullable: true }
+      required: [kitNo, rowCount]
 
     KitDailyPoint:
       type: object
       properties:
-        snapshotDate:
-          type: string
-        totalGb:
-          type: number
-          nullable: true
-        totalPrice:
-          type: number
-          nullable: true
-        currency:
-          type: string
-          nullable: true
-      required:
-        - snapshotDate
+        dayDate: { type: string, description: "YYYY-MM-DD" }
+        volumeGib: { type: number, nullable: true }
+        chargeUsd: { type: number, nullable: true }
+        service: { type: string, nullable: true }
+        cdrId: { type: string }
+      required: [dayDate, cdrId]
 
     KitMonthlyPoint:
       type: object
       properties:
-        period:
-          type: string
-        totalGb:
-          type: number
-          nullable: true
-        totalPrice:
-          type: number
-          nullable: true
-        currency:
-          type: string
-          nullable: true
-        lastSnapshotDate:
-          type: string
-          nullable: true
-      required:
-        - period
+        period: { type: string }
+        totalGib: { type: number, nullable: true }
+        totalUsd: { type: number, nullable: true }
+        rowCount: { type: integer }
+        scrapedAt: { type: string, format: date-time, nullable: true }
+      required: [period, rowCount]
 
     DashboardSummary:
       type: object
       properties:
-        totalKits:
-          type: integer
-        totalGb:
-          type: number
-        totalUsd:
-          type: number
-        activePeriod:
-          type: string
-          nullable: true
-        lastSuccessSyncAt:
-          type: string
-          format: date-time
-          nullable: true
-        lastSyncStatus:
-          type: string
-          nullable: true
-        lastSyncError:
-          type: string
-          nullable: true
-        lastSyncRecordsFound:
-          type: integer
-          nullable: true
-        lastSyncRecordsInserted:
-          type: integer
-          nullable: true
-        lastSyncRecordsUpdated:
-          type: integer
-          nullable: true
-      required:
-        - totalKits
-        - totalGb
-        - totalUsd
+        totalKits: { type: integer }
+        totalGib: { type: number }
+        totalUsd: { type: number }
+        activePeriod: { type: string, nullable: true }
+        lastSuccessSyncAt: { type: string, format: date-time, nullable: true }
+        lastSyncStatus: { type: string, nullable: true }
+        lastSyncError: { type: string, nullable: true }
+        lastSyncRecordsFound: { type: integer, nullable: true }
+        lastSyncRecordsInserted: { type: integer, nullable: true }
+        lastSyncRecordsUpdated: { type: integer, nullable: true }
+      required: [totalKits, totalGib, totalUsd]
 
     SyncLog:
       type: object
       properties:
-        id:
-          type: integer
-        status:
-          type: string
-        message:
-          type: string
-          nullable: true
-        recordsFound:
-          type: integer
-          nullable: true
-        recordsInserted:
-          type: integer
-          nullable: true
-        recordsUpdated:
-          type: integer
-          nullable: true
-        screenshotPath:
-          type: string
-          nullable: true
-        htmlSnapshotPath:
-          type: string
-          nullable: true
-        startedAt:
-          type: string
-          format: date-time
-        finishedAt:
-          type: string
-          format: date-time
-          nullable: true
-        createdAt:
-          type: string
-          format: date-time
-      required:
-        - id
-        - status
-        - startedAt
-        - createdAt
+        id: { type: integer }
+        status: { type: string }
+        message: { type: string, nullable: true }
+        recordsFound: { type: integer, nullable: true }
+        recordsInserted: { type: integer, nullable: true }
+        recordsUpdated: { type: integer, nullable: true }
+        screenshotPath: { type: string, nullable: true }
+        htmlSnapshotPath: { type: string, nullable: true }
+        startedAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+      required: [id, status, startedAt, createdAt]
 
     SyncLogsResponse:
       type: object
@@ -867,17 +508,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SyncLog"
-        total:
-          type: integer
-        page:
-          type: integer
-        limit:
-          type: integer
-        totalPages:
-          type: integer
-      required:
-        - logs
-        - total
-        - page
-        - limit
-        - totalPages
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
+        totalPages: { type: integer }
+      required: [logs, total, page, limit, totalPages]

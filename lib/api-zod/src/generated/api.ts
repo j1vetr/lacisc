@@ -61,9 +61,6 @@ export const ChangePasswordResponse = zod.object({
   message: zod.string(),
 });
 
-/**
- * @summary Get Station Satcom settings
- */
 export const GetStationSettingsResponse = zod.object({
   id: zod.number(),
   portalUrl: zod.string(),
@@ -73,13 +70,11 @@ export const GetStationSettingsResponse = zod.object({
   syncIntervalMinutes: zod.number(),
   lastSuccessSyncAt: zod.coerce.date().nullish(),
   lastErrorMessage: zod.string().nullish(),
+  firstFullSyncAt: zod.coerce.date().nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
 
-/**
- * @summary Save Station Satcom settings
- */
 export const SaveStationSettingsBody = zod.object({
   portalUrl: zod.string(),
   username: zod.string(),
@@ -98,21 +93,16 @@ export const SaveStationSettingsResponse = zod.object({
   syncIntervalMinutes: zod.number(),
   lastSuccessSyncAt: zod.coerce.date().nullish(),
   lastErrorMessage: zod.string().nullish(),
+  firstFullSyncAt: zod.coerce.date().nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
 
-/**
- * @summary Test Station Satcom connection
- */
 export const TestConnectionResponse = zod.object({
   success: zod.boolean(),
   message: zod.string(),
 });
 
-/**
- * @summary Trigger manual sync
- */
 export const SyncNowResponse = zod.object({
   success: zod.boolean(),
   message: zod.string(),
@@ -122,80 +112,24 @@ export const SyncNowResponse = zod.object({
 });
 
 /**
- * @summary Get CDR records
- */
-export const getCdrRecordsQueryPageDefault = 1;
-export const getCdrRecordsQueryLimitDefault = 50;
-
-export const GetCdrRecordsQueryParams = zod.object({
-  page: zod.coerce.number().default(getCdrRecordsQueryPageDefault),
-  limit: zod.coerce.number().default(getCdrRecordsQueryLimitDefault),
-  kitNo: zod.coerce.string().optional(),
-  period: zod.coerce.string().optional(),
-  customerCode: zod.coerce.string().optional(),
-  product: zod.coerce.string().optional(),
-  service: zod.coerce.string().optional(),
-  sortBy: zod
-    .enum(["totalVolumeGbNumeric", "totalPrice", "syncedAt", "startCdr"])
-    .optional(),
-  sortOrder: zod.enum(["asc", "desc"]).optional(),
-});
-
-export const GetCdrRecordsResponse = zod.object({
-  records: zod.array(
-    zod.object({
-      id: zod.number(),
-      kitNo: zod.string(),
-      shipName: zod.string().nullish(),
-      product: zod.string().nullish(),
-      service: zod.string().nullish(),
-      originNumber: zod.string().nullish(),
-      destinationNumber: zod.string().nullish(),
-      customerCode: zod.string().nullish(),
-      totalVolumeData: zod.string().nullish(),
-      totalVolumeGbNumeric: zod.number().nullish(),
-      totalVolumeMin: zod.string().nullish(),
-      totalVolumeMsg: zod.string().nullish(),
-      currency: zod.string().nullish(),
-      totalPrice: zod.string().nullish(),
-      inBundle: zod.string().nullish(),
-      invoicedAmount: zod.string().nullish(),
-      period: zod.string().nullish(),
-      cdrId: zod.string().nullish(),
-      startCdr: zod.string().nullish(),
-      endCdr: zod.string().nullish(),
-      syncedAt: zod.coerce.date(),
-      createdAt: zod.coerce.date(),
-    }),
-  ),
-  total: zod.number(),
-  page: zod.number(),
-  limit: zod.number(),
-  totalPages: zod.number(),
-});
-
-/**
- * @summary Get KIT summary
+ * @summary KIT summary list (active period totals)
  */
 export const GetKitsQueryParams = zod.object({
   kitNo: zod.coerce.string().optional(),
-  sortBy: zod.enum(["totalGb", "totalPrice", "lastSeen"]).optional(),
+  sortBy: zod.enum(["totalGib", "totalUsd", "lastSeen"]).optional(),
 });
 
 export const GetKitsResponseItem = zod.object({
   kitNo: zod.string(),
   shipName: zod.string().nullish(),
-  totalGb: zod.number(),
-  totalPrice: zod.number(),
-  recordCount: zod.number(),
+  totalGib: zod.number().nullish(),
+  totalUsd: zod.number().nullish(),
+  rowCount: zod.number(),
   lastPeriod: zod.string().nullish(),
   lastSyncedAt: zod.coerce.date().nullish(),
 });
 export const GetKitsResponse = zod.array(GetKitsResponseItem);
 
-/**
- * @summary Get a single KIT with current period summary
- */
 export const GetKitDetailParams = zod.object({
   kitNo: zod.coerce.string(),
 });
@@ -204,15 +138,14 @@ export const GetKitDetailResponse = zod.object({
   kitNo: zod.string(),
   shipName: zod.string().nullish(),
   currentPeriod: zod.string().nullish(),
-  totalGb: zod.number().nullish(),
-  totalPrice: zod.number().nullish(),
-  currency: zod.string().nullish(),
-  recordCount: zod.number(),
+  totalGib: zod.number().nullish(),
+  totalUsd: zod.number().nullish(),
+  rowCount: zod.number(),
   lastSyncedAt: zod.coerce.date().nullish(),
 });
 
 /**
- * @summary Get day-by-day snapshots for a KIT in a period
+ * @summary Day-by-day CDR rows for a KIT in a period
  */
 export const GetKitDailyParams = zod.object({
   kitNo: zod.coerce.string(),
@@ -223,15 +156,16 @@ export const GetKitDailyQueryParams = zod.object({
 });
 
 export const GetKitDailyResponseItem = zod.object({
-  snapshotDate: zod.string(),
-  totalGb: zod.number().nullish(),
-  totalPrice: zod.number().nullish(),
-  currency: zod.string().nullish(),
+  dayDate: zod.string().describe("YYYY-MM-DD"),
+  volumeGib: zod.number().nullish(),
+  chargeUsd: zod.number().nullish(),
+  service: zod.string().nullish(),
+  cdrId: zod.string(),
 });
 export const GetKitDailyResponse = zod.array(GetKitDailyResponseItem);
 
 /**
- * @summary Get month-by-month last snapshot for a KIT
+ * @summary Period totals for a KIT (all months)
  */
 export const GetKitMonthlyParams = zod.object({
   kitNo: zod.coerce.string(),
@@ -239,19 +173,16 @@ export const GetKitMonthlyParams = zod.object({
 
 export const GetKitMonthlyResponseItem = zod.object({
   period: zod.string(),
-  totalGb: zod.number().nullish(),
-  totalPrice: zod.number().nullish(),
-  currency: zod.string().nullish(),
-  lastSnapshotDate: zod.string().nullish(),
+  totalGib: zod.number().nullish(),
+  totalUsd: zod.number().nullish(),
+  rowCount: zod.number(),
+  scrapedAt: zod.coerce.date().nullish(),
 });
 export const GetKitMonthlyResponse = zod.array(GetKitMonthlyResponseItem);
 
-/**
- * @summary Get dashboard summary
- */
 export const GetDashboardSummaryResponse = zod.object({
   totalKits: zod.number(),
-  totalGb: zod.number(),
+  totalGib: zod.number(),
   totalUsd: zod.number(),
   activePeriod: zod.string().nullish(),
   lastSuccessSyncAt: zod.coerce.date().nullish(),
@@ -262,9 +193,6 @@ export const GetDashboardSummaryResponse = zod.object({
   lastSyncRecordsUpdated: zod.number().nullish(),
 });
 
-/**
- * @summary Get sync logs
- */
 export const getSyncLogsQueryPageDefault = 1;
 export const getSyncLogsQueryLimitDefault = 20;
 
@@ -293,12 +221,4 @@ export const GetSyncLogsResponse = zod.object({
   page: zod.number(),
   limit: zod.number(),
   totalPages: zod.number(),
-});
-
-/**
- * @summary Export CDR records as CSV
- */
-export const ExportCsvQueryParams = zod.object({
-  kitNo: zod.coerce.string().optional(),
-  period: zod.coerce.string().optional(),
 });
