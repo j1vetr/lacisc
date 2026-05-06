@@ -112,85 +112,77 @@ async function main(): Promise<void> {
       (KIT_NO_ARG ? kitLinks.find((k) => k.text === KIT_NO_ARG) : undefined) ?? kitLinks[0];
     console.log(`[target] ${target.text}  href=${target.href}`);
 
-    // Approach A: direct URL with FC=ICCID&FV=KITP...
+    // Approach A: direct URL with FC=ICCID&FV=KITP... (this is the page we actually want)
     const directUrl = `${baseUrl}/RatedCdrs.aspx?FC=ICCID&FV=${encodeURIComponent(target.text)}`;
     console.log(`[approachA] direct URL → ${directUrl}`);
     await page.goto(directUrl, { waitUntil: "networkidle", timeout: 30000 }).catch((e) =>
       console.log(`  goto failed: ${e.message}`)
     );
+    // Wait for the gvRatedCdr grid to render
+    await page.locator("#ctl00_ContentPlaceHolder1_gvRatedCdr").waitFor({ timeout: 15000 }).catch(() => {
+      console.log("  gvRatedCdr did not appear within 15s");
+    });
     await dump(page, "02-direct-url");
     const directIsLogin = /Account\/Login/i.test(page.url()) || (await page.locator("input[type='password']").count()) > 0;
     console.log(`  bouncedToLogin=${directIsLogin}`);
-
-    // If bounced, re-login + click-through
     if (directIsLogin) {
       await login(page, baseUrl, creds.username, password);
+      await page.goto(directUrl, { waitUntil: "networkidle", timeout: 30000 }).catch(() => {});
+      await dump(page, "02b-direct-url-after-relogin");
     }
 
-    // Approach B: click-through from grid (mimics scraper)
-    console.log("[approachB] re-opening rated CDRs and clicking KIT link");
-    await clickToCdrPage(page, baseUrl);
-    const linkLoc = page.locator(`a[href="${target.href}"]`).first();
-    if ((await linkLoc.count()) > 0) {
-      await Promise.all([
-        page.waitForNavigation({ waitUntil: "networkidle", timeout: 30000 }).catch(() => {}),
-        linkLoc.click(),
-      ]);
-    } else {
-      console.log("  link not found, trying text match");
-      await page.locator(`a:has-text("${target.text}")`).first().click({ timeout: 10000 }).catch(() => {});
-      await page.waitForLoadState("networkidle", { timeout: 20000 }).catch(() => {});
-    }
-    await dump(page, "03-click-through");
+    // Probe page structure — pass as STRING so tsx/esbuild doesn't inject __name helper
+    const probeSrc = `(() => {
+      const d = document;
+      const all = (sel) => Array.from(d.querySelectorAll(sel));
 
-    // Probe page structure (runs in browser context — use any to avoid DOM lib in node tsconfig)
-    const probe = await page.evaluate((): any => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const d: any = (globalThis as any).document;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const loc: any = (globalThis as any).location;
-      const all = (sel: string) => Array.from(d.querySelectorAll(sel)) as any[];
-
-      const selects = all("select").map((s: any) => ({
+      const selects = all("select").map((s) => ({
         id: s.id,
         name: s.name,
-        options: Array.from(s.options as any[]).map((o: any) => ({ value: o.value, text: o.text })),
+        options: Array.from(s.options).map((o) => ({ value: o.value, text: (o.textContent||'').trim() })),
       }));
 
-      const dxInputs = all("input[id*='Period' i], input[id*='Donem' i], input[id*='Ay' i]").map((i: any) => ({
-        id: i.id,
-        value: i.value,
+      const dxCandidates = all("input[id*='eriod'], input[id*='onem'], input[id*='cb'], input[id*='Year'], input[id*='Month'], select").map((i) => ({
+        tag: i.tagName, id: i.id, name: i.name || '', value: i.value || ''
       }));
 
-      const tables = all("table").map((t: any, idx: number) => {
+      const tables = all("table").map((t, idx) => {
         const rows = t.querySelectorAll("tr").length;
-        const firstHeader = (Array.from(t.querySelectorAll("th, thead td")) as any[])
-          .slice(0, 12)
-          .map((c: any) => (c.textContent || "").replace(/\s+/g, " ").trim())
+        const firstHeader = Array.from(t.querySelectorAll("th, thead td"))
+          .slice(0, 14)
+          .map((c) => (c.textContent || "").replace(/\\s+/g, " ").trim())
           .filter(Boolean);
-        const tr = t.querySelector("tbody tr") || t.querySelector("tr");
-        const firstRowCells = tr
-          ? (Array.from(tr.querySelectorAll("td")) as any[]).slice(0, 12).map((c: any) => (c.textContent || "").replace(/\s+/g, " ").trim())
-          : [];
-        return { idx, id: t.id, cls: t.className, rowCount: rows, firstHeader, firstRowCells };
+        const allRows = Array.from(t.querySelectorAll("tr")).slice(0, 6).map((tr) =>
+          Array.from(tr.querySelectorAll("td, th")).map((c) => (c.textContent || "").replace(/\\s+/g, " ").trim())
+        );
+        return { idx, id: t.id, cls: t.className, rowCount: rows, firstHeader, sampleRows: allRows };
       });
 
-      const datePattern = /\b20\d{2}-(0[1-9]|1[0-2])-([0-2]\d|3[01])\b/;
+      const datePattern = /\\b20\\d{2}-(0[1-9]|1[0-2])-([0-2]\\d|3[01])\\b/;
       const dateCells = all("td, span")
-        .filter((n: any) => datePattern.test(n.textContent || ""))
+        .filter((n) => datePattern.test(n.textContent || ""))
         .slice(0, 30)
-        .map((n: any) => (n.textContent || "").trim());
+        .map((n) => (n.textContent || "").trim());
+
+      // Anything with a period-looking value (YYYYMM)
+      const periodPattern = /\\b20\\d{2}(0[1-9]|1[0-2])\\b/;
+      const periodHits = all("option, span, td, input[value]")
+        .map((n) => (n.value || n.textContent || "").trim())
+        .filter((t) => periodPattern.test(t))
+        .slice(0, 30);
 
       return {
-        url: loc.href,
-        title: d.title,
+        url: location.href,
+        title: document.title,
         selects,
-        dxInputs,
+        dxCandidates: dxCandidates.slice(0, 30),
         tablesCount: tables.length,
-        tables: tables.filter((t: any) => t.rowCount > 1).slice(0, 8),
+        tables: tables.filter((t) => t.rowCount > 1).slice(0, 8),
         sampleDateCells: dateCells.slice(0, 20),
+        periodHits: Array.from(new Set(periodHits)),
       };
-    });
+    })()`;
+    const probe = await page.evaluate(probeSrc);
 
     await fs.writeFile(path.join(OUT_DIR, "04-probe.json"), JSON.stringify(probe, null, 2));
     console.log(`[probe] saved → ${OUT_DIR}/04-probe.json`);
