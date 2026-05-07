@@ -1,0 +1,43 @@
+The TM Starlink API allows your organization to programmatically access Starlink terminal and asset information from your TM Portal account. This makes it easier to integrate your Starlink data into internal dashboards, asset tracking systems, and reporting tools.
+
+🔍 What You Can Do with the API
+With the available endpoints, you can:
+
+Retrieve a full list of your registered Starlink terminals
+Access detailed information for each terminal, including:
+Asset name and nickname
+Kit Serial Number
+IMO / MMSI numbers
+Service Line Number
+Activation and online/offline status
+Data plan, usage, and speed info
+Last known location (lat/lng)
+IP address and network details
+Live signal quality, latency, and obstruction data
+Active alerts
+Example use cases: fleet management, monitoring connectivity status, tracking bandwidth usage across vessels.
+
+🔧 API Integration Best Practices
+To ensure stable, efficient, and secure use of the Starlink API, follow these recommended practices:
+
+Avoid Direct Vessel Calls: Do not make direct API requests from each vessel or client device, as this causes unnecessary load and may exceed rate limits.
+Use a Central Data Service: Connect your backend or a central server to the API. Retrieve and cache vessel or asset data centrally, then distribute it to vessels or client applications as needed.
+Respect Rate Limits: The API allows up to 60 requests per minute per token and 120 requests per minute company-wide across up to 5 tokens. Bursts or simultaneous calls from multiple sources may trigger rate limiting.
+Update Data Efficiently: Starlink data refreshes roughly every 20 minutes. Calling more frequently offers no benefit and increases risk of hitting rate limits.
+Implement Safe Retry Logic: For failed or 429 Too Many Requests responses, use exponential backoff instead of immediate retry loops.
+Secure Your API Tokens: Never embed Starlink API keys in client-side or vessel applications. Always store tokens securely on your backend using proper authentication.
+Protect Service Stability: Excessive or abusive loads may result in temporary IP bans to maintain system performance for all users.
+🛡️ Access & Authentication
+Company Admins can generate API tokens under Tools → API → API Keys
+Each company can have up to 5 active tokens at a time
+Tokens are used as Bearer Tokens for authenticating requests
+⚙️ Technical Limits
+Company wide Rate limit: 120 requests per minute
+Api Key Rate limit: 60 requests per minute
+Methods available:
+GET /api/v1/getTerminalList – fetch full terminal list
+GET /api/v1/getTerminalDetails – get detailed info for a specific terminal (by IMO, MMSI, or Kit Serial Number)
+📘 Full API Reference
+Visit our Swagger Documentation for full technical specs, sample responses, and try-it-out tools.
+
+If you need help getting started or want to explore potential integrations, contact your Tototheo representative or our Satcom Support team.
