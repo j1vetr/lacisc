@@ -43,7 +43,17 @@ router.get("/station/kits", requireAuth, async (req: AuthRequest, res): Promise<
   // keeps multi-account data correctly partitioned. For customer accounts we
   // append a WHERE on l.kit_no = ANY(...) so unassigned KITs are filtered
   // out at the SQL layer (no over-fetch + leak).
-  const where = scope ? sql`WHERE l.kit_no = ANY(${scope}::text[])` : sql``;
+  // Drizzle'ın sql template tag'i bir JS array'ini tek `text[]` PG param'ı
+  // olarak bindleyemiyor — array'i tek string'e düzleştiriyor ve sorgu
+  // "malformed array literal" benzeri bir hata ile düşüyor. Bunun yerine
+  // her KIT'i ayrı param yapan IN listesi üretiyoruz. Empty scope yukarıda
+  // erken dönüş ile yakalandığı için IN () üretme riski yok.
+  const where = scope
+    ? sql`WHERE l.kit_no IN (${sql.join(
+        scope.map((v) => sql`${v}`),
+        sql`, `,
+      )})`
+    : sql``;
   const rows = await db.execute(sql`
     WITH latest AS (
       SELECT DISTINCT ON (credential_id, kit_no)

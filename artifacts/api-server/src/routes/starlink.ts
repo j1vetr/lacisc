@@ -126,7 +126,15 @@ router.get("/starlink/terminals", requireAuth, async (req: AuthRequest, res): Pr
     res.json([]);
     return;
   }
-  const where = scope ? sql`WHERE t.kit_serial_number = ANY(${scope}::text[])` : sql``;
+  // Drizzle sql template JS array'ini text[] olarak bindleyemiyor; her KIT'i
+  // ayrı param yapan IN listesi kullanıyoruz. Empty scope yukarıda erken
+  // dönüş ile zaten yakalandı.
+  const where = scope
+    ? sql`WHERE t.kit_serial_number IN (${sql.join(
+        scope.map((v) => sql`${v}`),
+        sql`, `,
+      )})`
+    : sql``;
   const rows = await db.execute(sql`
     SELECT
       t.kit_serial_number    AS "kitSerialNumber",
