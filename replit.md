@@ -11,7 +11,7 @@ Full-stack admin panel that scrapes CDR billing data from the Station Satcom por
 
 **Required env vars:** `JWT_SECRET`, `ENCRYPTION_KEY` (64-char hex), `DATABASE_URL`, `SESSION_SECRET`.
 
-**Default admin credentials:** `admin@example.com` / `admin123456`
+**Bootstrap admin:** geliştirmede default `admin@example.com` / `admin123456` otomatik oluşturulur (uyarı log'lanır). **Üretimde** `INITIAL_ADMIN_EMAIL` + `INITIAL_ADMIN_PASSWORD` (12+ kar., U/l/d/symbol) zorunlu — yoksa server boot etmez.
 
 ## Stack
 

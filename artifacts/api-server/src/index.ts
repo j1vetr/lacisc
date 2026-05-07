@@ -4,6 +4,9 @@ import { startScheduler } from "./lib/scheduler";
 import { db, adminUsers } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
+import { validatePassword } from "./lib/password-policy";
+
+const isProd = process.env.NODE_ENV === "production";
 
 const rawPort = process.env["PORT"];
 
@@ -22,14 +25,47 @@ if (Number.isNaN(port) || port <= 0) {
 async function seed(): Promise<void> {
   const existing = await db.select().from(adminUsers).limit(1);
   if (existing.length === 0) {
-    const passwordHash = await bcrypt.hash("admin123456", 12);
+    // Bootstrap akışı:
+    //   - Üretimde: INITIAL_ADMIN_EMAIL + INITIAL_ADMIN_PASSWORD ZORUNLU.
+    //     Şifre policy'si (12+ kar., U/l/d/symbol) sağlanmıyorsa server boot
+    //     etmez. Predictable default kimlik bilgileriyle canlıya çıkmak yasak.
+    //   - Geliştirmede: env yoksa zayıf 'admin123456' default'una düşer ki
+    //     yeni klonlar için hızlı onboarding bozulmasın (loglarda uyarı + REPL.md
+    //     varsayılan kimlik bilgilerini açıkça not eder).
+    const email = process.env.INITIAL_ADMIN_EMAIL;
+    const password = process.env.INITIAL_ADMIN_PASSWORD;
+    const name = process.env.INITIAL_ADMIN_NAME ?? "Admin";
+
+    if (isProd) {
+      if (!email || !password) {
+        throw new Error(
+          "Production bootstrap requires INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD env vars.",
+        );
+      }
+      const policyError = validatePassword(password);
+      if (policyError) {
+        throw new Error(`INITIAL_ADMIN_PASSWORD policy violation: ${policyError}`);
+      }
+    }
+
+    const finalEmail = email ?? "admin@example.com";
+    const finalPassword = password ?? "admin123456";
+    const passwordHash = await bcrypt.hash(finalPassword, 12);
     await db.insert(adminUsers).values({
-      name: "Admin",
-      email: "admin@example.com",
+      name,
+      email: finalEmail,
       passwordHash,
       role: "owner",
     });
-    logger.info("Default admin user created: admin@example.com / admin123456");
+
+    if (email && password) {
+      logger.info({ email: finalEmail }, "Bootstrap admin created from INITIAL_ADMIN_* env");
+    } else {
+      logger.warn(
+        { email: finalEmail },
+        "DEV bootstrap admin created with default password — set INITIAL_ADMIN_EMAIL/PASSWORD for production deploys.",
+      );
+    }
     return;
   }
   // Existing deployments: promote oldest user to owner if no owner exists
