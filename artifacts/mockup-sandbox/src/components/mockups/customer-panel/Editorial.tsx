@@ -71,15 +71,15 @@ export default function Editorial() {
               <li key={kit.kitNo}>
                 <button className="row-link w-full text-left px-8 py-3.5 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <span className="font-serif text-[10px] text-[var(--ink-faint)] w-4 num-tabular">
+                    <span
+                      className="font-mono text-[11px] w-5 num-tabular font-medium tracking-tight"
+                      style={{ color: kit.online ? "#2f8a4f" : "#d44a2c" }}
+                    >
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     <div className="min-w-0">
-                      <div className="ship-name font-serif text-[18px] leading-tight text-[var(--ink)] truncate flex items-center gap-2">
+                      <div className="ship-name font-serif text-[18px] leading-tight text-[var(--ink)] truncate">
                         {kit.shipName}
-                        <span
-                          className={`dot ${kit.online ? "dot-online" : "dot-offline"}`}
-                        />
                       </div>
                       <div className="font-mono text-[10px] text-[var(--ink-faint)] mt-0.5">
                         {kit.kitNo}
@@ -140,11 +140,14 @@ export default function Editorial() {
           <div className="text-[11px] tracking-[0.22em] uppercase text-[var(--orange)] mb-3 font-medium">
             {activePeriodLabel.toLocaleUpperCase("tr-TR")} · AKTİF DÖNEM
           </div>
-          <p className="font-serif text-[26px] leading-[1.4] text-[var(--ink)] max-w-[760px] tracking-[-0.005em]">
+          <p className="font-serif text-[26px] leading-[1.45] text-[var(--ink)] max-w-[760px] tracking-[-0.005em]">
             Filonuzdaki <span className="font-medium">{totals.totalKits} gemi</span> bu ay
             toplam <span className="font-medium num-tabular">{fmtGib(totals.totalGib)} GB</span> veri
-            tüketti. Şu an{" "}
-            <span className="font-medium">{totals.online} gemi</span> kesintisiz bağlantıda.
+            tüketti.
+            <br />
+            Şu an{" "}
+            <span className="font-bold text-[var(--ink)]">{totals.online} gemi</span>{" "}
+            kesintisiz bağlantıda.
           </p>
 
           {/* Inline stat strip */}
