@@ -282,6 +282,75 @@ async function main(): Promise<void> {
       .catch(() => {});
     await dump(page, "11-CdrDetails-sample");
 
+    // 14. Starlink Telemetry — Measurements (live download/upload/signal/ping)
+    // Capture network responses while loading
+    const measureRequests: Array<{ url: string; status: number; ct: string; bodyPreview: string }> = [];
+    const onResp = async (resp: import("playwright").Response) => {
+      const u = resp.url();
+      if (!/Telemetry|Measurement|Map|api|json/i.test(u)) return;
+      try {
+        const ct = resp.headers()["content-type"] || "";
+        const status = resp.status();
+        let body = "";
+        if (/json|text/i.test(ct)) {
+          body = (await resp.text()).slice(0, 4000);
+        }
+        measureRequests.push({ url: u, status, ct, bodyPreview: body });
+      } catch {}
+    };
+    page.on("response", onResp);
+
+    await page
+      .goto(`${baseUrl}/Starlink/Telemetry/Measurements`, {
+        waitUntil: "networkidle",
+        timeout: 45000,
+      })
+      .catch(() => {});
+    await page.waitForTimeout(4000);
+    await dump(page, "12-Starlink-Measurements");
+
+    // 15. Try to scroll to bottom to trigger the dated table user mentioned
+    await page.evaluate(`window.scrollTo(0, document.body.scrollHeight)`).catch(() => {});
+    await page.waitForTimeout(2000);
+    await dump(page, "12b-Starlink-Measurements-scrolled");
+
+    // 16. Starlink Telemetry — Map (green icons w/ serial+lat/lon)
+    await page
+      .goto(`${baseUrl}/Starlink/Telemetry/Map`, {
+        waitUntil: "networkidle",
+        timeout: 45000,
+      })
+      .catch(() => {});
+    await page.waitForTimeout(5000);
+    await dump(page, "13-Starlink-Map");
+
+    // 17. Try clicking a marker — common Leaflet/MapLibre selectors
+    const markerSelectors = [
+      ".leaflet-marker-icon",
+      ".maplibregl-marker",
+      ".mapboxgl-marker",
+      "[class*='marker']",
+      "svg circle",
+      "svg [fill*='green' i]",
+    ];
+    for (const sel of markerSelectors) {
+      const cnt = await page.locator(sel).count().catch(() => 0);
+      if (cnt > 0) {
+        console.log(`[map] found ${cnt} of ${sel}, clicking first`);
+        await page.locator(sel).first().click({ timeout: 3000 }).catch(() => {});
+        await page.waitForTimeout(2500);
+        break;
+      }
+    }
+    await dump(page, "13b-Starlink-Map-clicked");
+
+    page.off("response", onResp);
+    await fs.writeFile(
+      path.join(OUT, "_telemetry-network.json"),
+      JSON.stringify(measureRequests, null, 2)
+    );
+    console.log(`captured ${measureRequests.length} telemetry/map network responses`);
+
     console.log(`\n✓ Done. Inspect ${OUT}/`);
   } finally {
     await browser.close().catch(() => {});
