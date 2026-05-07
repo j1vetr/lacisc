@@ -305,7 +305,10 @@ export async function fetchHourlyTelemetry(
   //   8 KIT için yeterli headroom).
   // - Incremental: 2 sayfa yeter (en taze saatler + 1 önceki sayfa overlap).
   await setMeasurementsGridPageSize(page, 200);
-  const maxPages = isFirstFull ? 10 : 2;
+  // Task spec: first-full = ~80 sayfa derinlik (10 günlük backfill garantisi),
+  // incremental = 2 sayfa (overlap-safe upsert). Pager `goToNextMeasurementsPage`
+  // disabled olunca erken çıkar — boş sayfalar 80 limitine kadar çalışmaz.
+  const maxPages = isFirstFull ? 80 : 2;
   let inserted = 0;
   let updated = 0;
   let totalRows = 0;
@@ -379,38 +382,66 @@ export async function fetchHourlyTelemetry(
 }
 
 async function goToNextMeasurementsPage(page: Page): Promise<boolean> {
+  const gridPrefix = "ctl00_ContentPlaceHolder1_gvStarlinkMeasurementsOneHour";
+  // İlk satırın id'sini snapshot al — sayfa değişince değişmeli.
   const before = await page
-    .evaluate(() => {
-      const first = document.querySelector(
-        "[id*='gvStarlinkMeasurementsOneHour_DXDataRow']"
-      );
-      return first?.id || "";
-    })
-    .catch(() => "");
-  // DevExpress pager: PSP = "Page Size Pager" / next-page button id suffix
-  // varies; class veya title ile yedek selektörler.
-  const nextBtn = page
-    .locator(
-      "[id*='gvStarlinkMeasurementsOneHour'][id$='_PSP'], [id*='gvStarlinkMeasurementsOneHour'] .dxp-button[title='Next Page' i], [id*='gvStarlinkMeasurementsOneHour'] img[title='Next Page' i]"
+    .evaluate(
+      (gid) =>
+        (document.querySelector(`[id^='${gid}_DXDataRow']`) as HTMLElement | null)
+          ?.id || "",
+      gridPrefix
     )
-    .first();
-  if ((await nextBtn.count()) === 0) return false;
-  const disabled = await nextBtn
-    .evaluate((el) => /Disabled|disabled/.test((el as HTMLElement).className || ""))
-    .catch(() => false);
-  if (disabled) return false;
-  await nextBtn.click({ timeout: 5000 }).catch(() => {});
+    .catch(() => "");
+
+  // En güvenli yol: ASPx.GVPagerOnClick(gridId, 'PBN') = page button next.
+  // SetValue/PerformCallback/__doPostBack silently fail (replit.md), bu
+  // mekanizma `setGridPageSize` ile aynı API.
+  const triggered = await page
+    .evaluate((gid) => {
+      const w = window as unknown as Record<string, unknown>;
+      const aspx = w["ASPx"] as
+        | { GVPagerOnClick?: (id: string, val: string) => void }
+        | undefined;
+      if (aspx && typeof aspx.GVPagerOnClick === "function") {
+        try {
+          aspx.GVPagerOnClick(gid, "PBN");
+          return "ASPx.GVPagerOnClick(PBN)";
+        } catch {
+          /* fall through */
+        }
+      }
+      return "noop";
+    }, gridPrefix)
+    .catch(() => "error");
+
+  if (triggered === "noop" || triggered === "error") {
+    // Yedek: title='Next Page' resim/butonu (DevExpress pager).
+    const fallback = page
+      .locator(
+        `[id*='${gridPrefix}'] img[title='Next Page' i], [id*='${gridPrefix}'] .dxp-button[title='Next Page' i]`
+      )
+      .first();
+    if ((await fallback.count()) === 0) return false;
+    const disabled = await fallback
+      .evaluate((el) =>
+        /Disabled|disabled/.test((el as HTMLElement).className || "")
+      )
+      .catch(() => false);
+    if (disabled) return false;
+    await fallback.click({ timeout: 5000 }).catch(() => {});
+  }
+
   // Grid yenilenene kadar bekle — en üstteki satırın id'si değişmeli.
-  const deadline = Date.now() + 8000;
+  const deadline = Date.now() + 10000;
   while (Date.now() < deadline) {
     await page.waitForTimeout(300);
     const nowFirst = await page
-      .evaluate(() => {
-        const first = document.querySelector(
-          "[id*='gvStarlinkMeasurementsOneHour_DXDataRow']"
-        );
-        return first?.id || "";
-      })
+      .evaluate(
+        (gid) =>
+          (document.querySelector(`[id^='${gid}_DXDataRow']`) as HTMLElement | null)
+            ?.id || "",
+        gridPrefix
+      )
       .catch(() => before);
     if (nowFirst && nowFirst !== before) return true;
   }
