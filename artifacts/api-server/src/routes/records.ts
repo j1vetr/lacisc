@@ -52,11 +52,26 @@ router.get("/station/kits", requireAuth, async (req, res): Promise<void> => {
         totalGib: number | null;
         totalUsd: number | null;
         rowCount: number;
-        lastSyncedAt: string | null;
+        lastSyncedAt: string | Date | null;
         shipName: string | null;
       }>;
     }
-  ).rows;
+  ).rows.map((r) => ({
+    ...r,
+    // Postgres `timestamp` (timezone'suz) raw SQL'de Z'siz string döner.
+    // Drizzle ORM yolu (kit-detail) Date → ISO+Z üretiyor; tutarlı olmak için
+    // string gelirse UTC kabul edip ISO'ya çeviriyoruz.
+    lastSyncedAt:
+      r.lastSyncedAt == null
+        ? null
+        : r.lastSyncedAt instanceof Date
+          ? r.lastSyncedAt.toISOString()
+          : new Date(
+              /[zZ]|[+-]\d{2}:?\d{2}$/.test(r.lastSyncedAt)
+                ? r.lastSyncedAt
+                : r.lastSyncedAt.replace(" ", "T") + "Z",
+            ).toISOString(),
+  }));
 
   list.sort((a, b) => {
     if (safeSort === "totalGib") return (b.totalGib ?? 0) - (a.totalGib ?? 0);
