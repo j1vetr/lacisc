@@ -361,14 +361,14 @@ export default function Kits() {
                             )}
                           </div>
                           <div className="flex flex-col min-w-0">
-                            <span className="font-mono text-[13px] text-foreground truncate max-w-[220px]">
-                              {row.kitNo}
-                            </span>
                             <span
-                              className="text-[11px] text-muted-foreground truncate max-w-[220px]"
+                              className="text-[13px] text-foreground truncate max-w-[220px] font-medium"
                               title={row.shipName || undefined}
                             >
                               {row.shipName || "—"}
+                            </span>
+                            <span className="font-mono text-[11px] text-muted-foreground truncate max-w-[220px]">
+                              {row.kitNo}
                             </span>
                           </div>
                         </div>

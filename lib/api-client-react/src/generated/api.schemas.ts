@@ -350,6 +350,11 @@ export interface StarlinkTerminalDetail {
   lastFixAt?: string | null;
   activeAlertsCount: number;
   lastSeenAt?: string | null;
+  plan?: string | null;
+  planAllowanceGb?: number | null;
+  ipv4?: string | null;
+  optIn?: boolean | null;
+  pingDropRate?: number | null;
   updatedAt?: string | null;
   currentPeriod?: string | null;
   currentPeriodTotalGb?: number | null;

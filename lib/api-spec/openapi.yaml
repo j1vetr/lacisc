@@ -1321,6 +1321,11 @@ components:
         lastFixAt: { type: string, format: date-time, nullable: true }
         activeAlertsCount: { type: integer }
         lastSeenAt: { type: string, format: date-time, nullable: true }
+        plan: { type: string, nullable: true }
+        planAllowanceGb: { type: number, nullable: true }
+        ipv4: { type: string, nullable: true }
+        optIn: { type: boolean, nullable: true }
+        pingDropRate: { type: number, nullable: true }
         updatedAt: { type: string, format: date-time, nullable: true }
         currentPeriod: { type: string, nullable: true }
         currentPeriodTotalGb: { type: number, nullable: true }

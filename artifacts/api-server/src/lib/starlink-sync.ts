@@ -322,6 +322,13 @@ async function persistTerminal(
     lastFixAt,
     activeAlertsCount: Array.isArray(activeAlerts) ? activeAlerts.length : 0,
     lastSeenAt,
+    plan: pickField<string>(d, "plan") ?? null,
+    planAllowanceGb:
+      pickField<number>(d, "planAllowanceGB", "plan_allowance_gb", "planAllowanceGb") ?? null,
+    ipv4: pickField<string>(d, "ipv4") ?? null,
+    optIn: pickField<boolean>(d, "optIn", "opt_in") ?? null,
+    pingDropRate:
+      pickField<number>(d, "pingDropRate", "ping_drop_rate") ?? null,
     updatedAt: new Date(),
   };
   await db

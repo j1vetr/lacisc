@@ -306,6 +306,12 @@ export const starlinkTerminals = pgTable("starlink_terminals", {
   activeAlertsCount: integer("active_alerts_count").default(0).notNull(),
   // Tototheo `lastUpdated` (when the terminal last reported home).
   lastSeenAt: timestamp("last_seen_at"),
+  // Plan & quota fields (May 2026 — surfaced for Plan ve Kota card).
+  plan: text("plan"),
+  planAllowanceGb: doublePrecision("plan_allowance_gb"),
+  ipv4: text("ipv4"),
+  optIn: boolean("opt_in"),
+  pingDropRate: doublePrecision("ping_drop_rate"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 export type StarlinkTerminal = typeof starlinkTerminals.$inferSelect;
