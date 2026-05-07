@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, lazy, Suspense } from "react";
+
+const TerminalMap = lazy(() => import("@/components/terminal-map"));
 import { Link } from "wouter";
 import {
   useGetStarlinkTerminalDetail,
@@ -363,31 +365,17 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
               </span>
             )}
           </div>
-          <div className="relative h-[214px] bg-gradient-to-br from-[#dde9f7] to-secondary">
+          <div className="relative h-[260px] bg-secondary">
             {detailLoading ? (
               <Skeleton className="absolute inset-0" />
             ) : detail?.lat != null && detail?.lng != null ? (
               <>
-                <svg className="absolute inset-0 w-full h-full opacity-40">
-                  <defs>
-                    <pattern id="ssa-map-grid" width="24" height="24" patternUnits="userSpaceOnUse">
-                      <path
-                        d="M 24 0 L 0 0 0 24"
-                        fill="none"
-                        stroke="#9fbbe0"
-                        strokeWidth="0.5"
-                      />
-                    </pattern>
-                  </defs>
-                  <rect width="100%" height="100%" fill="url(#ssa-map-grid)" />
-                </svg>
-                <div className="absolute" style={{ left: "50%", top: "44%" }}>
-                  <div className="relative">
-                    <div className="absolute -inset-3 rounded-full bg-[#f54e00]/20 animate-pulse" />
-                    <MapPin className="w-6 h-6 text-[#f54e00] fill-[#f54e00] relative" />
-                  </div>
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 px-3 py-2 bg-card/90 border-t border-border flex justify-between text-[11px] font-mono">
+                <Suspense
+                  fallback={<div className="absolute inset-0 bg-secondary" />}
+                >
+                  <TerminalMap lat={detail.lat} lng={detail.lng} />
+                </Suspense>
+                <div className="absolute bottom-0 left-0 right-0 px-3 py-2 bg-card/90 backdrop-blur-sm border-t border-border flex justify-between text-[11px] font-mono z-[400] pointer-events-none">
                   <span>
                     <span className="text-muted-foreground">lat</span>{" "}
                     {detail.lat.toFixed(4)}
@@ -400,6 +388,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
               </>
             ) : (
               <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+                <MapPin className="w-3.5 h-3.5 mr-1.5 opacity-50" />
                 Konum bilgisi yok.
               </div>
             )}
