@@ -40,7 +40,6 @@ export interface AdminUser {
 }
 
 export interface AuthResponse {
-  token: string;
   user: AdminUser;
 }
 
@@ -376,6 +375,15 @@ export interface SyncLogsResponse {
   limit: number;
   totalPages: number;
 }
+
+export type ListSessions200Item = {
+  id: number;
+  ip?: string | null;
+  userAgent?: string | null;
+  createdAt: string;
+  lastSeenAt: string;
+  current: boolean;
+};
 
 export type WipeStationDataParams = {
   credentialId?: number;

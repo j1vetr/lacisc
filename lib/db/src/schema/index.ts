@@ -35,6 +35,26 @@ export const adminUsers = pgTable("admin_users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Active JWT sessions. One row per issued token (jti). requireAuth verifies
+// the row still exists; deleting it revokes the session immediately. Used to
+// expose an "active sessions" list and per-session revoke in the UI.
+export const adminSessions = pgTable(
+  "admin_sessions",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .references(() => adminUsers.id, { onDelete: "cascade" })
+      .notNull(),
+    jti: text("jti").notNull().unique(),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    lastSeenAt: timestamp("last_seen_at").defaultNow().notNull(),
+  },
+  (t) => [index("admin_sessions_user_idx").on(t.userId)]
+);
+export type AdminSession = typeof adminSessions.$inferSelect;
+
 // Append-only audit trail of administrative actions. `actorUserId` is null
 // for unauthenticated events (failed logins, system actions). `meta` holds
 // arbitrary structured detail (account ids, target user ids, etc.).

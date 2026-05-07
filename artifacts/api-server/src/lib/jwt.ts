@@ -6,6 +6,8 @@ export interface JwtPayload {
   role?: "owner" | "admin" | "viewer";
   /** Bumped server-side to revoke all outstanding tokens for the user. */
   tv?: number;
+  /** Per-session id (admin_sessions.jti) — required for individual revoke. */
+  jti?: string;
 }
 
 function getSecret(): string {

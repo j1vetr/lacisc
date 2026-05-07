@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { db, adminUsers } from "@workspace/db";
+import { db, adminUsers, adminSessions } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { verifyToken } from "../lib/jwt";
 
@@ -10,6 +10,7 @@ export interface AuthRequest extends Request {
   userId?: number;
   userEmail?: string;
   userRole?: Role;
+  sessionJti?: string;
 }
 
 export const AUTH_COOKIE = "auth_token";
@@ -23,8 +24,6 @@ function extractToken(req: AuthRequest): string | null {
   return null;
 }
 
-// Lightweight cache so we don't hit the DB on every authed request just to
-// validate the token version. TTL keeps revocations propagating quickly.
 const tvCache = new Map<number, { tv: number; expires: number }>();
 const TV_TTL_MS = 30_000;
 
@@ -45,6 +44,34 @@ export function invalidateTokenVersionCache(userId: number): void {
   tvCache.delete(userId);
 }
 
+const sessionCache = new Map<string, { ok: boolean; expires: number }>();
+const SESSION_TTL_MS = 30_000;
+
+async function sessionExists(jti: string): Promise<boolean> {
+  const now = Date.now();
+  const hit = sessionCache.get(jti);
+  if (hit && hit.expires > now) return hit.ok;
+  const [row] = await db
+    .select({ id: adminSessions.id })
+    .from(adminSessions)
+    .where(eq(adminSessions.jti, jti));
+  const ok = Boolean(row);
+  sessionCache.set(jti, { ok, expires: now + SESSION_TTL_MS });
+  // Touch lastSeenAt occasionally — don't await on hot path.
+  if (ok) {
+    void db
+      .update(adminSessions)
+      .set({ lastSeenAt: new Date() })
+      .where(eq(adminSessions.jti, jti))
+      .catch(() => undefined);
+  }
+  return ok;
+}
+
+export function invalidateSessionCache(jti: string): void {
+  sessionCache.delete(jti);
+}
+
 async function decodeAndValidate(req: AuthRequest): Promise<boolean> {
   const token = extractToken(req);
   if (!token) return false;
@@ -53,6 +80,11 @@ async function decodeAndValidate(req: AuthRequest): Promise<boolean> {
     const tv = await currentTokenVersion(payload.userId);
     if (tv === null) return false;
     if ((payload.tv ?? 0) !== tv) return false;
+    if (payload.jti) {
+      const ok = await sessionExists(payload.jti);
+      if (!ok) return false;
+      req.sessionJti = payload.jti;
+    }
     req.userId = payload.userId;
     req.userEmail = payload.email;
     req.userRole = (payload.role as Role | undefined) ?? "admin";
@@ -75,8 +107,6 @@ export async function requireAuth(
   next();
 }
 
-// Decode token if present but never reject. Used for endpoints like /auth/logout
-// that must succeed (and capture actor identity for audit) regardless of token state.
 export async function optionalAuth(
   req: AuthRequest,
   _res: Response,

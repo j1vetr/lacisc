@@ -1,14 +1,35 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcrypt";
-import { db, adminUsers } from "@workspace/db";
-import { and, eq, ne, count } from "drizzle-orm";
+import { db, adminUsers, adminSessions } from "@workspace/db";
+import { and, eq, ne, count, sql } from "drizzle-orm";
 import {
   requireAuth,
   requireRole,
+  invalidateTokenVersionCache,
+  invalidateSessionCache,
   type AuthRequest,
 } from "../middlewares/auth";
 import { audit } from "../lib/audit";
 import { validatePassword } from "../lib/password-policy";
+
+// Bump tokenVersion AND delete every active session for the target user, so
+// privilege/credential changes take effect immediately (no stale 7-day JWTs).
+async function revokeAllSessionsFor(userId: number): Promise<void> {
+  const rows = await db
+    .select({ jti: adminSessions.jti })
+    .from(adminSessions)
+    .where(eq(adminSessions.userId, userId));
+  await db.delete(adminSessions).where(eq(adminSessions.userId, userId));
+  for (const r of rows) invalidateSessionCache(r.jti);
+  await db
+    .update(adminUsers)
+    .set({
+      tokenVersion: sql`${adminUsers.tokenVersion} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(eq(adminUsers.id, userId));
+  invalidateTokenVersionCache(userId);
+}
 
 const router: IRouter = Router();
 
@@ -162,10 +183,20 @@ router.patch(
       .set(updates)
       .where(eq(adminUsers.id, id))
       .returning();
+    // Role değişti → hedef kullanıcının TÜM oturumlarını anında geçersiz kıl
+    // (yetki düşürme/yükseltmenin gecikmeli uygulanmaması kritik).
+    if (updates.role !== undefined && updates.role !== target.role) {
+      await revokeAllSessionsFor(id);
+    }
     await audit(req, {
       action: "user.update",
       target: `user:${id}`,
-      meta: { name: updates.name, role: updates.role, unlock: !!unlock },
+      meta: {
+        name: updates.name,
+        role: updates.role,
+        unlock: !!unlock,
+        sessionsRevoked: updates.role !== undefined && updates.role !== target.role,
+      },
     });
     res.json(publicUser(updated));
   }
@@ -255,9 +286,12 @@ router.post(
         updatedAt: new Date(),
       })
       .where(eq(adminUsers.id, id));
+    // Kimlik bilgisi sıfırlandı → hedef kullanıcının tüm aktif oturumlarını sonlandır.
+    await revokeAllSessionsFor(id);
     await audit(req, {
       action: "user.reset_password",
       target: `user:${id}`,
+      meta: { sessionsRevoked: true },
     });
     res.json({ message: "Şifre sıfırlandı." });
   }

@@ -51,7 +51,7 @@ export default function Login() {
           // httpOnly cookie set by server — no localStorage handling here.
           setLocation("/");
         },
-        onError: (err: any) => {
+        onError: (err: Error) => {
           toast({
             title: "Erişim Reddedildi",
             description: err.message || "Geçersiz kimlik bilgileri.",

@@ -1,18 +1,19 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import rateLimit from "express-rate-limit";
-import { db, adminUsers } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, adminUsers, adminSessions } from "@workspace/db";
+import { and, eq, sql, desc } from "drizzle-orm";
 import { signToken } from "../lib/jwt";
 import {
   requireAuth,
   optionalAuth,
   invalidateTokenVersionCache,
+  invalidateSessionCache,
   AUTH_COOKIE,
   type AuthRequest,
   type Role,
 } from "../middlewares/auth";
-import { sql } from "drizzle-orm";
 import {
   CSRF_COOKIE,
   newCsrfToken,
@@ -29,10 +30,9 @@ const isProd = process.env.NODE_ENV === "production";
 const MAX_FAILED = 5;
 const LOCK_MINUTES = 15;
 
-// Per-IP rate limit for login (defense in depth on top of per-account lockout).
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 20, // 20 login attempts per 15 min per IP
+  limit: 20,
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: { error: "Çok fazla giriş denemesi. Lütfen biraz sonra tekrar deneyin." },
@@ -84,11 +84,8 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
     return;
   }
 
-  // Account lockout check.
   if (user.lockedUntil && user.lockedUntil > new Date()) {
-    const minutes = Math.ceil(
-      (user.lockedUntil.getTime() - Date.now()) / 60_000
-    );
+    const minutes = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60_000);
     await auditAnonymous(req, {
       action: "auth.login",
       success: false,
@@ -123,7 +120,6 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
     return;
   }
 
-  // Success — clear failure counters & lock, stamp last login.
   await db
     .update(adminUsers)
     .set({
@@ -134,11 +130,21 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
     })
     .where(eq(adminUsers.id, user.id));
 
+  // Create a session row so this token can be listed and revoked individually.
+  const jti = crypto.randomBytes(16).toString("hex");
+  await db.insert(adminSessions).values({
+    userId: user.id,
+    jti,
+    ip: req.ip ?? null,
+    userAgent: (req.headers["user-agent"] as string | undefined) ?? null,
+  });
+
   const token = signToken({
     userId: user.id,
     email: user.email,
     role: user.role as Role,
     tv: user.tokenVersion ?? 0,
+    jti,
   });
   setAuthCookie(res, token);
   setCsrfCookie(res, newCsrfToken());
@@ -150,8 +156,10 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
     meta: { userId: user.id, role: user.role },
   });
 
+  // NOTE: token is intentionally NOT returned in the body. The httpOnly cookie
+  // carries it for browsers; CLI/mobile clients can read it from the
+  // Set-Cookie response header. This preserves the XSS-resistance goal.
   res.json({
-    token, // returned for backwards compat (CLI/mobile); web ignores it
     user: {
       id: user.id,
       name: user.name,
@@ -165,16 +173,25 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
 
 router.post("/auth/logout", optionalAuth, async (req: AuthRequest, res): Promise<void> => {
   if (req.userId) {
+    if (req.sessionJti) {
+      await db.delete(adminSessions).where(eq(adminSessions.jti, req.sessionJti));
+      invalidateSessionCache(req.sessionJti);
+    }
     await audit(req, { action: "auth.logout" });
   }
   clearAuthCookie(res);
   res.json({ message: "Oturum kapatıldı." });
 });
 
-// "Tüm cihazlarda oturumu sonlandır": JWT'leri toptan iptal etmek için
-// admin_users.token_version'ı bir artırır. Sonraki tüm requireAuth çağrıları
-// eski tokenları reddeder. Mevcut cookie de temizlenir.
+// Toptan iptal: kullanıcının TÜM oturumları silinir + token_version artar
+// (savunma katmanı — eski token'ları cache TTL beklemeden geçersiz kılar).
 router.post("/auth/sessions/terminate-all", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const sessions = await db
+    .select({ jti: adminSessions.jti })
+    .from(adminSessions)
+    .where(eq(adminSessions.userId, req.userId!));
+  await db.delete(adminSessions).where(eq(adminSessions.userId, req.userId!));
+  for (const s of sessions) invalidateSessionCache(s.jti);
   await db
     .update(adminUsers)
     .set({
@@ -188,6 +205,53 @@ router.post("/auth/sessions/terminate-all", requireAuth, async (req: AuthRequest
   res.json({ message: "Tüm oturumlar sonlandırıldı." });
 });
 
+// Aktif oturum listesi (yalnızca kendi oturumları).
+router.get("/auth/sessions", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const rows = await db
+    .select()
+    .from(adminSessions)
+    .where(eq(adminSessions.userId, req.userId!))
+    .orderBy(desc(adminSessions.lastSeenAt));
+  res.json(
+    rows.map((r) => ({
+      id: r.id,
+      ip: r.ip,
+      userAgent: r.userAgent,
+      createdAt: r.createdAt,
+      lastSeenAt: r.lastSeenAt,
+      current: r.jti === req.sessionJti,
+    }))
+  );
+});
+
+// Tek oturum iptali (kullanıcı kendi oturumlarını yönetir).
+router.delete("/auth/sessions/:id", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) {
+    res.status(400).json({ error: "Geçersiz oturum id." });
+    return;
+  }
+  const [row] = await db
+    .select()
+    .from(adminSessions)
+    .where(and(eq(adminSessions.id, id), eq(adminSessions.userId, req.userId!)));
+  if (!row) {
+    res.status(404).json({ error: "Oturum bulunamadı." });
+    return;
+  }
+  await db.delete(adminSessions).where(eq(adminSessions.id, id));
+  invalidateSessionCache(row.jti);
+  await audit(req, {
+    action: "auth.sessions.revoke",
+    target: `session:${id}`,
+    meta: { ip: row.ip, userAgent: row.userAgent },
+  });
+  if (row.jti === req.sessionJti) {
+    clearAuthCookie(res);
+  }
+  res.json({ message: "Oturum sonlandırıldı." });
+});
+
 router.get("/auth/me", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const [user] = await db
     .select()
@@ -199,7 +263,6 @@ router.get("/auth/me", requireAuth, async (req: AuthRequest, res): Promise<void>
     return;
   }
 
-  // Refresh CSRF cookie if missing (e.g. cleared but auth cookie survived).
   if (!req.cookies?.[CSRF_COOKIE]) {
     setCsrfCookie(res, newCsrfToken());
   }

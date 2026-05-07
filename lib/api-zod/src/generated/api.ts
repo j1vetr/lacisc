@@ -31,7 +31,6 @@ export const LoginBody = zod.object({
 });
 
 export const LoginResponse = zod.object({
-  token: zod.string(),
   user: zod.object({
     id: zod.number(),
     name: zod.string(),
@@ -46,6 +45,24 @@ export const LoginResponse = zod.object({
  * @summary Logout
  */
 export const LogoutResponse = zod.object({
+  message: zod.string(),
+});
+
+export const ListSessionsResponseItem = zod.object({
+  id: zod.number(),
+  ip: zod.string().nullish(),
+  userAgent: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  lastSeenAt: zod.coerce.date(),
+  current: zod.boolean(),
+});
+export const ListSessionsResponse = zod.array(ListSessionsResponseItem);
+
+export const RevokeSessionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const RevokeSessionResponse = zod.object({
   message: zod.string(),
 });
 
