@@ -322,6 +322,16 @@ router.post("/station/settings", requireAuth, requireRole("admin"), async (req: 
   }
 
   req.log.info({ settingsId: saved.id }, "Station settings saved (legacy)");
+  await audit(req, {
+    action: "station.settings.update",
+    target: `account:${saved.id}`,
+    meta: {
+      passwordChanged: Boolean(password && password.trim()),
+      isActive: saved.isActive,
+      portalUrl: saved.portalUrl,
+      username: saved.username,
+    },
+  });
   res.json({
     id: saved.id,
     label: saved.label,

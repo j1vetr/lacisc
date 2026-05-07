@@ -167,6 +167,7 @@ paths:
                   $ref: "#/components/schemas/StationAccount"
     post:
       operationId: createStationAccount
+      x-required-role: admin
       tags: [station]
       summary: Yeni portal hesabı ekle
       security:
@@ -188,6 +189,7 @@ paths:
   /station/accounts/{id}:
     patch:
       operationId: updateStationAccount
+      x-required-role: admin
       tags: [station]
       security:
         - bearerAuth: []
@@ -211,6 +213,7 @@ paths:
                 $ref: "#/components/schemas/StationAccount"
     delete:
       operationId: deleteStationAccount
+      x-required-role: admin
       tags: [station]
       security:
         - bearerAuth: []
@@ -230,6 +233,7 @@ paths:
   /station/accounts/{id}/test-connection:
     post:
       operationId: testStationAccountConnection
+      x-required-role: admin
       tags: [station]
       security:
         - bearerAuth: []
@@ -268,6 +272,7 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
     post:
       operationId: saveStationSettings
+      x-required-role: admin
       tags: [station]
       summary: (Legacy) İlk hesabı günceller.
       security:
@@ -289,6 +294,7 @@ paths:
   /station/test-connection:
     post:
       operationId: testConnection
+      x-required-role: admin
       tags: [station]
       summary: (Legacy) İlk hesabın bağlantısını test eder.
       security:
@@ -304,6 +310,7 @@ paths:
   /station/wipe-data:
     post:
       operationId: wipeStationData
+      x-required-role: admin
       tags: [station]
       summary: Terminal verilerini siler. credentialId verilmezse TÜM hesapların verisi silinir.
       security:
@@ -324,6 +331,7 @@ paths:
   /station/sync-now:
     post:
       operationId: syncNow
+      x-required-role: admin
       tags: [station]
       summary: Tüm aktif portal hesaplarını sırayla senkronize eder.
       security:
@@ -373,6 +381,7 @@ paths:
                 $ref: "#/components/schemas/EmailSettings"
     put:
       operationId: updateEmailSettings
+      x-required-role: admin
       tags: [station]
       summary: SMTP / uyarı alıcılarını günceller.
       security:
@@ -394,6 +403,7 @@ paths:
   /station/email-settings/test:
     post:
       operationId: testEmailSettings
+      x-required-role: admin
       tags: [station]
       summary: Yapılandırılmış SMTP üzerinden test maili gönderir.
       security:
@@ -538,6 +548,7 @@ paths:
   /admin/users:
     get:
       operationId: listAdminUsers
+      x-required-role: admin
       tags: [admin]
       security: [{ bearerAuth: [] }]
       responses:
@@ -550,6 +561,7 @@ paths:
                 items: { $ref: "#/components/schemas/AdminUserDetail" }
     post:
       operationId: createAdminUser
+      x-required-role: admin
       tags: [admin]
       security: [{ bearerAuth: [] }]
       requestBody:
@@ -569,6 +581,7 @@ paths:
       - { name: id, in: path, required: true, schema: { type: integer } }
     patch:
       operationId: updateAdminUser
+      x-required-role: admin
       tags: [admin]
       security: [{ bearerAuth: [] }]
       requestBody:
@@ -584,6 +597,7 @@ paths:
               schema: { $ref: "#/components/schemas/AdminUserDetail" }
     delete:
       operationId: deleteAdminUser
+      x-required-role: admin
       tags: [admin]
       security: [{ bearerAuth: [] }]
       responses:
@@ -598,6 +612,7 @@ paths:
       - { name: id, in: path, required: true, schema: { type: integer } }
     post:
       operationId: resetAdminUserPassword
+      x-required-role: admin
       tags: [admin]
       security: [{ bearerAuth: [] }]
       requestBody:
@@ -615,12 +630,14 @@ paths:
   /audit-logs:
     get:
       operationId: listAuditLogs
+      x-required-role: admin
       tags: [audit]
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: page, in: query, schema: { type: integer, default: 1 } }
         - { name: limit, in: query, schema: { type: integer, default: 50 } }
         - { name: actorUserId, in: query, schema: { type: integer } }
+        - { name: actorEmail, in: query, schema: { type: string } }
         - { name: action, in: query, schema: { type: string } }
         - { name: from, in: query, schema: { type: string, format: date-time } }
         - { name: to, in: query, schema: { type: string, format: date-time } }

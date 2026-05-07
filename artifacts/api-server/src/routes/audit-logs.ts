@@ -23,6 +23,9 @@ router.get(
       const id = Number(req.query.actorUserId);
       if (Number.isFinite(id)) filters.push(eq(auditLogs.actorUserId, id));
     }
+    if (req.query.actorEmail && typeof req.query.actorEmail === "string") {
+      filters.push(eq(auditLogs.actorEmail, req.query.actorEmail));
+    }
     if (req.query.action && typeof req.query.action === "string") {
       filters.push(eq(auditLogs.action, req.query.action));
     }

@@ -4,6 +4,8 @@ import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -11,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
 function fmt(dt: string | null | undefined): string {
   if (!dt) return "—";
@@ -22,12 +24,26 @@ export default function AuditLogs() {
   useDocumentTitle("Denetim Kayıtları");
   const [page, setPage] = useState(1);
   const [action, setAction] = useState<string>("__all__");
+  const [actorEmail, setActorEmail] = useState<string>("");
+  const [from, setFrom] = useState<string>("");
+  const [to, setTo] = useState<string>("");
 
   const params = {
     page,
     limit: 50,
     ...(action !== "__all__" ? { action } : {}),
+    ...(actorEmail.trim() ? { actorEmail: actorEmail.trim() } : {}),
+    ...(from ? { from: new Date(from).toISOString() } : {}),
+    ...(to ? { to: new Date(to).toISOString() } : {}),
   };
+  const clearFilters = () => {
+    setAction("__all__");
+    setActorEmail("");
+    setFrom("");
+    setTo("");
+    setPage(1);
+  };
+  const hasFilters = action !== "__all__" || !!actorEmail || !!from || !!to;
   const { data, isLoading } = useListAuditLogs(params, {
     query: { queryKey: getListAuditLogsQueryKey(params) },
   });
@@ -46,30 +62,76 @@ export default function AuditLogs() {
       </div>
 
       <Card className="shadow-none border-border">
-        <CardHeader className="flex flex-row items-center justify-between gap-3">
-          <CardTitle className="text-base font-medium">
-            {data ? `${data.total} kayıt` : "Yükleniyor…"}
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            <Select
-              value={action}
-              onValueChange={(v) => {
-                setAction(v);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="w-[220px]">
-                <SelectValue placeholder="Tüm eylemler" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Tüm eylemler</SelectItem>
-                {actions.map((a) => (
-                  <SelectItem key={a} value={a}>
-                    {a}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <CardHeader className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle className="text-base font-medium">
+              {data ? `${data.total} kayıt` : "Yükleniyor…"}
+            </CardTitle>
+            {hasFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8">
+                <X className="w-3.5 h-3.5 mr-1" /> Filtreleri Temizle
+              </Button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="space-y-1">
+              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Eylem</Label>
+              <Select
+                value={action}
+                onValueChange={(v) => {
+                  setAction(v);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Tüm eylemler" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Tüm eylemler</SelectItem>
+                  {actions.map((a) => (
+                    <SelectItem key={a} value={a}>
+                      {a}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Kullanıcı (e-posta)</Label>
+              <Input
+                value={actorEmail}
+                onChange={(e) => {
+                  setActorEmail(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="ornek@firma.com"
+                className="h-9 font-mono text-xs"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Başlangıç</Label>
+              <Input
+                type="datetime-local"
+                value={from}
+                onChange={(e) => {
+                  setFrom(e.target.value);
+                  setPage(1);
+                }}
+                className="h-9 font-mono text-xs"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Bitiş</Label>
+              <Input
+                type="datetime-local"
+                value={to}
+                onChange={(e) => {
+                  setTo(e.target.value);
+                  setPage(1);
+                }}
+                className="h-9 font-mono text-xs"
+              />
+            </div>
           </div>
         </CardHeader>
         <CardContent>

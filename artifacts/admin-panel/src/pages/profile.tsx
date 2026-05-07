@@ -35,8 +35,8 @@ export default function Profile() {
         qc.clear();
         window.location.href = "/login";
       },
-      onError: (e: any) =>
-        toast({ title: "Sonlandırılamadı", description: e?.message, variant: "destructive" }),
+      onError: (e: Error) =>
+        toast({ title: "Sonlandırılamadı", description: e.message, variant: "destructive" }),
     },
   });
 
@@ -59,10 +59,10 @@ export default function Profile() {
           setNewPw("");
           setConfirm("");
         },
-        onError: (err: any) => {
+        onError: (err: Error) => {
           toast({
             title: "Güncellenemedi",
-            description: err?.message ?? "Bilinmeyen hata",
+            description: err.message || "Bilinmeyen hata",
             variant: "destructive",
           });
         },

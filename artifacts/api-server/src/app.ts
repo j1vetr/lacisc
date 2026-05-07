@@ -49,8 +49,8 @@ function buildCorsAllowlist(): string[] {
   }
   const dev = process.env.REPLIT_DEV_DOMAIN;
   if (dev) list.push(`https://${dev}`);
-  // Local proxy origin used by the workspace preview pane.
-  list.push("http://localhost", "http://localhost:80");
+  // Local proxy origin used by the workspace preview pane (dev only).
+  if (!isProd) list.push("http://localhost", "http://localhost:80");
   const extra = process.env.CORS_ALLOWLIST;
   if (extra) {
     for (const d of extra.split(",")) {

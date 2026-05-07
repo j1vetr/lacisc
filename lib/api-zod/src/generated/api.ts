@@ -548,6 +548,7 @@ export const ListAuditLogsQueryParams = zod.object({
   page: zod.coerce.number().default(listAuditLogsQueryPageDefault),
   limit: zod.coerce.number().default(listAuditLogsQueryLimitDefault),
   actorUserId: zod.coerce.number().optional(),
+  actorEmail: zod.coerce.string().optional(),
   action: zod.coerce.string().optional(),
   from: zod.date().optional(),
   to: zod.date().optional(),

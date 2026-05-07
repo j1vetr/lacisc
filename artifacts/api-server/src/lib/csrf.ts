@@ -22,6 +22,7 @@ export function setCsrfCookie(res: Response, token: string): void {
 
 function buildAllowedOrigins(): string[] {
   const list: string[] = [];
+  const isProd = process.env.NODE_ENV === "production";
   const replitDomains = process.env.REPLIT_DOMAINS;
   if (replitDomains) {
     for (const d of replitDomains.split(",")) {
@@ -31,7 +32,9 @@ function buildAllowedOrigins(): string[] {
   }
   const dev = process.env.REPLIT_DEV_DOMAIN;
   if (dev) list.push(`https://${dev}`);
-  list.push("http://localhost", "http://localhost:80");
+  // Localhost only in development (preview pane proxy). Excluded in prod so a
+  // host-header trick can't pass origin validation.
+  if (!isProd) list.push("http://localhost", "http://localhost:80");
   const extra = process.env.CORS_ALLOWLIST;
   if (extra) {
     for (const d of extra.split(",")) {

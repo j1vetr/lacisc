@@ -6,8 +6,9 @@ interface State {
   error: Error | null;
 }
 
-// Simple top-level boundary: keeps a render error from blanking the whole app.
-// Logs to console (and sentry/etc. could be wired in later).
+// Top-level boundary: keeps a render error from blanking the whole app and
+// reports the failure to the server log via POST /api/client-errors so it
+// shows up in pino output / alerting alongside server-side errors.
 export class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
   State
@@ -21,6 +22,30 @@ export class ErrorBoundary extends React.Component<
   componentDidCatch(error: Error, info: React.ErrorInfo): void {
     // eslint-disable-next-line no-console
     console.error("ErrorBoundary caught", error, info);
+    // Fire-and-forget — never block recovery on the report itself.
+    try {
+      const csrf = document.cookie
+        .split("; ")
+        .find((c) => c.startsWith("csrf_token="))
+        ?.split("=")[1];
+      void fetch("/api/client-errors", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "content-type": "application/json",
+          ...(csrf ? { "x-csrf-token": csrf } : {}),
+        },
+        body: JSON.stringify({
+          message: error.message,
+          stack: error.stack,
+          componentStack: info.componentStack,
+          url: window.location.href,
+          userAgent: navigator.userAgent,
+        }),
+      }).catch(() => undefined);
+    } catch {
+      // Reporting failure must never break the boundary.
+    }
   }
 
   private handleReset = (): void => {

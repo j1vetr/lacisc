@@ -69,7 +69,7 @@ export default function AdminUsers() {
         toast({ title: "Kullanıcı oluşturuldu" });
         setCreateOpen(false);
       },
-      onError: (e: any) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
+      onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
     },
   });
   const updateMut = useUpdateAdminUser({
@@ -79,7 +79,7 @@ export default function AdminUsers() {
         toast({ title: "Güncellendi" });
         setEditOpen(null);
       },
-      onError: (e: any) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
+      onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
     },
   });
   const deleteMut = useDeleteAdminUser({
@@ -88,7 +88,7 @@ export default function AdminUsers() {
         qc.invalidateQueries({ queryKey: getListAdminUsersQueryKey() });
         toast({ title: "Silindi" });
       },
-      onError: (e: any) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
+      onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
     },
   });
   const resetMut = useResetAdminUserPassword({
@@ -97,7 +97,7 @@ export default function AdminUsers() {
         toast({ title: "Şifre sıfırlandı" });
         setResetOpen(null);
       },
-      onError: (e: any) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
+      onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
     },
   });
 

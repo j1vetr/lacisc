@@ -413,6 +413,7 @@ export type ListAuditLogsParams = {
   page?: number;
   limit?: number;
   actorUserId?: number;
+  actorEmail?: string;
   action?: string;
   from?: string;
   to?: string;

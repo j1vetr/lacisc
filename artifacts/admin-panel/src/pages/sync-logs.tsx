@@ -56,10 +56,10 @@ export default function SyncLogs() {
         queryClient.invalidateQueries({ queryKey: getGetSyncLogsQueryKey({ page, limit }) });
         queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
       },
-      onError: (err: any) => {
+      onError: (err: Error) => {
         toast({
           title: "Senkronizasyon Başarısız",
-          description: err?.message || "Senkronizasyon başlatılamadı.",
+          description: err.message || "Senkronizasyon başlatılamadı.",
           variant: "destructive",
         });
       },
