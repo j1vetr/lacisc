@@ -47,7 +47,7 @@ export default function TerminalMap({ lat, lng, zoom = 5 }: TerminalMapProps) {
       className="ssa-leaflet absolute inset-0 h-full w-full"
     >
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
+        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
         subdomains={["a", "b", "c", "d"]}
       />
       <Marker position={[lat, lng]} icon={pinIcon} />
