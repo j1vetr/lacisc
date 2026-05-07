@@ -1,0 +1,58 @@
+May 07 15:57:04 162-55-4-35.datahost.net.tr systemd[1]: lacisc-api.service: Main process exited, code=exited, status=1/FAILURE
+May 07 15:57:04 162-55-4-35.datahost.net.tr systemd[1]: lacisc-api.service: Failed with result 'exit-code'.
+May 07 15:57:09 162-55-4-35.datahost.net.tr systemd[1]: lacisc-api.service: Scheduled restart job, restart counter is at 60.
+May 07 15:57:09 162-55-4-35.datahost.net.tr systemd[1]: Stopped Lacisc API Server.
+May 07 15:57:09 162-55-4-35.datahost.net.tr systemd[1]: Started Lacisc API Server.
+May 07 15:57:09 162-55-4-35.datahost.net.tr node[892557]: /var/www/sc.lacivertteknoloji.com/artifacts/api-server/src/app.ts:68
+May 07 15:57:09 162-55-4-35.datahost.net.tr node[892557]:   throw new Error(
+May 07 15:57:09 162-55-4-35.datahost.net.tr node[892557]:         ^
+May 07 15:57:09 162-55-4-35.datahost.net.tr node[892557]: Error: CORS allowlist is empty in production. Set REPLIT_DOMAINS (comma-separated) or CORS_ALLOWLIST.
+May 07 15:57:09 162-55-4-35.datahost.net.tr node[892557]:     at <anonymous> (/var/www/sc.lacivertteknoloji.com/artifacts/api-server/src/app.ts:68:9)
+May 07 15:57:09 162-55-4-35.datahost.net.tr node[892557]:     at ModuleJob.run (node:internal/modules/esm/module_job:325:25)
+May 07 15:57:09 162-55-4-35.datahost.net.tr node[892557]:     at async ModuleLoader.import (node:internal/modules/esm/loader:606:24)
+May 07 15:57:09 162-55-4-35.datahost.net.tr node[892557]:     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+May 07 15:57:09 162-55-4-35.datahost.net.tr node[892557]: Node.js v20.20.2
+May 07 15:57:09 162-55-4-35.datahost.net.tr systemd[1]: lacisc-api.service: Main process exited, code=exited, status=1/FAILURE
+May 07 15:57:09 162-55-4-35.datahost.net.tr systemd[1]: lacisc-api.service: Failed with result 'exit-code'.
+May 07 15:57:14 162-55-4-35.datahost.net.tr systemd[1]: lacisc-api.service: Scheduled restart job, restart counter is at 61.
+May 07 15:57:14 162-55-4-35.datahost.net.tr systemd[1]: Stopped Lacisc API Server.
+May 07 15:57:14 162-55-4-35.datahost.net.tr systemd[1]: Started Lacisc API Server.
+May 07 15:57:15 162-55-4-35.datahost.net.tr node[892707]: /var/www/sc.lacivertteknoloji.com/artifacts/api-server/src/app.ts:68
+May 07 15:57:15 162-55-4-35.datahost.net.tr node[892707]:   throw new Error(
+May 07 15:57:15 162-55-4-35.datahost.net.tr node[892707]:         ^
+May 07 15:57:15 162-55-4-35.datahost.net.tr node[892707]: Error: CORS allowlist is empty in production. Set REPLIT_DOMAINS (comma-separated) or CORS_ALLOWLIST.
+May 07 15:57:15 162-55-4-35.datahost.net.tr node[892707]:     at <anonymous> (/var/www/sc.lacivertteknoloji.com/artifacts/api-server/src/app.ts:68:9)
+May 07 15:57:15 162-55-4-35.datahost.net.tr node[892707]:     at ModuleJob.run (node:internal/modules/esm/module_job:325:25)
+May 07 15:57:15 162-55-4-35.datahost.net.tr node[892707]:     at async ModuleLoader.import (node:internal/modules/esm/loader:606:24)
+May 07 15:57:15 162-55-4-35.datahost.net.tr node[892707]:     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+May 07 15:57:15 162-55-4-35.datahost.net.tr node[892707]: Node.js v20.20.2
+May 07 15:57:15 162-55-4-35.datahost.net.tr systemd[1]: lacisc-api.service: Main process exited, code=exited, status=1/FAILURE
+May 07 15:57:15 162-55-4-35.datahost.net.tr systemd[1]: lacisc-api.service: Failed with result 'exit-code'.
+May 07 15:57:20 162-55-4-35.datahost.net.tr systemd[1]: lacisc-api.service: Scheduled restart job, restart counter is at 62.
+May 07 15:57:20 162-55-4-35.datahost.net.tr systemd[1]: Stopped Lacisc API Server.
+May 07 15:57:20 162-55-4-35.datahost.net.tr systemd[1]: Started Lacisc API Server.
+May 07 15:57:20 162-55-4-35.datahost.net.tr node[892880]: /var/www/sc.lacivertteknoloji.com/artifacts/api-server/src/app.ts:68
+May 07 15:57:20 162-55-4-35.datahost.net.tr node[892880]:   throw new Error(
+May 07 15:57:20 162-55-4-35.datahost.net.tr node[892880]:         ^
+May 07 15:57:20 162-55-4-35.datahost.net.tr node[892880]: Error: CORS allowlist is empty in production. Set REPLIT_DOMAINS (comma-separated) or CORS_ALLOWLIST.
+May 07 15:57:20 162-55-4-35.datahost.net.tr node[892880]:     at <anonymous> (/var/www/sc.lacivertteknoloji.com/artifacts/api-server/src/app.ts:68:9)
+May 07 15:57:20 162-55-4-35.datahost.net.tr node[892880]:     at ModuleJob.run (node:internal/modules/esm/module_job:325:25)
+May 07 15:57:20 162-55-4-35.datahost.net.tr node[892880]:     at async ModuleLoader.import (node:internal/modules/esm/loader:606:24)
+May 07 15:57:20 162-55-4-35.datahost.net.tr node[892880]:     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+May 07 15:57:20 162-55-4-35.datahost.net.tr node[892880]: Node.js v20.20.2
+May 07 15:57:20 162-55-4-35.datahost.net.tr systemd[1]: lacisc-api.service: Main process exited, code=exited, status=1/FAILURE
+May 07 15:57:20 162-55-4-35.datahost.net.tr systemd[1]: lacisc-api.service: Failed with result 'exit-code'.
+May 07 15:57:25 162-55-4-35.datahost.net.tr systemd[1]: lacisc-api.service: Scheduled restart job, restart counter is at 63.
+May 07 15:57:25 162-55-4-35.datahost.net.tr systemd[1]: Stopped Lacisc API Server.
+May 07 15:57:25 162-55-4-35.datahost.net.tr systemd[1]: Started Lacisc API Server.
+May 07 15:57:26 162-55-4-35.datahost.net.tr node[893031]: /var/www/sc.lacivertteknoloji.com/artifacts/api-server/src/app.ts:68
+May 07 15:57:26 162-55-4-35.datahost.net.tr node[893031]:   throw new Error(
+May 07 15:57:26 162-55-4-35.datahost.net.tr node[893031]:         ^
+May 07 15:57:26 162-55-4-35.datahost.net.tr node[893031]: Error: CORS allowlist is empty in production. Set REPLIT_DOMAINS (comma-separated) or CORS_ALLOWLIST.
+May 07 15:57:26 162-55-4-35.datahost.net.tr node[893031]:     at <anonymous> (/var/www/sc.lacivertteknoloji.com/artifacts/api-server/src/app.ts:68:9)
+May 07 15:57:26 162-55-4-35.datahost.net.tr node[893031]:     at ModuleJob.run (node:internal/modules/esm/module_job:325:25)
+May 07 15:57:26 162-55-4-35.datahost.net.tr node[893031]:     at async ModuleLoader.import (node:internal/modules/esm/loader:606:24)
+May 07 15:57:26 162-55-4-35.datahost.net.tr node[893031]:     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+May 07 15:57:26 162-55-4-35.datahost.net.tr node[893031]: Node.js v20.20.2
+May 07 15:57:26 162-55-4-35.datahost.net.tr systemd[1]: lacisc-api.service: Main process exited, code=exited, status=1/FAILURE
+May 07 15:57:26 162-55-4-35.datahost.net.tr systemd[1]: lacisc-api.service: Failed with result 'exit-code'.
