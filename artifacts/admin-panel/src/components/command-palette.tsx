@@ -49,11 +49,11 @@ type NavItem = {
 const NAV: NavItem[] = [
   { label: "Panel", href: "/", icon: LayoutDashboard, minRole: "viewer", shortcut: "G P", group: "Sayfalar" },
   { label: "Terminaller", href: "/kits", icon: List, minRole: "viewer", shortcut: "G T", group: "Sayfalar" },
-  { label: "Senkronizasyon Kayıtları", href: "/sync-logs", icon: Activity, minRole: "viewer", shortcut: "G S", group: "Sayfalar" },
+  { label: "Senkronizasyon Kayıtları", href: "/sync-logs", icon: Activity, minRole: "viewer", shortcut: "G L", group: "Sayfalar" },
   { label: "Profilim", href: "/profile", icon: UserCircle2, minRole: "viewer", group: "Sayfalar" },
   { label: "Kullanıcılar", href: "/admin/users", icon: Users, minRole: "admin", group: "Sayfalar" },
   { label: "Denetim Kayıtları", href: "/audit-logs", icon: ShieldCheck, minRole: "admin", group: "Sayfalar" },
-  { label: "Ayarlar — Hesaplar", href: "/settings", icon: Settings, minRole: "admin", group: "Ayarlar" },
+  { label: "Ayarlar — Hesaplar", href: "/settings", icon: Settings, minRole: "admin", shortcut: "G S", group: "Ayarlar" },
   { label: "Ayarlar — E-posta & Alarmlar", href: "/settings/email", icon: Mail, minRole: "admin", group: "Ayarlar" },
   { label: "Ayarlar — Tehlike Bölgesi", href: "/settings/danger", icon: AlertTriangle, minRole: "admin", group: "Ayarlar" },
 ];
@@ -179,7 +179,7 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
           <>
             <CommandSeparator />
             <CommandGroup heading="Portal Hesapları">
-              {accounts.map((a: any) => {
+              {accounts.map((a) => {
                 const display = a.label?.trim() || a.username;
                 return (
                   <CommandItem

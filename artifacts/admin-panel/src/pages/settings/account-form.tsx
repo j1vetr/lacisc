@@ -120,10 +120,10 @@ export function AccountFormDialog({
             onSaved();
             onOpenChange(false);
           },
-          onError: (err: any) => {
+          onError: (err: unknown) => {
             toast({
               title: "Kayıt Başarısız",
-              description: err?.message || "Hesap eklenemedi.",
+              description: (err instanceof Error ? err.message : null) || "Hesap eklenemedi.",
               variant: "destructive",
             });
           },
@@ -151,10 +151,10 @@ export function AccountFormDialog({
             onSaved();
             onOpenChange(false);
           },
-          onError: (err: any) => {
+          onError: (err: unknown) => {
             toast({
               title: "Güncelleme Başarısız",
-              description: err?.message || "Hesap güncellenemedi.",
+              description: (err instanceof Error ? err.message : null) || "Hesap güncellenemedi.",
               variant: "destructive",
             });
           },

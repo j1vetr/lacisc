@@ -8,6 +8,7 @@ import {
   getGetEmailSettingsQueryKey,
   useUpdateEmailSettings,
   useTestEmailSettings,
+  type EmailSettingsUpdate,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -93,7 +94,7 @@ export default function EmailSettingsPage() {
   }, [settings?.updatedAt]);
 
   const onSubmit = (values: EmailSettingsFormValues) => {
-    const payload: Record<string, unknown> = {
+    const payload: EmailSettingsUpdate = {
       enabled: values.enabled,
       smtpHost: values.smtpHost?.trim() || null,
       smtpPort: values.smtpPort,
@@ -108,7 +109,7 @@ export default function EmailSettingsPage() {
       payload.smtpPassword = values.smtpPassword;
     }
     updateMutation.mutate(
-      { data: payload as any },
+      { data: payload },
       {
         onSuccess: () => {
           toast({
@@ -119,10 +120,10 @@ export default function EmailSettingsPage() {
           });
           queryClient.invalidateQueries({ queryKey: getGetEmailSettingsQueryKey() });
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
           toast({
             title: "Kayıt Başarısız",
-            description: err?.message || "Ayarlar kaydedilemedi.",
+            description: err instanceof Error ? err.message : "Ayarlar kaydedilemedi.",
             variant: "destructive",
           });
         },
@@ -141,10 +142,10 @@ export default function EmailSettingsPage() {
             variant: res.success ? "default" : "destructive",
           });
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
           toast({
             title: "Test Başarısız",
-            description: err?.message || "Mail gönderilemedi.",
+            description: err instanceof Error ? err.message : "Mail gönderilemedi.",
             variant: "destructive",
           });
         },

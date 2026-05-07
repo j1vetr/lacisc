@@ -59,10 +59,10 @@ export function AccountRow({
             variant: res.success ? "default" : "destructive",
           });
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
           toast({
             title: "Test Hatası",
-            description: err?.message || "Bağlantı testi başarısız.",
+            description: (err instanceof Error ? err.message : null) || "Bağlantı testi başarısız.",
             variant: "destructive",
           });
         },
@@ -81,10 +81,10 @@ export function AccountRow({
           });
           queryClient.invalidateQueries();
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
           toast({
             title: "Silme Başarısız",
-            description: err?.message || "Hesap silinemedi.",
+            description: (err instanceof Error ? err.message : null) || "Hesap silinemedi.",
             variant: "destructive",
           });
         },
@@ -104,10 +104,10 @@ export function AccountRow({
           onChanged();
           queryClient.invalidateQueries();
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
           toast({
             title: "Temizlik Başarısız",
-            description: err?.message || "Veriler silinemedi.",
+            description: (err instanceof Error ? err.message : null) || "Veriler silinemedi.",
             variant: "destructive",
           });
         },

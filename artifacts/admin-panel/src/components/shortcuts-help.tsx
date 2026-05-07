@@ -13,7 +13,8 @@ const SHORTCUTS: { keys: string[]; label: string }[] = [
   { keys: ["?"], label: "Bu yardım penceresini aç" },
   { keys: ["G", "P"], label: "Panel'e git" },
   { keys: ["G", "T"], label: "Terminaller'e git" },
-  { keys: ["G", "S"], label: "Senkronizasyon Kayıtları'na git" },
+  { keys: ["G", "L"], label: "Senkronizasyon Kayıtları'na git" },
+  { keys: ["G", "S"], label: "Ayarlar'a git" },
   { keys: ["Esc"], label: "Açık pencereyi kapat" },
 ];
 

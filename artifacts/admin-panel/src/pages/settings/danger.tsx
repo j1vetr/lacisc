@@ -42,10 +42,10 @@ export default function DangerPage() {
           });
           queryClient.invalidateQueries();
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
           toast({
             title: "Temizlik Başarısız",
-            description: err?.message || "Veriler silinemedi.",
+            description: (err instanceof Error ? err.message : null) || "Veriler silinemedi.",
             variant: "destructive",
           });
         },

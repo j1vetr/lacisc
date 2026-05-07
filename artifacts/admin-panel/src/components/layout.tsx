@@ -83,9 +83,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           } else if (k === "t") {
             e.preventDefault();
             setLocation("/kits");
-          } else if (k === "s") {
+          } else if (k === "l") {
             e.preventDefault();
             setLocation("/sync-logs");
+          } else if (k === "s") {
+            e.preventDefault();
+            setLocation("/settings");
           }
           navPrefix.current = null;
           return;
