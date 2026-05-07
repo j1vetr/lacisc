@@ -97,6 +97,40 @@ function Pill({
   );
 }
 
+function QuotaStat({
+  label,
+  value,
+  unit,
+  tone = "muted",
+}: {
+  label: string;
+  value: React.ReactNode;
+  unit?: string;
+  tone?: "primary" | "ok" | "warn" | "muted";
+}) {
+  const valueClass: Record<string, string> = {
+    primary: "text-foreground",
+    ok: "text-[#5fa67c]",
+    warn: "text-[#f54e00]",
+    muted: "text-muted-foreground",
+  };
+  return (
+    <div className="rounded-lg border border-border bg-secondary/30 px-4 py-3.5">
+      <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-1.5">
+        {label}
+      </div>
+      <div className="flex items-baseline gap-1">
+        <span className={`font-mono text-2xl tabular-nums ${valueClass[tone]}`}>
+          {value}
+        </span>
+        {unit && (
+          <span className="text-xs text-muted-foreground">{unit}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MetricTile({
   label,
   value,
@@ -264,9 +298,9 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
               <h2 className="text-sm font-semibold tracking-tight">Canlı Telemetri</h2>
             </div>
           </div>
-          <div className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
             {detailLoading ? (
-              Array.from({ length: 8 }).map((_, i) => (
+              Array.from({ length: 6 }).map((_, i) => (
                 <Skeleton key={i} className="h-[68px] rounded-lg" />
               ))
             ) : (
@@ -388,86 +422,83 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
             <span className="text-[10px] font-mono text-muted-foreground">{plan}</span>
           )}
         </div>
-        <div className="p-4 space-y-4">
+        <div className="p-6">
           {detailLoading ? (
-            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-32 w-full" />
           ) : (
-            <>
-              <div className="flex items-end justify-between gap-6 flex-wrap">
-                <div>
-                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Kullanılan
-                  </div>
-                  <div className="font-mono text-3xl mt-0.5">
-                    {formatNumber(used, 1)}{" "}
-                    <span className="text-sm text-muted-foreground">GB</span>
-                  </div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              {/* Sol: hero — kullanılan / tahsis */}
+              <div className="lg:col-span-5">
+                <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-2">
+                  Bu Dönem Kullanım
                 </div>
-                {remaining != null && (
-                  <div>
-                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      Kalan
-                    </div>
-                    <div className="font-mono text-2xl mt-0.5">
-                      {formatNumber(remaining, 1)}{" "}
-                      <span className="text-sm text-muted-foreground">GB</span>
-                    </div>
-                  </div>
-                )}
-                {planAllowance != null && (
-                  <div>
-                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      Tahsis
-                    </div>
-                    <div className="font-mono text-2xl mt-0.5 text-muted-foreground">
-                      {formatNumber(planAllowance, 0)}{" "}
-                      <span className="text-sm">GB</span>
-                    </div>
-                  </div>
-                )}
+                <div className="flex items-baseline gap-2">
+                  <span className="font-mono text-5xl tracking-tight tabular-nums">
+                    {formatNumber(used, 1)}
+                  </span>
+                  <span className="text-sm text-muted-foreground">GB</span>
+                  {planAllowance != null && (
+                    <span className="ml-2 text-sm font-mono text-muted-foreground">
+                      / {formatNumber(planAllowance, 0)} GB
+                    </span>
+                  )}
+                </div>
                 {usedPct != null && (
-                  <div className="ml-auto text-right">
-                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      Doluluk
+                  <div className="mt-4">
+                    <div className="relative h-2.5 bg-secondary rounded-full overflow-hidden">
+                      <div
+                        className={`absolute inset-y-0 left-0 rounded-full transition-[width] duration-500 ${
+                          usedPct > 90
+                            ? "bg-[#f54e00]"
+                            : usedPct > 75
+                              ? "bg-[#dfa88f]"
+                              : "bg-foreground"
+                        }`}
+                        style={{ width: `${Math.min(usedPct, 100)}%` }}
+                      />
                     </div>
-                    <div
-                      className={`font-mono text-3xl mt-0.5 ${usedPct > 80 ? "text-[#dfa88f]" : ""}`}
-                    >
-                      {formatNumber(usedPct, 1)}%
+                    <div className="mt-2 flex items-center justify-between text-[11px] font-mono text-muted-foreground">
+                      <span>%{formatNumber(usedPct, 1)} dolu</span>
+                      {planAllowance != null && (
+                        <span>%{formatNumber(100 - Math.min(usedPct, 100), 1)} boş</span>
+                      )}
                     </div>
                   </div>
                 )}
               </div>
-              {usedPct != null && planAllowance != null && (
-                <>
-                  <div className="relative h-3 bg-secondary rounded-sm overflow-hidden">
-                    <div
-                      className="absolute inset-y-0 left-0 bg-foreground transition-[width] duration-300"
-                      style={{ width: `${Math.min(usedPct, 100)}%` }}
-                    />
-                    {[25, 50, 75].map((p) => (
-                      <div
-                        key={p}
-                        className="absolute inset-y-0 w-px bg-card/40"
-                        style={{ left: `${p}%` }}
-                      />
-                    ))}
-                  </div>
-                  <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
-                    <span>0</span>
-                    <span>{formatNumber(planAllowance * 0.25, 0)}</span>
-                    <span>{formatNumber(planAllowance * 0.5, 0)}</span>
-                    <span>{formatNumber(planAllowance * 0.75, 0)}</span>
-                    <span>{formatNumber(planAllowance, 0)} GB</span>
-                  </div>
-                </>
-              )}
+
+              {/* Sağ: 3'lü mini-stats */}
+              <div className="lg:col-span-7 grid grid-cols-3 gap-3">
+                <QuotaStat
+                  label="Kullanılan"
+                  value={formatNumber(used, 1)}
+                  unit="GB"
+                  tone="primary"
+                />
+                <QuotaStat
+                  label="Kalan"
+                  value={remaining != null ? formatNumber(remaining, 1) : "—"}
+                  unit={remaining != null ? "GB" : undefined}
+                  tone={
+                    remaining != null && planAllowance != null && remaining / planAllowance < 0.1
+                      ? "warn"
+                      : "ok"
+                  }
+                />
+                <QuotaStat
+                  label="Toplam Tahsis"
+                  value={planAllowance != null ? formatNumber(planAllowance, 0) : "—"}
+                  unit={planAllowance != null ? "GB" : undefined}
+                  tone="muted"
+                />
+              </div>
+
               {planAllowance == null && (
-                <div className="text-xs text-muted-foreground">
+                <div className="lg:col-span-12 text-xs text-muted-foreground">
                   Plan tahsisi bilinmiyor — sadece kullanım gösteriliyor.
                 </div>
               )}
-            </>
+            </div>
           )}
         </div>
       </Card>
@@ -574,8 +605,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                   {[
                     { label: "Dönem", align: "left", pad: "pl-4" },
                     { label: "Toplam", align: "right" },
-                    { label: "Paket", align: "right" },
-                    { label: "Öncelik", align: "right" },
+                    { label: "Kullanılan Miktar", align: "right" },
                     { label: "Tarama", align: "right", pad: "pr-4" },
                   ].map((h) => (
                     <th
@@ -598,11 +628,9 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                     <td className="text-right font-mono">
                       {formatNumber(r.totalGb, 1)} GB
                     </td>
-                    <td className="text-right font-mono text-[11px] text-muted-foreground">
-                      {formatNumber(r.packageUsageGb, 1)}
-                    </td>
-                    <td className="text-right font-mono text-[11px] text-muted-foreground">
-                      {formatNumber(r.priorityGb, 1)}
+                    <td className="text-right font-mono">
+                      {formatNumber(r.packageUsageGb, 1)}{" "}
+                      <span className="text-[11px] text-muted-foreground">GB</span>
                     </td>
                     <td className="text-right pr-4 font-mono text-[11px] text-muted-foreground">
                       {r.scrapedAt ? formatDate(r.scrapedAt) : "-"}
