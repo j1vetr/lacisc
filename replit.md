@@ -27,7 +27,11 @@ Full-stack admin panel that scrapes CDR billing data from the Station Satcom por
 ```
 artifacts/
   admin-panel/        # React+Vite frontend (path: /)
-    src/pages/        # login, dashboard, kits, kit-detail, sync-logs, settings
+    src/pages/        # login, dashboard, kits, kit-detail, sync-logs,
+                      #   settings/ (accounts | email | danger),
+                      #   profile, admin-users, audit-logs
+    src/components/   # layout (mounts CommandPalette + ShortcutsHelp),
+                      #   command-palette, shortcuts-help, sync-progress-panel
   api-server/         # Express backend (path: /api)
     src/routes/       # auth.ts, station.ts, records.ts, health.ts
     src/lib/          # scraper.ts, crypto.ts, scheduler.ts, logger.ts
@@ -70,7 +74,10 @@ See `lib/db/src/schema/index.ts` and `lib/api-spec/openapi.yaml` for source-of-t
 - Terminaller: aktif dönem footer toplamlarına göre sıralı; satır → KIT detayı
 - KIT detayı (`/kits/:kitNo`): aktif dönem KPI'ları + günlük seyir (ComposedChart: GiB barları + USD çizgisi) + per-CDR satır tablosu (servis sütunlu) + aylık özet
 - Senkronizasyon kayıtları: scraper çalışmaları, durum rozetleri (per-account + aggregate satırlar)
-- Ayarlar: çoklu portal hesabı yönetimi (CRUD + per-account test/wipe), global tehlike bölgesi
+- Ayarlar: 3 sekmeye bölündü — `/settings` (Hesaplar: portal CRUD + per-account test/wipe), `/settings/email` (SMTP + alarm eşiği), `/settings/danger` (tüm verileri wipe). Her sekmenin kendi route'u var; ortak `SettingsLayout` chrome'u (`pages/settings/layout.tsx`) tab navigasyonu sağlar. Eski 1200-satırlık `pages/settings.tsx` god-component'i 7 dosyaya bölündü (`accounts.tsx`, `email.tsx`, `danger.tsx`, `account-row.tsx`, `account-form.tsx`, `layout.tsx`, `types.ts`).
+- **Komut paleti & klavye kısayolları** (`components/command-palette.tsx` + `shortcuts-help.tsx`): `Cmd/Ctrl+K` her yerden açılır — sayfalar (rol filtreli), terminaller (KIT no / gemi adı arama), portal hesapları aranabilir; `?` kısayol yardımı modalı; `G P / G T / G S` iki-vuruşlu navigasyon. Header'da görünür "Ara…" butonu ve `⌘K` kbd ipucu. Listeler sadece palet açıkken fetch edilir (network sessizliği).
+- **Sync tamamlandı toast'ı**: `components/sync-completion-toast.tsx` Layout'a global mount'lanmış; `useGetSyncProgress`'i 3sn'de bir poll'lar (sadece authenticated iken) ve `running→idle` geçişini `useRef` ile yakalayıp toast atıyor → operatör hangi sayfada olursa olsun sonucu görür.
+- **Boş durum CTA'ları**: `kits` ve `sync-logs` sayfaları "hesap yok" / "filtre eşleşmedi" / "henüz veri yok" durumlarını ayırt edip uygun CTA gösteriyor (Hesap Ekle / Filtreyi Temizle / Şimdi Senkronize Et).
 
 ## Design system
 

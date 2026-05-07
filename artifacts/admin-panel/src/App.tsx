@@ -12,7 +12,9 @@ import Layout from "./components/layout";
 // Pages
 import Login from "./pages/login";
 import Dashboard from "./pages/dashboard";
-import Settings from "./pages/settings";
+import SettingsAccounts from "./pages/settings/accounts";
+import SettingsEmail from "./pages/settings/email";
+import SettingsDanger from "./pages/settings/danger";
 import Kits from "./pages/kits";
 import KitDetail from "./pages/kit-detail";
 import SyncLogs from "./pages/sync-logs";
@@ -93,7 +95,9 @@ function Router() {
       <Route path="/kits">{() => <ProtectedRoute component={Kits} />}</Route>
       <Route path="/kits/:kitNo">{() => <ProtectedRoute component={KitDetail} />}</Route>
       <Route path="/sync-logs">{() => <ProtectedRoute component={SyncLogs} />}</Route>
-      <Route path="/settings">{() => <ProtectedRoute component={Settings} minRole="admin" />}</Route>
+      <Route path="/settings">{() => <ProtectedRoute component={SettingsAccounts} minRole="admin" />}</Route>
+      <Route path="/settings/email">{() => <ProtectedRoute component={SettingsEmail} minRole="admin" />}</Route>
+      <Route path="/settings/danger">{() => <ProtectedRoute component={SettingsDanger} minRole="admin" />}</Route>
       <Route path="/profile">{() => <ProtectedRoute component={Profile} />}</Route>
       <Route path="/admin/users">{() => <ProtectedRoute component={AdminUsers} minRole="admin" />}</Route>
       <Route path="/audit-logs">{() => <ProtectedRoute component={AuditLogs} minRole="admin" />}</Route>

@@ -1,11 +1,19 @@
 import React, { useState } from "react";
-import { useLocation } from "wouter";
-import { useGetKits, getGetKitsQueryKey } from "@workspace/api-client-react";
-import { Search, ChevronDown, ArrowUpDown, Terminal, ArrowRight } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import {
+  useGetKits,
+  getGetKitsQueryKey,
+  useListStationAccounts,
+  getListStationAccountsQueryKey,
+  useGetMe,
+  getGetMeQueryKey,
+} from "@workspace/api-client-react";
+import { Search, ChevronDown, ArrowUpDown, Terminal, ArrowRight, Server, Plus } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody as Body,
@@ -36,6 +44,17 @@ export default function Kits() {
     { kitNo: debouncedKitNo || undefined, sortBy },
     { query: { queryKey: getGetKitsQueryKey({ kitNo: debouncedKitNo, sortBy }) } }
   );
+
+  // Used to differentiate "no accounts configured" from "no matching kits".
+  const { data: accounts } = useListStationAccounts({
+    query: { queryKey: getListStationAccountsQueryKey(), staleTime: 60_000 },
+  });
+  const hasAccounts = (accounts?.length ?? 0) > 0;
+  const hasFilter = debouncedKitNo.trim().length > 0;
+
+  const { data: me } = useGetMe({ query: { queryKey: getGetMeQueryKey() } });
+  const role = ((me as { role?: string } | undefined)?.role ?? "viewer") as "owner" | "admin" | "viewer";
+  const canManageAccounts = role === "owner" || role === "admin";
 
   const toggleSort = (col: "totalGib" | "totalUsd" | "lastSeen") => {
     setSortBy(col);
@@ -106,8 +125,71 @@ export default function Kits() {
                 ))
               ) : kits?.length === 0 ? (
                 <Row className="hover:bg-transparent border-none">
-                  <Cell colSpan={6} className="h-48 text-center text-muted-foreground font-medium">
-                    Aramanızla eşleşen terminal bulunamadı.
+                  <Cell colSpan={6} className="h-64 text-center align-middle">
+                    {!hasAccounts ? (
+                      <div className="flex flex-col items-center gap-3 py-6">
+                        <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
+                          <Server className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            Henüz portal hesabı yok
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
+                            {canManageAccounts
+                              ? "KIT verisi görmek için önce en az bir Station Satcom portal hesabı eklemelisiniz."
+                              : "Henüz portal hesabı eklenmemiş. Bir yöneticinin Ayarlar'dan hesap eklemesi gerekiyor."}
+                          </p>
+                        </div>
+                        {canManageAccounts && (
+                          <Link href="/settings">
+                            <Button className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-none mt-1">
+                              <Plus className="w-4 h-4 mr-2" /> Hesap Ekle
+                            </Button>
+                          </Link>
+                        )}
+                      </div>
+                    ) : hasFilter ? (
+                      <div className="flex flex-col items-center gap-3 py-6">
+                        <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
+                          <Search className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            "{debouncedKitNo}" ile eşleşen terminal yok
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Filtreyi temizleyip tüm terminalleri görebilirsiniz.
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          onClick={() => setKitNo("")}
+                          className="rounded-lg shadow-none mt-1"
+                        >
+                          Filtreyi Temizle
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-3 py-6">
+                        <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
+                          <Terminal className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            Henüz KIT verisi yok
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
+                            İlk senkronizasyon turundan sonra terminaller burada listelenir.
+                          </p>
+                        </div>
+                        <Link href="/sync-logs">
+                          <Button variant="outline" className="rounded-lg shadow-none mt-1">
+                            Senkronizasyon Sayfasına Git
+                          </Button>
+                        </Link>
+                      </div>
+                    )}
                   </Cell>
                 </Row>
               ) : (

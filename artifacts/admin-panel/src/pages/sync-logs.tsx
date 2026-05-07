@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "wouter";
 import {
   useGetSyncLogs,
   getGetSyncLogsQueryKey,
@@ -6,9 +7,11 @@ import {
   getGetDashboardSummaryQueryKey,
   useGetMe,
   getGetMeQueryKey,
+  useListStationAccounts,
+  getListStationAccountsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, AlertCircle, RefreshCw, Clock } from "lucide-react";
+import { CheckCircle2, AlertCircle, RefreshCw, Clock, Server, Plus } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +44,10 @@ export default function SyncLogs() {
 
   const { data: me } = useGetMe({ query: { queryKey: getGetMeQueryKey() } });
   const canWrite = ((me as { role?: string } | undefined)?.role ?? "viewer") !== "viewer";
+  const { data: accounts } = useListStationAccounts({
+    query: { queryKey: getListStationAccountsQueryKey(), staleTime: 60_000 },
+  });
+  const hasAccounts = (accounts?.length ?? 0) > 0;
   const syncNowMutation = useSyncNow();
   const isSyncing =
     syncNowMutation.isPending ||
@@ -145,8 +152,55 @@ export default function SyncLogs() {
                 ))
               ) : data?.logs.length === 0 ? (
                 <Row className="hover:bg-transparent border-none">
-                  <Cell colSpan={7} className="h-48 text-center text-muted-foreground font-medium">
-                    Kayıt yok.
+                  <Cell colSpan={7} className="h-64 text-center align-middle">
+                    {!hasAccounts ? (
+                      <div className="flex flex-col items-center gap-3 py-6">
+                        <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
+                          <Server className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            Henüz portal hesabı yok
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
+                            {canWrite
+                              ? "Senkronizasyon başlatabilmek için en az bir hesap eklemelisiniz."
+                              : "Bir yöneticinin Ayarlar'dan portal hesabı eklemesi gerekiyor."}
+                          </p>
+                        </div>
+                        {canWrite && (
+                          <Link href="/settings">
+                            <Button className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-none mt-1">
+                              <Plus className="w-4 h-4 mr-2" /> Hesap Ekle
+                            </Button>
+                          </Link>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-3 py-6">
+                        <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
+                          <RefreshCw className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            Henüz senkronizasyon kaydı yok
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
+                            Otomatik tur her gece 01:00'da çalışır. İsterseniz hemen başlatın.
+                          </p>
+                        </div>
+                        {canWrite && (
+                          <Button
+                            onClick={handleSync}
+                            disabled={isSyncing}
+                            className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-none mt-1"
+                          >
+                            <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? "animate-spin" : ""}`} />
+                            Şimdi Senkronize Et
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </Cell>
                 </Row>
               ) : (
