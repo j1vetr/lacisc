@@ -1,0 +1,68 @@
+# Changelog
+
+Tarihsel mimari/karar notları. Güncel "şu an nasıl çalışıyor" özeti için `replit.md`'ye bakın.
+
+## May 2026
+
+### Customer create-time KIT atama (Task #17)
+`Yeni Kullanıcı` dialog'unda rol = "Müşteri" seçilince inline KIT picker görünür (Satcom/Tototheo iki gruplu, arama, "görüneni seç/temizle"). "Oluştur" butonu sıralı `useCreateAdminUser` + `useUpdateAssignedKits` çalıştırır; ikincisi başarısız olursa kullanıcı yine de oluşturulmuş kalır ve toast satırın yanındaki KIT modali ile tekrar denemeyi önerir. Bileşen `KitPickerInline` (admin-users.tsx içi); mevcut `AssignKitsDialog` (sonradan düzenleme) aynı `KitGroup` helper'ı paylaşır. `useListAssignableKits` her iki yerde aynı queryKey ile cache'lenir → tek round-trip.
+
+### Customer (görüntüleyici müşteri) rolü (Task #13)
+Rol hiyerarşisi `owner > admin > viewer > customer` (frontend rank `customer:-1`). Müşteri hesaplarının **kullanıcı adı zorunlu / e-posta opsiyonel** (operatör hesaplarının tersi); login formu tek alandır ("Kullanıcı adı veya e-posta") ve server `usernameOrEmail` ile her ikisini OR'lar. `admin_users.username` (3-32 kar., regex `/^[a-z0-9_.-]+$/`, UNIQUE) kolonu eklendi; `email` artık nullable. Boot'ta legacy hesaplar için username, email local-part'ından otomatik backfill edilir. Müşteri-KIT atamaları `customer_kit_assignments(user_id, kit_no, source, assigned_at, assigned_by_user_id)` tablosunda (PK üzerinde `(user_id, kit_no)`); silme cascade. KIT routing aynı KITP-prefix kuralıyla yapılır (`api-server/src/lib/customer-scope.ts::classifyKit` = frontend `isStarlinkKit` ile birebir). Backend scope: `records.ts` ve `starlink.ts` rotaları customer için raw SQL `kit_no = ANY($1::text[])` ile filtrelenir; atanmamış KIT'lere 404 döner. `station.ts`'de hesap CRUD/sync-progress/email-settings GET'leri `requireRole("viewer")` ile korunur (customer 403). Yeni endpoint'ler: `GET /admin/users/assignable-kits` (Satcom + Starlink birleşik, aktif dönem GiB ile), `GET/PUT /admin/users/{id}/assigned-kits` (replace-all transaction, audit log'lar; PUT `{kitNos:[]}` alır, `{added,removed,count}` döner). Frontend: `App.tsx`/`layout.tsx`/`command-palette.tsx` ROLE_RANK customer:-1 ile genişletildi; nav'da yalnız Panel + Terminaller + Profilim customer'a görünür. Dashboard customer için "Sistem Sağlığı" kartı yerine sadece "Son Güncelleme" rozeti gösterir; `SyncCompletionToast` da customer için mount edilmez.
+
+### Starlink (Tototheo TM) integration
+İkinci veri kaynağı, HTTP API üzerinden, snapshot-only (email alarmı yok). Tüm Starlink verisi 4 tabloda yaşar: `starlink_settings` (singleton, AES-GCM şifreli Bearer token + on/off + base URL + lastSyncAt/lastErrorMessage), `starlink_terminals` (PK `kitSerialNumber`, son snapshot per terminal — nickname, asset, online/blocked, signal/latency/obstruction/up/down speeds, lat/lng/lastFix, activeAlertsCount), `starlink_terminal_daily` (PK `kit + dayDate`, her tick'te kümülatif cycle GB upsert), `starlink_terminal_period_total` (PK `kit + period`, `poolPlanMonthlyUsage`'dan otoriter aylık toplam). Backend: `artifacts/api-server/src/lib/tototheo.ts` (HTTP client w/ Bearer auth, exponential backoff on 429, `getTerminalList` + `getTerminalDetails` nested `imo→userTerminalId→{...}` shape unwrap) + `starlink-sync.ts` (orchestrator, atomik claim, `getSettings/saveSettings/wipeSettingsForTest`). Token round-trip email'in `hasPassword` pattern'ini taklit eder. Daily breakdown chart kümülatif okumalardan read-time delta hesaplar (negative delta cycle reset'te 0'a floor edilir).
+
+### Unified 30-min cron
+`api-server/src/lib/scheduler.ts` her 30 dakikada bir `:00`/`:30` UTC hizalı tek tick. Her tick: **önce Starlink** (devre dışıysa veya meşgulse atla) **sonra Satcom** (`forceFull: true`, orchestrator meşgulse atla). Önceki "her 3 saatte bir" Satcom-only schedule yerine geçti. Live progress UI artık `phase: "idle"|"starlink"|"satcom"` + Starlink sayaçları (`starlinkTotalTerminals/Processed/Success/Failures`, `currentTerminalKit/Label`) sunar; aynı `SyncProgressPanel` her iki fazı tek `startedAt`/`finishedAt` ile gösterir.
+
+### Source detection (DB-backed)
+Önceki "KITP\d ile başlayanlar Satcom" prefix tahmininden vazgeçildi — Tototheo cihaz serileri de bu prefix ile gelebildiği için zengin Tototheo detay tasarımı yerine Satcom CDR tasarımı açılıyordu. Yeni endpoint `GET /api/station/kits/:kitNo/source` `starlink_terminals` ve `station_kits` tablolarını sorgulayıp `{source: "satcom"|"starlink"}` döner; çakışmada `starlink_terminals` her zaman kazanır. Frontend dispatcher (`kit-detail.tsx`) bu hook'u 5dk staleTime ile çağırır → ikinci ziyaret cache'ten anlık. Backend yardımcılar: `classifyKitDb(kitNo)` (tek), `classifyKitsDb(kitNos[])` (toplu — `admin-users.ts assigned-kits` PUT'unda kullanılıyor). Sync `classifyKit` deprecated. Müşteri çağrısında atanmamış KIT'in varlığı bile sızdırılmaz (404). Liste sayfası `/kits` `useGetKits` + `useGetStarlinkTerminals` listelerini birleştirir; rozetler **Satcom (turuncu)** / **Tototheo (mavi)**.
+
+### USD görünümleri UI'dan kaldırıldı
+Satcom portalından USD hâlâ scrape ediliyor ve `station_kit_period_total.totalUsd` / `station_kit_daily.chargeUsd` DB'de saklanıyor (geriye dönük raporlama için), ancak yönetici paneli sadece veri kullanımını (GiB) gösteriyor. `formatCurrency` `lib/format.ts`'de duruyor (gelecekte TL/cost hesaplaması için). `/api/metrics`'teki `ssa_active_period_total_usd` da iç ölçüm için kalıyor.
+
+## Earlier
+
+### Auth & RBAC (P0 #5)
+JWT'ler **httpOnly Secure(prod) SameSite=Lax `auth_token` cookie**'sinde taşınır; CLI/Expo için `Authorization: Bearer` fallback korunur. Login response body'si **token döndürmez** (XSS sertleştirme); CLI/mobil istemciler `Set-Cookie` header'ından okur. Her token'a `jti` gömülür ve `admin_sessions` tablosunda satır olarak takip edilir → `requireAuth` her istekte cache'li (30s) session-exists kontrolü yapar; satır silinince oturum **anında** iptal olur. UI: profil sayfası "Aktif Oturumlar" listesi + tek tek "Sonlandır" + "Tümünü Sonlandır". Rol değiştiğinde / şifre sıfırlandığında hedef kullanıcının **tüm oturumları** silinir + `tokenVersion` bump. **Çift-submit CSRF**: server `csrf_token` (non-httpOnly) cookie set eder, `lib/api-client-react/src/custom-fetch.ts` her mutation için header'a echo'lar; cookie auth yoksa (Bearer-only) CSRF check skip. Roller `owner > admin > viewer`; `requireRole(min)` server'da, `ProtectedRoute minRole` + `layout.tsx` nav filtresi UI'da. **Last-owner guard** PATCH/DELETE'i, **kendini silme yasağı** ve **owner rolünü sadece owner verebilir** kuralı `routes/admin-users.ts`'de. **Hesap kilitleme**: 5 başarısız giriş → 15dk lock; login 20/15dk, change-password 10/15dk per-IP rate-limit. **Şifre politikası** (`lib/password-policy.ts`): 12+ karakter, U/l/d/symbol. bcrypt cost 12.
+
+### Audit logs
+`lib/audit.ts` + `audit_logs` tablosu jsonb meta: login/logout/change_password, user.create/update/delete/reset_password, station.account.create/update/delete, station.wipe_data, station.sync_now, station.email_settings.update tüm IP+UA+aktör ile kayıt; `GET /audit-logs` filtreli sayfalı listeler. Bootstrap `admin@example.com` `role="owner"`; legacy DB'lerde owner yoksa en eski kullanıcı promote edilir.
+
+### Multi-account portals
+`station_credentials` birden fazla hesap tutar (her birinin kendi `label`, `username`, `firstFullSyncAt`'i var). Tüm veri tabloları (`station_kits`, `station_kit_daily`, `station_kit_period_total`, `station_sync_logs`) `credential_id` kolonu + FK (ON DELETE CASCADE) ile bağlanır; unique index'ler `(credential_id, kit_no, period[, cdr_id])` olarak partition'lı. KITP kodları globally unique varsayıldığından `station_kits.kit_no` PK olarak kalır. `station_sync_logs.credential_id NULL` = aggregate ("tüm hesaplar") wrap satırı.
+
+### Sync orchestrator
+`api-server/src/lib/sync-orchestrator.ts`: `POST /station/sync-now` fire-and-forget. Orchestrator aktif tüm hesapları sırayla işler, her biri için ayrı sync log + per-account credentials state günceller; biten her hesabın sonucu `accountResults`'a eklenir.
+
+### Live progress
+`api-server/src/lib/sync-progress.ts`: in-memory snapshot (running flag, account/period/kit sayaçları, current labels, son ~50 event). `GET /station/sync-progress` polling endpoint; UI 1.5sn aralıkla çağırır. Scraper `runSync({reportProgress:true})` ile her dönem/KIT başlangıcında ve her done/failure'da hook'ları tetikler.
+
+### Per-CDR daily storage
+`station_kit_daily` her CDR satırını tutar (PK `credential_id, kit_no, period, cdr_id`) — aynı dönemi tekrar sync etmek idempotent. `station_kit_period_total` portal **footer**'ını (col12 GiB / col22 USD) per `(credential_id, kit_no, period)` saklar — aylık toplamların kaynağı (row-sum drift yok).
+
+### Usage-threshold email alerts
+`api-server/src/lib/alerts.ts`: aktif dönemde her KIT için `floor(totalGib / thresholdStepGib) * step` hesaplanır; `station_kit_period_total.last_alert_threshold_gib` üzerinden büyükse **tek** mail atılıp eşik persist edilir → idempotent. Yeni dönem = yeni satır = otomatik 0 reset. SMTP host/port/secure/user/şifre + gönderen + alıcı listesi + step DB'deki `email_settings` singleton'ında saklanır (`.env` değil); şifre AES-GCM ile şifreli, UI'a hiç dönmez (`hasPassword` flag'i ile gösterilir). Endpointler: `GET/PUT /station/email-settings`, `POST /station/email-settings/test`. Hook scraper'da `persistKitPeriod` sonrası `void checkAndSendUsageAlert(...)` ile fire-and-forget; mail hatası sync'i bozmaz. Alıcı parse: `/[,;\n]/`.
+
+- **Aktif dönem filtresi**: `checkAndSendUsageAlert` sadece `period === activePeriod()` (UTC YYYYMM) için çalışır. Manuel `forceFull` backfill'de geçmiş dönemler için retroactive eşik mail'i gitmez.
+- **Mail kuyruğu** (`MAIL_SEND_INTERVAL_MS = 30_000`): atomik claim sonrası `sendMail` çağrısı in-memory FIFO kuyruğa alınır, tek worker 30sn aralıkla işler. Process restart kuyruktaki bekleyen mail'leri kaybeder.
+
+### Two-tier sync
+İlk sync (`firstFullSyncAt` null) **202601** → şimdiki dönemi tarar; sonraki **scheduled** sync'ler sadece şu an + önceki dönemi dokunur. Manuel "Şimdi Senkronize Et" butonu her zaman `forceFull: true` geçer → 202601'den itibaren her aktif hesap için her dönemi yeniden tarar.
+
+### Per-(KIT × dönem) FV scrape
+Bare grid `RatedCdrs.aspx` server-side ~100 satır cap'li, dolayısıyla 50+ CDR'lı bir KIT kesilirdi (KITP00409812/202604: 955 GiB → 774 GiB). Sync artık her dönemde `?FC=ICCID&FV=KITPxxxx` ile her KIT'i ayrı çeker; tek sayfaya sığan footer = gerçek dönem grand-total. Geçmiş dönemleri yeniden çekmek için: `UPDATE station_credentials SET first_full_sync_at = NULL WHERE id = X;` sonra sync.
+
+### Performance & observability
+- **DB indexes**: `kit_period_total_period_idx`, `kit_daily_lookup_idx`, `station_sync_logs_started_at_idx` + `station_sync_logs_credential_idx`. Her list/KPI query index-backed.
+- **Bundle splitting**: `vite.config.ts` `manualChunks` Recharts (~112KB gz), framer-motion, cmdk (~17KB gz), lucide-react, @tanstack/react-query, react/react-dom/wouter ayrı vendor chunk'larda. Routes React.lazy + Suspense; login cold-start ~137KB gz.
+- **React Query defaults**: `staleTime 30_000`, `gcTime 5min`, `retry 1` w/ exponential backoff (max 8s), `refetchOnReconnect: "always"`. Per-query overrides: sync-progress 1.5s polling, /me 60s.
+- **Dark mode**: `next-themes` ThemeProvider, `.dark` CSS token block `index.css`'de warm cream → deep ink. Header'da Sun/Moon `ThemeToggle`. Persist: `localStorage` `ssa-theme`.
+- **Prometheus `/api/metrics`**: dependency-free text-format. Exposes `ssa_station_accounts_total{state}`, `ssa_station_kits_total`, `ssa_active_period_total_{gib,usd}`, `ssa_last_sync_{started,finished}_seconds`, `ssa_last_sync_success`, `ssa_sync_runs{status}`, `ssa_sync_running`, `ssa_process_uptime_seconds`. Açık by default; `METRICS_TOKEN` set ise `Authorization: Bearer` zorunlu.
+
+### Komut paleti & klavye kısayolları
+`components/command-palette.tsx` + `shortcuts-help.tsx`: `Cmd/Ctrl+K` her yerden açılır — sayfalar (rol filtreli), terminaller, portal hesapları aranabilir; `?` kısayol yardımı modalı; `G P / G T / G S` iki-vuruşlu navigasyon. Listeler sadece palet açıkken fetch edilir.
+
+### Sync tamamlandı toast'ı
+`components/sync-completion-toast.tsx` Layout'a global mount'lanmış; `useGetSyncProgress`'i 3sn'de bir poll'lar (sadece authenticated iken) ve `running→idle` geçişini `useRef` ile yakalayıp toast atar.
