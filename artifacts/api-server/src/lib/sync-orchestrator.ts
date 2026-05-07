@@ -36,14 +36,12 @@ function accountLabel(c: { id: number; label: string | null; username: string })
   return c.label?.trim() || c.username || `#${c.id}`;
 }
 
+// Public entry point #1 — claim the lock atomically and run.
+// Use this when the caller has NOT already called tryClaimRun() (e.g. the
+// scheduler tick). If another run is in flight, returns success:false
+// without ever flipping `running`, so the in-flight run keeps its lock.
 export async function runAllAccounts(opts: { forceFull?: boolean } = {}): Promise<OrchestratorResult> {
-  // Atomic claim before any async work. The caller (HTTP route, scheduler)
-  // may have already claimed via tryClaimRun(); in that case this call is
-  // a no-op. If neither path claimed it AND running===true, another run is
-  // in flight and we must bail — otherwise we'd start a second concurrent
-  // orchestrator (overlap = duplicate scrapes + DB writes).
-  const claimedHere = tryClaimRun();
-  if (!claimedHere) {
+  if (!tryClaimRun()) {
     return {
       success: false,
       message: "Senkronizasyon zaten çalışıyor.",
@@ -52,35 +50,45 @@ export async function runAllAccounts(opts: { forceFull?: boolean } = {}): Promis
       recordsUpdated: 0,
     };
   }
-
   try {
-    const accounts = await db
-      .select()
-      .from(stationCredentials)
-      .where(eq(stationCredentials.isActive, true))
-      .orderBy(asc(stationCredentials.id));
-
-    if (accounts.length === 0) {
-      return {
-        success: false,
-        message: "Aktif portal hesabı bulunamadı.",
-        recordsFound: 0,
-        recordsInserted: 0,
-        recordsUpdated: 0,
-      };
-    }
-
-    return await runAccountsInner(accounts, opts.forceFull ?? false);
+    return await runWithActiveAccounts(opts.forceFull ?? false);
   } finally {
     running = false;
   }
 }
 
-// Variant for callers that already hold the lock (claimed via tryClaimRun
-// in an HTTP fire-and-forget path). Skips re-claim and trusts the caller
-// to release `running` in its own finally block. Currently unused — the
-// HTTP route uses runAllAccounts() directly which handles the no-op claim.
-// Exported for future use if needed.
+// Public entry point #2 — caller already holds the lock (called tryClaimRun()
+// itself, e.g. the HTTP /station/sync-now route which claims synchronously
+// in the request handler before going fire-and-forget). This variant does
+// NOT re-claim, but DOES release the lock in its own finally — so callers
+// must NOT release it themselves.
+export async function runAllAccountsClaimed(opts: { forceFull?: boolean } = {}): Promise<OrchestratorResult> {
+  try {
+    return await runWithActiveAccounts(opts.forceFull ?? false);
+  } finally {
+    running = false;
+  }
+}
+
+async function runWithActiveAccounts(forceFull: boolean): Promise<OrchestratorResult> {
+  const accounts = await db
+    .select()
+    .from(stationCredentials)
+    .where(eq(stationCredentials.isActive, true))
+    .orderBy(asc(stationCredentials.id));
+
+  if (accounts.length === 0) {
+    return {
+      success: false,
+      message: "Aktif portal hesabı bulunamadı.",
+      recordsFound: 0,
+      recordsInserted: 0,
+      recordsUpdated: 0,
+    };
+  }
+
+  return await runAccountsInner(accounts, forceFull);
+}
 
 async function runAccountsInner(
   accounts: Array<typeof stationCredentials.$inferSelect>,

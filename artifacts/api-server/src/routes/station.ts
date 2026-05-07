@@ -14,7 +14,7 @@ import { audit } from "../lib/audit";
 import { logger } from "../lib/logger";
 import { runSync } from "../lib/scraper";
 import {
-  runAllAccounts,
+  runAllAccountsClaimed,
   isOrchestratorRunning,
   tryClaimRun,
 } from "../lib/sync-orchestrator";
@@ -421,18 +421,17 @@ router.post("/station/sync-now", requireAuth, requireRole("admin"), async (req: 
     .where(eq(stationCredentials.isActive, true))
     .limit(1);
   if (!active) {
-    // Release the claim — runAllAccounts() will re-claim atomically when called.
-    // Since we already hold `running=true`, we need to release explicitly.
-    // The simplest path: call runAllAccounts() now (inside which the no-active
-    // guard fires and returns), and have its finally release the lock.
-    void runAllAccounts({ forceFull: true }).catch(() => {});
+    // We already hold the lock. runAllAccountsClaimed() runs the no-active
+    // guard and releases the lock in its own finally — fire-and-forget so
+    // the HTTP response isn't blocked.
+    void runAllAccountsClaimed({ forceFull: true }).catch(() => {});
     res.status(400).json({ error: "Aktif portal hesabı bulunamadı." });
     return;
   }
-  // Fire-and-forget — claim already held, runAllAccounts() reuses it.
-  // Manual button always forces a full backfill (202601 → current) for every
-  // account; the nightly cron stays incremental.
-  void runAllAccounts({ forceFull: true })
+  // Fire-and-forget — claim already held, runAllAccountsClaimed() reuses it
+  // and releases on completion. Manual button always forces a full backfill
+  // (202601 → current) for every account.
+  void runAllAccountsClaimed({ forceFull: true })
     .then((r) => {
       logger.info({ ...r }, "Multi-account sync finished");
     })
