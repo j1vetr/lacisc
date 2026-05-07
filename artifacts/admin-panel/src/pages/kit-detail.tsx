@@ -378,21 +378,6 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
     v == null ? "—" : formatNumber(v, dec);
   const fmtNum = (v?: number | null, dec = 1) =>
     v == null ? "—" : formatNumber(v, dec);
-  const minMaxHint = (
-    min?: number | null,
-    max?: number | null,
-    unit?: string,
-    dec = 1,
-  ) => {
-    if (min == null && max == null) return null;
-    return (
-      <>
-        en düşük {min == null ? "—" : formatNumber(min, dec)}
-        {" / "}en yüksek {max == null ? "—" : formatNumber(max, dec)}
-        {unit ? ` ${unit}` : ""}
-      </>
-    );
-  };
 
   return (
     <div className="space-y-4 animate-in fade-in duration-500">
@@ -472,15 +457,6 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
         )}
       </div>
 
-      {!detailLoading && !cardDetailsCollected && (
-        <div className="rounded-lg border border-dashed border-border bg-secondary/30 px-4 py-2.5 text-[12px] text-muted-foreground flex items-center gap-2">
-          <PlugZap className="w-3.5 h-3.5" />
-          Bu KIT için portal detay sayfası henüz taranmadı — plan, mobile
-          numara, abonelik geçmişi ve oturum bilgileri sonraki senkronizasyondan
-          sonra görünecek.
-        </div>
-      )}
-
       {/* Top row: Live telemetry (8) + Map (4) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <Card className="lg:col-span-8">
@@ -523,12 +499,6 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                       ? "ok"
                       : "neutral"
                   }
-                  hint={minMaxHint(
-                    lastHour?.signalQualityMinPct,
-                    lastHour?.signalQualityMaxPct,
-                    "%",
-                    0,
-                  )}
                 />
                 <MetricTile
                   label="Gecikme"
@@ -538,12 +508,6 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                   tone={
                     (lastHour?.latencyAvgMs ?? 999) < 80 ? "ok" : "neutral"
                   }
-                  hint={minMaxHint(
-                    lastHour?.latencyMinMs,
-                    lastHour?.latencyMaxMs,
-                    "ms",
-                    0,
-                  )}
                 />
                 <MetricTile
                   label="Paket Kaybı"
@@ -553,36 +517,18 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                   tone={
                     (lastHour?.pingDropAvgPct ?? 0) > 2 ? "warn" : "neutral"
                   }
-                  hint={minMaxHint(
-                    lastHour?.pingDropMinPct,
-                    lastHour?.pingDropMaxPct,
-                    "%",
-                    2,
-                  )}
                 />
                 <MetricTile
                   label="İndirme"
                   value={fmtNum(lastHour?.downloadAvgMbps, 1)}
                   unit="Mbps"
                   icon={<Download className="w-3 h-3" />}
-                  hint={minMaxHint(
-                    lastHour?.downloadMinMbps,
-                    lastHour?.downloadMaxMbps,
-                    "Mbps",
-                    1,
-                  )}
                 />
                 <MetricTile
                   label="Yükleme"
                   value={fmtNum(lastHour?.uploadAvgMbps, 1)}
                   unit="Mbps"
                   icon={<Upload className="w-3 h-3" />}
-                  hint={minMaxHint(
-                    lastHour?.uploadMinMbps,
-                    lastHour?.uploadMaxMbps,
-                    "Mbps",
-                    1,
-                  )}
                 />
                 <MetricTile
                   label="Engel"
@@ -592,12 +538,6 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                   tone={
                     (lastHour?.obstructionAvgPct ?? 0) > 1 ? "warn" : "ok"
                   }
-                  hint={minMaxHint(
-                    lastHour?.obstructionMinPct,
-                    lastHour?.obstructionMaxPct,
-                    "%",
-                    2,
-                  )}
                 />
               </>
             )}
@@ -629,14 +569,8 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                     lat={location.lat}
                     lng={location.lng}
                     zoom={3}
-                    online={locActive}
                   />
                 </Suspense>
-                <div className="absolute top-2 left-2 z-[400]">
-                  <Pill tone={locActive ? "ok" : "neutral"}>
-                    {locActive ? "Çevrimiçi" : "Çevrimdışı"}
-                  </Pill>
-                </div>
                 <div className="absolute bottom-0 left-0 right-0 px-3 py-2 bg-card/90 backdrop-blur-sm border-t border-border flex justify-between text-[11px] font-mono z-[400] pointer-events-none">
                   <span>
                     <span className="text-muted-foreground">lat</span>{" "}
@@ -690,10 +624,6 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                 <span className="ml-3 text-[11px] font-mono text-muted-foreground">
                   · {detail?.rowCount ?? 0} CDR satırı
                 </span>
-              </div>
-              <div className="text-xs text-muted-foreground">
-                Plan tahsisi ve eşik bilgileri portal detay sayfasından henüz
-                alınmadı — yalnızca tüketim gösteriliyor.
               </div>
             </div>
           ) : (

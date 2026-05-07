@@ -1209,12 +1209,33 @@ export async function runSync(opts: RunSyncOptions): Promise<SyncResult> {
       ]);
     }
 
-    const allPeriods = await readPeriodOptions(page);
+    // DevExpress lazy-loads combo items: GetItemCount() returns 1 (the
+    // currently-selected period) until the dropdown is opened. Click the
+    // combo button once so all historical periods materialize, then close it.
+    try {
+      await page
+        .locator("#ctl00_ContentPlaceHolder1_ctl00_ctl00_B-1Img, #ctl00_ContentPlaceHolder1_ctl00_ctl00_B-1")
+        .first()
+        .click({ timeout: 5000 });
+      await page.waitForSelector("#ctl00_ContentPlaceHolder1_ctl00_ctl00_DDD_L_LBT tr", {
+        timeout: 5000,
+      }).catch(() => {});
+      await page.waitForTimeout(300);
+    } catch (e) {
+      logger.warn(
+        { err: (e as Error).message },
+        "Period combo open failed before readPeriodOptions; will rely on whatever is loaded"
+      );
+    }
+    let allPeriods = await readPeriodOptions(page);
+    // Close the dropdown if it's still open (press Escape).
+    await page.keyboard.press("Escape").catch(() => {});
+    logger.info({ comboPeriods: allPeriods }, "Period combo readout");
     if (allPeriods.length === 0) {
       logger.warn("No periods read from combo; falling back to current month only");
       const now = new Date();
       const cur = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-      allPeriods.push(cur);
+      allPeriods = [cur];
     }
 
     const [creds] = await db
