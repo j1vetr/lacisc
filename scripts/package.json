@@ -6,6 +6,7 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "dump-kit-page": "tsx ./src/dump-kit-page.ts",
+    "explore-portal": "tsx ./src/explore-portal.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
