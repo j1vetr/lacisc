@@ -387,8 +387,8 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
     if (min == null && max == null) return null;
     return (
       <>
-        min {min == null ? "—" : formatNumber(min, dec)}
-        {" / "}max {max == null ? "—" : formatNumber(max, dec)}
+        en düşük {min == null ? "—" : formatNumber(min, dec)}
+        {" / "}en yüksek {max == null ? "—" : formatNumber(max, dec)}
         {unit ? ` ${unit}` : ""}
       </>
     );
