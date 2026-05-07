@@ -1,0 +1,140 @@
+.editorial-theme {
+  --bg-cream: #f7f7f4;
+  --bg-cream-deep: #f1f0eb;
+  --bg-paper: #fcfbf8;
+  --ink: #26251e;
+  --ink-soft: #4a4940;
+  --ink-mute: #8a887e;
+  --ink-faint: #b6b4a8;
+  --hairline: #e6e5e0;
+  --hairline-strong: #d8d6cf;
+  --orange: #f54e00;
+  --orange-soft: #fde6dc;
+
+  --font-serif: 'Cormorant Garamond', 'Times New Roman', serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  background: var(--bg-cream);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+.editorial-theme .ed-serif { font-family: var(--font-serif); font-feature-settings: "liga", "dlig"; }
+.editorial-theme .ed-mono  { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+.editorial-theme .hl-b { border-bottom: 1px solid var(--hairline); }
+.editorial-theme .hl-t { border-top: 1px solid var(--hairline); }
+.editorial-theme .hl-r { border-right: 1px solid var(--hairline); }
+.editorial-theme .hl-l { border-left: 1px solid var(--hairline); }
+.editorial-theme .hl-b-strong { border-bottom: 1px solid var(--ink); }
+
+.editorial-theme .no-scrollbar::-webkit-scrollbar { display: none; }
+.editorial-theme .no-scrollbar { scrollbar-width: none; }
+
+.editorial-theme .row-link {
+  position: relative;
+  transition: background 180ms ease, color 180ms ease;
+}
+.editorial-theme .row-link::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 50%;
+  width: 2px; height: 0;
+  background: var(--orange);
+  transform: translateY(-50%);
+  transition: height 220ms ease;
+}
+.editorial-theme .row-link:hover::before { height: 70%; }
+.editorial-theme .row-link:hover .ship-name { color: var(--orange); }
+
+.editorial-theme .ship-row { transition: background 180ms ease; }
+.editorial-theme .ship-row:hover { background: var(--bg-paper); }
+.editorial-theme .ship-row:hover .ship-headline { color: var(--orange); }
+.editorial-theme .ship-row:hover .ship-arrow { opacity: 1; transform: translateX(0); }
+.editorial-theme .ship-arrow {
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.editorial-theme .pill-offline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  border: 1px solid var(--hairline-strong);
+  padding: 3px 8px;
+  border-radius: 2px;
+}
+
+.editorial-theme .cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--ink);
+  color: var(--bg-cream);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  padding: 10px 18px;
+  border-radius: 2px;
+  transition: background 180ms ease, transform 180ms ease;
+}
+.editorial-theme .cta:hover { background: var(--orange); }
+
+.editorial-theme .ghost-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink);
+  font-weight: 500;
+  transition: color 180ms ease;
+}
+.editorial-theme .ghost-cta:hover { color: var(--orange); }
+.editorial-theme .ghost-cta svg { transition: transform 180ms ease; }
+.editorial-theme .ghost-cta:hover svg { transform: translateX(3px); }
+
+.editorial-theme .stat-num {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums oldstyle-nums;
+}
+
+.editorial-theme .brand-mark { display: inline-flex; align-items: center; gap: 10px; }
+.editorial-theme .brand-mark img { height: 64px; width: auto; display: block; }
+
+.editorial-theme .rule-orange {
+  height: 2px;
+  width: 32px;
+  background: var(--orange);
+  display: inline-block;
+}
+
+.editorial-theme .featured-card {
+  background: linear-gradient(180deg, var(--bg-paper) 0%, var(--bg-cream) 100%);
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+}
+.editorial-theme .featured-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: var(--orange);
+}
+
+.editorial-theme .num-tabular { font-variant-numeric: tabular-nums; }

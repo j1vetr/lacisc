@@ -15,6 +15,7 @@ import Layout from "./components/layout";
 // initial JS payload.
 import Login from "./pages/login";
 const Dashboard = lazy(() => import("./pages/dashboard"));
+const CustomerPanel = lazy(() => import("./pages/customer-panel"));
 const Kits = lazy(() => import("./pages/kits"));
 const KitDetail = lazy(() => import("./pages/kit-detail"));
 const SyncLogs = lazy(() => import("./pages/sync-logs"));
@@ -74,9 +75,11 @@ function PageFallback() {
 function ProtectedRoute({
   component: Component,
   minRole,
+  bareLayout,
 }: {
   component: any;
   minRole?: Role;
+  bareLayout?: boolean;
 }) {
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
@@ -111,6 +114,13 @@ function ProtectedRoute({
     }
   }
 
+  if (bareLayout) {
+    return (
+      <Suspense fallback={<PageFallback />}>
+        <Component />
+      </Suspense>
+    );
+  }
   return (
     <Layout>
       <Suspense fallback={<PageFallback />}>
@@ -120,11 +130,26 @@ function ProtectedRoute({
   );
 }
 
+function RootRoute() {
+  // Customer rolu için "/" editöryel müşteri panelini, diğerleri için
+  // operasyon panelini render eder. Customer panel kendi tam-ekran chrome'unu
+  // sağladığı için global Layout'u atlar (bareLayout).
+  const { data: user, isLoading } = useGetMe({
+    query: { queryKey: getGetMeQueryKey(), retry: false, staleTime: 60_000 },
+  });
+  if (isLoading) return <PageFallback />;
+  const role = (user as { role?: Role } | undefined)?.role ?? "viewer";
+  if (role === "customer") {
+    return <ProtectedRoute component={CustomerPanel} bareLayout />;
+  }
+  return <ProtectedRoute component={Dashboard} />;
+}
+
 function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
-      <Route path="/">{() => <ProtectedRoute component={Dashboard} />}</Route>
+      <Route path="/">{() => <RootRoute />}</Route>
       <Route path="/kits">{() => <ProtectedRoute component={Kits} />}</Route>
       <Route path="/kits/:kitNo">{() => <ProtectedRoute component={KitDetail} />}</Route>
       <Route path="/sync-logs">{() => <ProtectedRoute component={SyncLogs} minRole="viewer" />}</Route>
