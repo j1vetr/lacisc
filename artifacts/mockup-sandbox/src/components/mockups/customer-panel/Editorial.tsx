@@ -24,23 +24,23 @@ export default function Editorial() {
   const top = sorted[0];
   const maxGib = sorted[0]?.currentPeriodGib ?? 1;
 
-  const today = new Date().toLocaleDateString("tr-TR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const today = new Date()
+    .toLocaleDateString("tr-TR", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    })
+    .toLocaleUpperCase("tr-TR");
+  const avgGib = totals.totalGib / Math.max(1, totals.totalKits);
 
   return (
     <div className="editorial-theme flex w-full">
       {/* ───────────── Sidebar ───────────── */}
       <aside className="w-[320px] shrink-0 hl-r min-h-screen sticky top-0 h-screen flex flex-col">
         {/* Brand */}
-        <div className="px-8 pt-9 pb-8">
+        <div className="px-8 pt-9 pb-9">
           <div className="brand-mark">
-            <img src={brandLogo} alt="Station Satcom" />
-          </div>
-          <div className="text-[10px] tracking-[0.22em] uppercase mt-3 text-[var(--ink-mute)] font-medium">
-            Denizcilik Operasyonları
+            <img src={brandLogo} alt="Lacivert Teknoloji" />
           </div>
         </div>
 
@@ -78,13 +78,7 @@ export default function Editorial() {
                       <div className="ship-name font-serif text-[18px] leading-tight text-[var(--ink)] truncate flex items-center gap-2">
                         {kit.shipName}
                         <span
-                          className={`dot ${
-                            !kit.online
-                              ? "dot-offline"
-                              : kit.alerts && kit.alerts > 0
-                              ? "dot-alert"
-                              : "dot-online"
-                          }`}
+                          className={`dot ${kit.online ? "dot-online" : "dot-offline"}`}
                         />
                       </div>
                       <div className="font-mono text-[10px] text-[var(--ink-faint)] mt-0.5">
@@ -127,48 +121,39 @@ export default function Editorial() {
       <main className="flex-1 min-w-0">
         {/* Top bar */}
         <div className="hl-b px-14 py-5 flex items-center justify-between">
-          <div className="flex items-center gap-3 text-[11px] tracking-widest uppercase text-[var(--ink-mute)]">
+          <div className="flex items-center gap-3 text-[11px] tracking-[0.18em] uppercase text-[var(--ink-mute)]">
             <span className="rule-orange" />
-            <span>Aylık Filo Bülteni</span>
+            <span>AYLIK FİLO BÜLTENİ</span>
             <span className="text-[var(--ink-faint)]">·</span>
-            <span className="font-mono text-[11px] tracking-normal lowercase">
-              {today}
-            </span>
+            <span className="font-mono text-[11px] tracking-[0.12em]">{today}</span>
           </div>
           <div className="flex items-center gap-3">
             <button className="ghost-cta">
-              Rapor İndir
+              RAPOR İNDİR
               <ArrowUpRight className="w-3.5 h-3.5" strokeWidth={1.5} />
             </button>
           </div>
         </div>
 
         {/* Header */}
-        <header className="px-14 pt-16 pb-12">
-          <div className="text-[11px] tracking-[0.22em] uppercase text-[var(--orange)] mb-5 font-medium">
-            {activePeriodLabel} · Aktif Dönem
+        <header className="px-14 pt-14 pb-12">
+          <div className="text-[11px] tracking-[0.22em] uppercase text-[var(--orange)] mb-3 font-medium">
+            {activePeriodLabel.toLocaleUpperCase("tr-TR")} · AKTİF DÖNEM
           </div>
-          <h1 className="font-serif italic text-[64px] leading-[0.98] tracking-[-0.02em] text-[var(--ink)] max-w-[820px]">
-            Hoş geldiniz, {customer.name.split(" ")[0]}.
-          </h1>
-          <p className="font-serif text-[22px] leading-[1.45] text-[var(--ink-soft)] max-w-[680px] mt-7">
-            Filonuzdaki <span className="text-[var(--ink)] font-medium">{totals.totalKits} gemi</span> bu ay
-            toplam <span className="text-[var(--ink)] font-medium num-tabular">{fmtGib(totals.totalGib)} GB</span> veri
+          <p className="font-serif text-[26px] leading-[1.4] text-[var(--ink)] max-w-[760px] tracking-[-0.005em]">
+            Filonuzdaki <span className="font-medium">{totals.totalKits} gemi</span> bu ay
+            toplam <span className="font-medium num-tabular">{fmtGib(totals.totalGib)} GB</span> veri
             tüketti. Şu an{" "}
-            <span className="text-[var(--ink)] font-medium">{totals.online} gemi</span> kesintisiz bağlantıda.
+            <span className="font-medium">{totals.online} gemi</span> kesintisiz bağlantıda.
           </p>
 
           {/* Inline stat strip */}
           <div className="grid grid-cols-4 gap-0 mt-12 hl-t hl-b">
             {[
-              { label: "Toplam Gemi", value: String(totals.totalKits), unit: "" },
-              { label: "Çevrimiçi", value: `${totals.online}`, unit: `/ ${totals.totalKits}` },
-              { label: "Dönem Tüketimi", value: fmtGib(totals.totalGib), unit: "GB" },
-              {
-                label: "Aktif Uyarı",
-                value: String(kits.reduce((s, k) => s + (k.alerts ?? 0), 0)),
-                unit: "",
-              },
+              { label: "TOPLAM GEMİ", value: String(totals.totalKits), unit: "" },
+              { label: "ÇEVRİMİÇİ", value: `${totals.online}`, unit: `/ ${totals.totalKits}` },
+              { label: "DÖNEM TÜKETİMİ", value: fmtGib(totals.totalGib), unit: "GB" },
+              { label: "GEMİ BAŞINA ORT.", value: fmtGib(avgGib), unit: "GB" },
             ].map((s, i) => (
               <div
                 key={i}
@@ -224,11 +209,11 @@ export default function Editorial() {
                   </p>
                   <div className="mt-8 flex items-center gap-6">
                     <button className="cta">
-                      Gemi Detayını Aç
+                      GEMİ DETAYINI AÇ
                       <ArrowUpRight className="w-3.5 h-3.5" strokeWidth={1.5} />
                     </button>
-                    <span className="font-mono text-[11px] text-[var(--ink-mute)]">
-                      Son güncelleme · {fmtRel(top.lastUpdate)}
+                    <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-[var(--ink-mute)]">
+                      SON GÜNCELLEME · {fmtRel(top.lastUpdate).toLocaleUpperCase("tr-TR")}
                     </span>
                   </div>
                 </div>
@@ -277,8 +262,8 @@ export default function Editorial() {
                     </ResponsiveContainer>
                   </div>
                   <div className="flex justify-between mt-3 text-[10px] tracking-widest uppercase text-[var(--ink-faint)]">
-                    <span>14 gün önce</span>
-                    <span>bugün</span>
+                    <span>14 GÜN ÖNCE</span>
+                    <span>BUGÜN</span>
                   </div>
                 </div>
               </div>
@@ -329,10 +314,7 @@ export default function Editorial() {
                         <span className="ship-headline font-serif text-[26px] leading-tight text-[var(--ink)] tracking-[-0.01em]">
                           {kit.shipName}
                         </span>
-                        {!kit.online && <span className="pill-offline">Çevrimdışı</span>}
-                        {kit.alerts && kit.alerts > 0 ? (
-                          <span className="pill-alert">{kit.alerts} Uyarı</span>
-                        ) : null}
+                        {!kit.online && <span className="pill-offline">ÇEVRİMDIŞI</span>}
                       </div>
                       <div className="font-mono text-[11px] text-[var(--ink-mute)] mt-1.5">
                         {kit.kitNo}
@@ -360,13 +342,7 @@ export default function Editorial() {
                       <div className="mt-1 h-[2px] w-full bg-[var(--hairline)] rounded-full overflow-hidden">
                         <div
                           className="h-full"
-                          style={{
-                            width: `${pct}%`,
-                            background:
-                              kit.alerts && kit.alerts > 0
-                                ? "var(--orange)"
-                                : "var(--ink)",
-                          }}
+                          style={{ width: `${pct}%`, background: "var(--ink)" }}
                         />
                       </div>
                     </div>
@@ -380,8 +356,8 @@ export default function Editorial() {
                       </div>
                     </div>
 
-                    <div className="text-right font-mono text-[11px] text-[var(--ink-mute)]">
-                      {fmtRel(kit.lastUpdate)}
+                    <div className="text-right font-mono text-[10px] tracking-[0.12em] uppercase text-[var(--ink-mute)]">
+                      {fmtRel(kit.lastUpdate).toLocaleUpperCase("tr-TR")}
                     </div>
 
                     <div className="ship-arrow text-[var(--ink)]">
@@ -401,7 +377,7 @@ export default function Editorial() {
               </div>
               <p className="font-serif italic text-[16px] leading-[1.6] text-[var(--ink-soft)] max-w-[460px]">
                 Bu sayfa, atanmış gemilerinizin {activePeriodLabel} dönemine ait
-                tüketim, durum ve uyarı özetini sunar. Bir gemiye tıklayarak
+                tüketim ve canlı durum özetini sunar. Bir gemiye tıklayarak
                 günlük dökümlere ve geçmiş dönem raporlarına ulaşabilirsiniz.
               </p>
             </div>
