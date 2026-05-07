@@ -16,6 +16,7 @@ import {
   useGetKitSubscriptions,
   getGetKitSubscriptionsQueryKey,
 } from "@workspace/api-client-react";
+import type { KitTelemetryHourlyPoint } from "@workspace/api-client-react";
 import {
   ArrowLeft,
   Terminal,
@@ -138,8 +139,8 @@ export default function KitDetail() {
 type SparkPoint = { ts: string; label: string; value: number | null };
 
 function buildSparkSeries(
-  points: Array<{ intervalStart: string }> | undefined,
-  picker: (p: any) => number | null | undefined,
+  points: KitTelemetryHourlyPoint[] | undefined,
+  picker: (p: KitTelemetryHourlyPoint) => number | null | undefined,
 ): SparkPoint[] {
   return (points ?? []).map((p) => {
     const v = picker(p);
@@ -575,6 +576,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                     lat={location.lat}
                     lng={location.lng}
                     zoom={3}
+                    online={locActive}
                   />
                 </Suspense>
                 <div className="absolute top-2 left-2 z-[400]">
