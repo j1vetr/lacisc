@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import brandLogo from "@assets/1_1778023047729.png";
 import toovLogo from "@assets/TOOV_1778023131850.png";
+import toovLogoWhite from "@assets/TOOV_(1)_1778184135138.png";
+import { useThemedAsset } from "@/hooks/use-themed-asset";
 import { Activity, LayoutDashboard, Settings, List, LogOut, Menu, Users, ShieldCheck, UserCircle2, Search } from "lucide-react";
 import { useLogout, useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -39,6 +41,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const logout = useLogout();
   const qc = useQueryClient();
   const { data: user, isLoading: userLoading } = useGetMe({ query: { queryKey: getGetMeQueryKey() } });
+  const toovSrc = useThemedAsset(toovLogo, toovLogoWhite);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -250,7 +253,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2 lg:gap-3 text-[11px] lg:text-xs font-mono text-muted-foreground">
             <span className="hidden sm:inline">{new Date().toLocaleDateString('tr-TR')}</span>
             <span className="hidden sm:inline">•</span>
-            <img src={toovLogo} alt="TOOV" className="h-5 lg:h-6 w-auto object-contain" />
+            <img src={toovSrc} alt="TOOV" className="h-5 lg:h-6 w-auto object-contain" />
           </div>
         </header>
 

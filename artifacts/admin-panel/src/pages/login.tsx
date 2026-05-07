@@ -4,6 +4,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import brandLogo from "@assets/1_1778023047729.png";
 import toovLogo from "@assets/TOOV_1778023131850.png";
+import toovLogoWhite from "@assets/TOOV_(1)_1778184135138.png";
+import { useThemedAsset } from "@/hooks/use-themed-asset";
 import { useLogin } from "@workspace/api-client-react";
 
 import { Button } from "@/components/ui/button";
@@ -38,6 +40,7 @@ export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const loginMutation = useLogin();
+  const toovSrc = useThemedAsset(toovLogo, toovLogoWhite);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -139,7 +142,7 @@ export default function Login() {
             <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-medium">
               Geliştirici
             </span>
-            <img src={toovLogo} alt="TOOV" className="h-5 w-auto object-contain opacity-80" />
+            <img src={toovSrc} alt="TOOV" className="h-5 w-auto object-contain opacity-80" />
           </div>
         </CardContent>
       </Card>
