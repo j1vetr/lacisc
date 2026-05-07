@@ -6,10 +6,13 @@ import { eq } from "drizzle-orm";
 import { signToken } from "../lib/jwt";
 import {
   requireAuth,
+  optionalAuth,
+  invalidateTokenVersionCache,
   AUTH_COOKIE,
   type AuthRequest,
   type Role,
 } from "../middlewares/auth";
+import { sql } from "drizzle-orm";
 import {
   CSRF_COOKIE,
   newCsrfToken,
@@ -135,6 +138,7 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
     userId: user.id,
     email: user.email,
     role: user.role as Role,
+    tv: user.tokenVersion ?? 0,
   });
   setAuthCookie(res, token);
   setCsrfCookie(res, newCsrfToken());
@@ -159,12 +163,29 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
   });
 });
 
-router.post("/auth/logout", async (req: AuthRequest, res): Promise<void> => {
-  if (req.cookies?.[AUTH_COOKIE]) {
+router.post("/auth/logout", optionalAuth, async (req: AuthRequest, res): Promise<void> => {
+  if (req.userId) {
     await audit(req, { action: "auth.logout" });
   }
   clearAuthCookie(res);
   res.json({ message: "Oturum kapatıldı." });
+});
+
+// "Tüm cihazlarda oturumu sonlandır": JWT'leri toptan iptal etmek için
+// admin_users.token_version'ı bir artırır. Sonraki tüm requireAuth çağrıları
+// eski tokenları reddeder. Mevcut cookie de temizlenir.
+router.post("/auth/sessions/terminate-all", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  await db
+    .update(adminUsers)
+    .set({
+      tokenVersion: sql`${adminUsers.tokenVersion} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(eq(adminUsers.id, req.userId!));
+  invalidateTokenVersionCache(req.userId!);
+  await audit(req, { action: "auth.sessions.terminate_all" });
+  clearAuthCookie(res);
+  res.json({ message: "Tüm oturumlar sonlandırıldı." });
 });
 
 router.get("/auth/me", requireAuth, async (req: AuthRequest, res): Promise<void> => {

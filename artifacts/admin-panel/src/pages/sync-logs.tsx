@@ -4,6 +4,8 @@ import {
   getGetSyncLogsQueryKey,
   useSyncNow,
   getGetDashboardSummaryQueryKey,
+  useGetMe,
+  getGetMeQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, AlertCircle, RefreshCw, Clock } from "lucide-react";
@@ -37,6 +39,8 @@ export default function SyncLogs() {
     { query: { queryKey: getGetSyncLogsQueryKey({ page, limit }), refetchInterval: 10000 } }
   );
 
+  const { data: me } = useGetMe({ query: { queryKey: getGetMeQueryKey() } });
+  const canWrite = ((me as { role?: string } | undefined)?.role ?? "viewer") !== "viewer";
   const syncNowMutation = useSyncNow();
   const isSyncing =
     syncNowMutation.isPending ||
@@ -94,14 +98,16 @@ export default function SyncLogs() {
           <h1 className="text-[28px] sm:text-[40px] leading-[1.1] font-normal tracking-[-0.02em] text-foreground">Senkronizasyon Kayıtları</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Portal üzerinden yapılan tüm veri çekme işlemlerinin kronolojik dökümü.</p>
         </div>
-        <Button
-          onClick={handleSync}
-          disabled={isSyncing}
-          className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-none transition-colors h-10 px-5 text-sm font-medium shrink-0"
-        >
-          <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? "animate-spin" : ""}`} />
-          {isSyncing ? "SENKRONİZE EDİLİYOR..." : "ŞİMDİ SENKRONİZE ET"}
-        </Button>
+        {canWrite && (
+          <Button
+            onClick={handleSync}
+            disabled={isSyncing}
+            className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-none transition-colors h-10 px-5 text-sm font-medium shrink-0"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? "animate-spin" : ""}`} />
+            {isSyncing ? "SENKRONİZE EDİLİYOR..." : "ŞİMDİ SENKRONİZE ET"}
+          </Button>
+        )}
       </div>
 
       {/* Live progress — only renders while running (panel auto-hides when idle) */}

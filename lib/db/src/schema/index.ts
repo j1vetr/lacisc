@@ -28,6 +28,9 @@ export const adminUsers = pgTable("admin_users", {
   // While set, login is rejected even with correct credentials. Cleared on
   // first successful login after the timestamp passes.
   lockedUntil: timestamp("locked_until"),
+  // Bumped to invalidate all outstanding JWTs for this user (logout-everywhere).
+  // Embedded in the token at sign time and verified on every authed request.
+  tokenVersion: integer("token_version").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

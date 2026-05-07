@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { useGetMe, getGetMeQueryKey, useChangePassword } from "@workspace/api-client-react";
+import {
+  useGetMe,
+  getGetMeQueryKey,
+  useChangePassword,
+  useTerminateAllSessions,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { PasswordStrength } from "@/components/password-strength";
+import { LogOut } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -18,7 +26,19 @@ export default function Profile() {
   useDocumentTitle("Profilim");
   const { data: user } = useGetMe({ query: { queryKey: getGetMeQueryKey() } });
   const { toast } = useToast();
+  const qc = useQueryClient();
   const change = useChangePassword();
+  const terminate = useTerminateAllSessions({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Tüm oturumlar sonlandırıldı" });
+        qc.clear();
+        window.location.href = "/login";
+      },
+      onError: (e: any) =>
+        toast({ title: "Sonlandırılamadı", description: e?.message, variant: "destructive" }),
+    },
+  });
 
   const [currentPassword, setCurrent] = useState("");
   const [newPassword, setNewPw] = useState("");
@@ -121,6 +141,7 @@ export default function Profile() {
                 required
                 autoComplete="new-password"
               />
+              <PasswordStrength password={newPassword} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="confirm">Yeni şifre (tekrar)</Label>
@@ -137,6 +158,31 @@ export default function Profile() {
               {change.isPending ? "Kaydediliyor…" : "Şifreyi Güncelle"}
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-none border-border">
+        <CardHeader>
+          <CardTitle className="text-base font-medium">Aktif Oturumlar</CardTitle>
+          <CardDescription className="text-xs">
+            Sistem JWT tabanlıdır; aktif oturum listesi tutulmaz. Bu işlem
+            sizin tüm cihaz/tarayıcılarınızdaki oturumları (mevcut dahil) anında
+            geçersiz kılar — yeniden giriş yapmanız gerekir.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            variant="outline"
+            disabled={terminate.isPending}
+            onClick={() => {
+              if (window.confirm("Tüm cihazlardaki oturumlarınız sonlandırılsın mı?")) {
+                terminate.mutate();
+              }
+            }}
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Tüm Oturumları Sonlandır
+          </Button>
         </CardContent>
       </Card>
     </div>

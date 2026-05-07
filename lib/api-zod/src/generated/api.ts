@@ -50,6 +50,13 @@ export const LogoutResponse = zod.object({
 });
 
 /**
+ * @summary Tüm cihazlardaki oturumları sonlandır
+ */
+export const TerminateAllSessionsResponse = zod.object({
+  message: zod.string(),
+});
+
+/**
  * @summary Get current user
  */
 export const GetMeResponse = zod.object({

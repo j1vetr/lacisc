@@ -12,7 +12,7 @@ export function newCsrfToken(): string {
 
 export function setCsrfCookie(res: Response, token: string): void {
   res.cookie(CSRF_COOKIE, token, {
-    httpOnly: false, // client JS must read it to echo back as header
+    httpOnly: false,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
@@ -20,10 +20,49 @@ export function setCsrfCookie(res: Response, token: string): void {
   });
 }
 
-// Double-submit CSRF: server sets a cookie at login (CSRF_COOKIE). Client
-// JS reads it and echoes it back as header CSRF_HEADER on every mutation.
-// Server compares the two; a cross-site attacker cannot read the cookie so
-// cannot forge the header. SameSite=Lax also blocks the simplest CSRFs.
+function buildAllowedOrigins(): string[] {
+  const list: string[] = [];
+  const replitDomains = process.env.REPLIT_DOMAINS;
+  if (replitDomains) {
+    for (const d of replitDomains.split(",")) {
+      const t = d.trim();
+      if (t) list.push(`https://${t}`);
+    }
+  }
+  const dev = process.env.REPLIT_DEV_DOMAIN;
+  if (dev) list.push(`https://${dev}`);
+  list.push("http://localhost", "http://localhost:80");
+  const extra = process.env.CORS_ALLOWLIST;
+  if (extra) {
+    for (const d of extra.split(",")) {
+      const t = d.trim();
+      if (t) list.push(t);
+    }
+  }
+  return list;
+}
+const ALLOWED_ORIGINS = buildAllowedOrigins();
+
+function originAllowed(originHeader: string | undefined): boolean {
+  if (!originHeader) return false;
+  return ALLOWED_ORIGINS.includes(originHeader);
+}
+
+function refererAllowed(refererHeader: string | undefined): boolean {
+  if (!refererHeader) return false;
+  try {
+    const u = new URL(refererHeader);
+    return ALLOWED_ORIGINS.includes(`${u.protocol}//${u.host}`);
+  } catch {
+    return false;
+  }
+}
+
+// Layered CSRF for cookie-authenticated mutations:
+//   1. Origin (or Referer) header must match an allowed app origin.
+//   2. Double-submit token: csrf_token cookie value must equal x-csrf-token header.
+// Pure-Bearer requests (no auth cookie) skip CSRF entirely — they cannot be
+// triggered by a cross-site form/script the way ambient cookies can.
 export function csrfGuard(
   req: Request & { cookies?: Record<string, string> },
   res: Response,
@@ -34,10 +73,18 @@ export function csrfGuard(
     return;
   }
 
-  // Skip CSRF for purely-Bearer requests (CLI/mobile, no cookie).
   const hasCookieAuth = Boolean(req.cookies?.["auth_token"]);
   if (!hasCookieAuth) {
     next();
+    return;
+  }
+
+  const origin = req.headers.origin as string | undefined;
+  const referer = req.headers.referer as string | undefined;
+  if (!(originAllowed(origin) || refererAllowed(referer))) {
+    res.status(403).json({
+      error: "İstek kaynağı doğrulanamadı (CSRF / origin).",
+    });
     return;
   }
 
@@ -49,7 +96,9 @@ export function csrfGuard(
     typeof headerToken !== "string" ||
     cookieToken !== headerToken
   ) {
-    res.status(403).json({ error: "CSRF doğrulaması başarısız. Sayfayı yenileyip tekrar deneyin." });
+    res.status(403).json({
+      error: "CSRF doğrulaması başarısız. Sayfayı yenileyip tekrar deneyin.",
+    });
     return;
   }
   next();

@@ -383,6 +383,87 @@ export const useLogout = <
 };
 
 /**
+ * @summary Tüm cihazlardaki oturumları sonlandır
+ */
+export const getTerminateAllSessionsUrl = () => {
+  return `/api/auth/sessions/terminate-all`;
+};
+
+export const terminateAllSessions = async (
+  options?: RequestInit,
+): Promise<MessageResponse> => {
+  return customFetch<MessageResponse>(getTerminateAllSessionsUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getTerminateAllSessionsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof terminateAllSessions>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof terminateAllSessions>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["terminateAllSessions"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof terminateAllSessions>>,
+    void
+  > = () => {
+    return terminateAllSessions(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TerminateAllSessionsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof terminateAllSessions>>
+>;
+
+export type TerminateAllSessionsMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Tüm cihazlardaki oturumları sonlandır
+ */
+export const useTerminateAllSessions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof terminateAllSessions>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof terminateAllSessions>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getTerminateAllSessionsMutationOptions(options));
+};
+
+/**
  * @summary Get current user
  */
 export const getGetMeUrl = () => {

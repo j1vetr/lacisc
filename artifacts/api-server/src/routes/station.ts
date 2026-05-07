@@ -542,6 +542,11 @@ router.put("/station/email-settings", requireAuth, requireRole("admin"), async (
 router.post("/station/email-settings/test", requireAuth, requireRole("admin"), async (req: AuthRequest, res): Promise<void> => {
   const body = (req.body ?? {}) as { to?: string };
   const result = await sendTestEmail(body.to);
+  await audit(req, {
+    action: "station.email_settings.test",
+    success: Boolean((result as { ok?: boolean }).ok ?? true),
+    meta: { to: body.to ?? null },
+  });
   res.json(result);
 });
 

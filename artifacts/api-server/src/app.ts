@@ -13,10 +13,25 @@ const app: Express = express();
 // reflect the real client.
 app.set("trust proxy", 1);
 
+// Content-Security-Policy: scoped to the API origin only. The SPA is served by
+// a separate Vite/static origin behind the shared proxy and gets its own CSP
+// from there — the API never returns HTML so we can lock down everything.
+const isProd = process.env.NODE_ENV === "production";
 app.use(
   helmet({
-    contentSecurityPolicy: false, // SPA loads inline assets through Vite/proxy
     crossOriginEmbedderPolicy: false,
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        defaultSrc: ["'none'"],
+        baseUri: ["'none'"],
+        frameAncestors: ["'none'"],
+        formAction: ["'none'"],
+        // API-only — no scripts/styles/images served. JSON only.
+        connectSrc: ["'self'"],
+        ...(isProd ? { upgradeInsecureRequests: [] } : {}),
+      },
+    },
   })
 );
 

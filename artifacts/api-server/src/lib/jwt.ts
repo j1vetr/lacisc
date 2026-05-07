@@ -4,6 +4,8 @@ export interface JwtPayload {
   userId: number;
   email: string;
   role?: "owner" | "admin" | "viewer";
+  /** Bumped server-side to revoke all outstanding tokens for the user. */
+  tv?: number;
 }
 
 function getSecret(): string {

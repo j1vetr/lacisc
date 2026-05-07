@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { KeyRound, Plus, Trash2, Unlock, Pencil } from "lucide-react";
+import { PasswordStrength } from "@/components/password-strength";
 
 type Role = "owner" | "admin" | "viewer";
 
@@ -255,6 +256,7 @@ export default function AdminUsers() {
                 value={createForm.password}
                 onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
               />
+              <PasswordStrength password={createForm.password} />
             </div>
             <div className="space-y-1.5">
               <Label>Rol</Label>
@@ -360,6 +362,7 @@ export default function AdminUsers() {
             placeholder="Yeni şifre"
             autoComplete="new-password"
           />
+          <PasswordStrength password={resetPw} />
           <AlertDialogFooter>
             <AlertDialogCancel>İptal</AlertDialogCancel>
             <AlertDialogAction
