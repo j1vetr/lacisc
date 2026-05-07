@@ -1,27 +1,32 @@
-import { db, stationCredentials } from "@workspace/db";
-import { asc, eq } from "drizzle-orm";
 import { logger } from "./logger";
 import { runAllAccounts, isOrchestratorRunning } from "./sync-orchestrator";
 
 let schedulerTimer: ReturnType<typeof setTimeout> | null = null;
 
-// Daily cron: run once per day at 01:00 Europe/Istanbul (UTC+3, no DST) =
-// 22:00 UTC of the previous calendar day. We model this by computing the
-// next 22:00 UTC and arming a single setTimeout, then re-arming after the
-// run completes.
+// Cron interval: every 3 hours, aligned to fixed UTC boundaries
+// (00:00, 03:00, 06:00, 09:00, 12:00, 15:00, 18:00, 21:00 UTC).
+// Each tick runs the same code path as the manual "Şimdi Senkronize Et"
+// button (forceFull: true) so the dashboard / kit list always reflect a
+// fresh full backfill instead of just the current+previous period.
+const INTERVAL_HOURS = 3;
+
 function nextRunAt(now: Date = new Date()): Date {
   const next = new Date(now);
-  next.setUTCHours(22, 0, 0, 0);
-  if (next.getTime() <= now.getTime()) {
-    next.setUTCDate(next.getUTCDate() + 1);
-  }
+  next.setUTCMinutes(0, 0, 0);
+  const currentHour = next.getUTCHours();
+  const nextSlot = (Math.floor(currentHour / INTERVAL_HOURS) + 1) * INTERVAL_HOURS;
+  next.setUTCHours(nextSlot);
+  // setUTCHours with a value >= 24 rolls the date forward correctly.
   return next;
 }
 
 export function startScheduler(): void {
   scheduleNext();
   const at = nextRunAt();
-  logger.info({ nextRunAt: at.toISOString() }, "Sync scheduler started (daily 01:00 TRT)");
+  logger.info(
+    { nextRunAt: at.toISOString(), intervalHours: INTERVAL_HOURS },
+    `Sync scheduler started (every ${INTERVAL_HOURS}h, full backfill)`
+  );
 }
 
 export function stopScheduler(): void {
@@ -39,26 +44,23 @@ function scheduleNext(): void {
   }, delayMs);
 }
 
-// Daily tick: if there is at least one active account, run the multi-account
-// orchestrator. Per-account interval is no longer consulted.
+// Tick handler: kick off a full multi-account backfill — same code path as
+// the manual "Şimdi Senkronize Et" button. If an orchestrator run is already
+// in flight (e.g. operator hit the manual button right before the cron
+// fires) the orchestrator's own atomic claim returns success:false and we
+// log+skip. We do NOT call isOrchestratorRunning() here as a pre-check —
+// that would race against the claim; we just trust the orchestrator's lock.
 async function runScheduledSync(): Promise<void> {
   if (isOrchestratorRunning()) {
     logger.debug("Sync already running, skipping scheduled tick");
     return;
   }
   try {
-    const [active] = await db
-      .select({ id: stationCredentials.id })
-      .from(stationCredentials)
-      .where(eq(stationCredentials.isActive, true))
-      .orderBy(asc(stationCredentials.id))
-      .limit(1);
-    if (!active) {
-      logger.info("Daily scheduler tick: no active accounts, skipping");
-      return;
+    logger.info("Scheduled multi-account sync triggered (forceFull)");
+    const result = await runAllAccounts({ forceFull: true });
+    if (!result.success) {
+      logger.info({ message: result.message }, "Scheduled tick produced no work");
     }
-    logger.info("Daily scheduled multi-account sync triggered");
-    await runAllAccounts();
   } catch (err) {
     logger.error({ err }, "Scheduler error");
   }

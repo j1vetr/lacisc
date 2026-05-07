@@ -37,14 +37,16 @@ function accountLabel(c: { id: number; label: string | null; username: string })
 }
 
 export async function runAllAccounts(opts: { forceFull?: boolean } = {}): Promise<OrchestratorResult> {
-  // Atomic claim before any async work. The caller may also have called
-  // tryClaimRun() to claim earlier (preferred for HTTP fire-and-forget).
+  // Atomic claim before any async work. The caller (HTTP route, scheduler)
+  // may have already claimed via tryClaimRun(); in that case this call is
+  // a no-op. If neither path claimed it AND running===true, another run is
+  // in flight and we must bail — otherwise we'd start a second concurrent
+  // orchestrator (overlap = duplicate scrapes + DB writes).
   const claimedHere = tryClaimRun();
-  if (!claimedHere && !running) {
-    // Should never happen: tryClaimRun is the only writer, but be safe.
+  if (!claimedHere) {
     return {
       success: false,
-      message: "Senkronizasyon başlatılamadı (kilit hatası).",
+      message: "Senkronizasyon zaten çalışıyor.",
       recordsFound: 0,
       recordsInserted: 0,
       recordsUpdated: 0,
@@ -73,6 +75,12 @@ export async function runAllAccounts(opts: { forceFull?: boolean } = {}): Promis
     running = false;
   }
 }
+
+// Variant for callers that already hold the lock (claimed via tryClaimRun
+// in an HTTP fire-and-forget path). Skips re-claim and trusts the caller
+// to release `running` in its own finally block. Currently unused — the
+// HTTP route uses runAllAccounts() directly which handles the no-op claim.
+// Exported for future use if needed.
 
 async function runAccountsInner(
   accounts: Array<typeof stationCredentials.$inferSelect>,

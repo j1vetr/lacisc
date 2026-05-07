@@ -22,7 +22,7 @@ import {
   TableHeader as Header,
   TableRow as Row,
 } from "@/components/ui/table";
-import { formatCurrency, formatNumber, formatDate } from "@/lib/format";
+import { formatNumber, formatDate } from "@/lib/format";
 
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
@@ -30,7 +30,7 @@ export default function Kits() {
   useDocumentTitle("KIT Özeti");
   const [, setLocation] = useLocation();
   const [kitNo, setKitNo] = useState("");
-  const [sortBy, setSortBy] = useState<"totalGib" | "totalUsd" | "lastSeen" | undefined>("totalUsd");
+  const [sortBy, setSortBy] = useState<"totalGib" | "lastSeen" | undefined>("totalGib");
   const [debouncedKitNo, setDebouncedKitNo] = useState("");
 
   React.useEffect(() => {
@@ -56,7 +56,7 @@ export default function Kits() {
   const role = ((me as { role?: string } | undefined)?.role ?? "viewer") as "owner" | "admin" | "viewer";
   const canManageAccounts = role === "owner" || role === "admin";
 
-  const toggleSort = (col: "totalGib" | "totalUsd" | "lastSeen") => {
+  const toggleSort = (col: "totalGib" | "lastSeen") => {
     setSortBy(col);
   };
 
@@ -98,13 +98,10 @@ export default function Kits() {
             <Header className="sticky top-0 z-10 bg-card shadow-[0_1px_0_0_var(--color-border)]">
               <Row className="hover:bg-transparent border-none">
                 <Head className="w-[240px] pl-4 sm:pl-8 font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Terminal No</Head>
-                <Head className="w-[140px] text-right cursor-pointer hover:bg-secondary transition-colors group font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12" onClick={() => toggleSort("totalGib")}>
+                <Head className="w-[160px] text-right cursor-pointer hover:bg-secondary transition-colors group font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12" onClick={() => toggleSort("totalGib")}>
                   <div className="flex items-center justify-end">Toplam Veri (GiB) <SortIcon col="totalGib" /></div>
                 </Head>
-                <Head className="w-[160px] text-right cursor-pointer hover:bg-secondary transition-colors group font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12" onClick={() => toggleSort("totalUsd")}>
-                  <div className="flex items-center justify-end">Toplam Tutar <SortIcon col="totalUsd" /></div>
-                </Head>
-                <Head className="w-[100px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Kayıt Sayısı</Head>
+                <Head className="w-[120px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Kayıt Sayısı</Head>
                 <Head className="w-[120px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Son Dönem</Head>
                 <Head className="w-[180px] text-right cursor-pointer hover:bg-secondary transition-colors group font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12 pr-4 sm:pr-8" onClick={() => toggleSort("lastSeen")}>
                   <div className="flex items-center justify-end">Son Güncelleme <SortIcon col="lastSeen" /></div>
@@ -117,7 +114,6 @@ export default function Kits() {
                   <Row key={i} className="border-none h-14">
                     <Cell className="pl-4 sm:pl-8"><Skeleton className="h-4 w-32 rounded" /></Cell>
                     <Cell><Skeleton className="h-4 w-20 ml-auto rounded" /></Cell>
-                    <Cell><Skeleton className="h-4 w-24 ml-auto rounded" /></Cell>
                     <Cell><Skeleton className="h-4 w-12 ml-auto rounded" /></Cell>
                     <Cell><Skeleton className="h-4 w-16 ml-auto rounded" /></Cell>
                     <Cell className="pr-4 sm:pr-8"><Skeleton className="h-4 w-24 ml-auto rounded" /></Cell>
@@ -125,7 +121,7 @@ export default function Kits() {
                 ))
               ) : kits?.length === 0 ? (
                 <Row className="hover:bg-transparent border-none">
-                  <Cell colSpan={6} className="h-64 text-center align-middle">
+                  <Cell colSpan={5} className="h-64 text-center align-middle">
                     {!hasAccounts ? (
                       <div className="flex flex-col items-center gap-3 py-6">
                         <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
@@ -214,9 +210,6 @@ export default function Kits() {
                     </Cell>
                     <Cell className="text-right font-mono text-[13px] text-foreground">
                       {formatNumber(row.totalGib, 2)}
-                    </Cell>
-                    <Cell className="text-right font-mono text-[13px] text-foreground">
-                      {formatCurrency(row.totalUsd)}
                     </Cell>
                     <Cell className="text-right font-mono text-xs text-muted-foreground">
                       {formatNumber(row.rowCount, 0)}

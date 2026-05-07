@@ -12,16 +12,14 @@ import {
   ArrowLeft,
   Terminal,
   HardDrive,
-  DollarSign,
   CalendarClock,
   CheckCircle2,
   Activity,
 } from "lucide-react";
 import {
   ResponsiveContainer,
-  ComposedChart,
+  BarChart,
   Bar,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -45,7 +43,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatCurrency, formatNumber, formatDate } from "@/lib/format";
+import { formatNumber, formatDate } from "@/lib/format";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
 function formatPeriodLabel(period?: string | null) {
@@ -87,19 +85,16 @@ export default function KitDetail() {
   });
 
   const activePeriod = selectedPeriod ?? detail?.currentPeriod ?? null;
-  const currency = "USD";
   const periodLabel = formatPeriodLabel(activePeriod);
 
   // Group CDR rows by day so the chart shows one bar per day, while the
   // table still lists every CDR. Each row in `daily` is one CDR line item.
   const chartData = useMemo(() => {
-    const byDay = new Map<string, { day: string; gib: number; usd: number }>();
+    const byDay = new Map<string, { day: string; gib: number }>();
     for (const r of daily ?? []) {
       const key = r.dayDate;
-      const cur =
-        byDay.get(key) ?? { day: formatDay(r.dayDate), gib: 0, usd: 0 };
+      const cur = byDay.get(key) ?? { day: formatDay(r.dayDate), gib: 0 };
       cur.gib += r.volumeGib ?? 0;
-      cur.usd += r.chargeUsd ?? 0;
       byDay.set(key, cur);
     }
     return Array.from(byDay.entries())
@@ -145,7 +140,7 @@ export default function KitDetail() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid gap-3 sm:gap-6 grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:gap-6 grid-cols-2 xl:grid-cols-3">
         <Card className="border border-border bg-card shadow-none rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
             <CardTitle className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
@@ -188,24 +183,6 @@ export default function KitDetail() {
         <Card className="border border-border bg-card shadow-none rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
             <CardTitle className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Dönem Tutarı
-            </CardTitle>
-            <DollarSign className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {detailLoading ? (
-              <Skeleton className="h-9 w-36 rounded" />
-            ) : (
-              <div className="text-2xl font-normal tracking-tight text-foreground font-mono">
-                {formatCurrency(detail?.totalUsd, currency)}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border border-border bg-card shadow-none rounded-xl">
-          <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
-            <CardTitle className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               Son Senkronizasyon
             </CardTitle>
             <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
@@ -229,7 +206,7 @@ export default function KitDetail() {
             <div>
               <CardTitle className="text-lg font-normal tracking-tight">Günlük Kullanım</CardTitle>
               <CardDescription className="mt-1 text-sm">
-                {periodLabel} dönemi içinde gün gün veri tüketimi (GiB) ve fatura kalemi (USD).
+                {periodLabel} dönemi içinde gün gün veri tüketimi (GiB).
               </CardDescription>
             </div>
             {periodOptions.length > 0 && (
@@ -259,7 +236,7 @@ export default function KitDetail() {
             <>
               <div className="h-56 w-full -mx-2 sm:mx-0">
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+                  <BarChart data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
                     <CartesianGrid stroke="#e6e5e0" strokeDasharray="2 4" vertical={false} />
                     <XAxis
                       dataKey="day"
@@ -269,16 +246,7 @@ export default function KitDetail() {
                       axisLine={{ stroke: "#e6e5e0" }}
                     />
                     <YAxis
-                      yAxisId="gib"
                       stroke="#9fbbe0"
-                      tick={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis
-                      yAxisId="usd"
-                      orientation="right"
-                      stroke="#dfa88f"
                       tick={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}
                       tickLine={false}
                       axisLine={false}
@@ -293,32 +261,21 @@ export default function KitDetail() {
                       }}
                       formatter={(value: number, name: string) => {
                         if (name === "gib") return [`${formatNumber(value, 2)} GiB`, "Veri"];
-                        if (name === "usd") return [formatCurrency(value, currency), "Tutar"];
                         return [value, name];
                       }}
                     />
                     <Bar
-                      yAxisId="gib"
                       dataKey="gib"
                       fill="#9fbbe0"
                       radius={[3, 3, 0, 0]}
                       maxBarSize={28}
                     />
-                    <Line
-                      yAxisId="usd"
-                      type="monotone"
-                      dataKey="usd"
-                      stroke="#dfa88f"
-                      strokeWidth={2}
-                      dot={{ r: 3, fill: "#dfa88f" }}
-                      activeDot={{ r: 5 }}
-                    />
-                  </ComposedChart>
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
 
               <div className="rounded-xl border border-border overflow-x-auto">
-                <Table className="w-full text-[13px] min-w-[480px]">
+                <Table className="w-full text-[13px] min-w-[420px]">
                   <Header className="bg-secondary/40">
                     <Row className="hover:bg-transparent border-none">
                       <Head className="pl-3 sm:pl-6 font-semibold uppercase tracking-widest text-[10px] text-muted-foreground h-10">
@@ -327,11 +284,8 @@ export default function KitDetail() {
                       <Head className="font-semibold uppercase tracking-widest text-[10px] text-muted-foreground h-10 hidden sm:table-cell">
                         Servis
                       </Head>
-                      <Head className="text-right font-semibold uppercase tracking-widest text-[10px] text-muted-foreground h-10">
-                        Veri (GiB)
-                      </Head>
                       <Head className="text-right pr-3 sm:pr-6 font-semibold uppercase tracking-widest text-[10px] text-muted-foreground h-10">
-                        Tutar (USD)
+                        Veri (GiB)
                       </Head>
                     </Row>
                   </Header>
@@ -344,11 +298,8 @@ export default function KitDetail() {
                         <Cell className="text-[12px] text-foreground/80 truncate max-w-[280px] hidden sm:table-cell">
                           {row.service ?? "-"}
                         </Cell>
-                        <Cell className="text-right font-mono text-[11px] sm:text-[12px] text-foreground whitespace-nowrap">
-                          {formatNumber(row.volumeGib, 3)}
-                        </Cell>
                         <Cell className="text-right pr-3 sm:pr-6 font-mono text-[11px] sm:text-[12px] text-foreground whitespace-nowrap">
-                          {formatCurrency(row.chargeUsd, currency)}
+                          {formatNumber(row.volumeGib, 3)}
                         </Cell>
                       </Row>
                     ))}
@@ -367,7 +318,7 @@ export default function KitDetail() {
             <div>
               <CardTitle className="text-lg font-normal tracking-tight">Aylık Özet</CardTitle>
               <CardDescription className="mt-1 text-sm">
-                Her dönem için portal footer toplamı (GiB & USD).
+                Her dönem için portal footer toplamı (GiB).
               </CardDescription>
             </div>
             <Activity className="w-4 h-4 text-muted-foreground" />
@@ -392,9 +343,6 @@ export default function KitDetail() {
                       Toplam GiB
                     </Head>
                     <Head className="text-right font-semibold uppercase tracking-widest text-[10px] text-muted-foreground h-10">
-                      Toplam USD
-                    </Head>
-                    <Head className="text-right font-semibold uppercase tracking-widest text-[10px] text-muted-foreground h-10">
                       Satır
                     </Head>
                     <Head className="text-right pr-3 sm:pr-6 font-semibold uppercase tracking-widest text-[10px] text-muted-foreground h-10 hidden sm:table-cell">
@@ -414,9 +362,6 @@ export default function KitDetail() {
                       </Cell>
                       <Cell className="text-right font-mono text-[11px] sm:text-[12px] text-foreground whitespace-nowrap">
                         {formatNumber(row.totalGib, 2)}
-                      </Cell>
-                      <Cell className="text-right font-mono text-[11px] sm:text-[12px] text-foreground whitespace-nowrap">
-                        {formatCurrency(row.totalUsd, currency)}
                       </Cell>
                       <Cell className="text-right font-mono text-[11px] sm:text-[12px] text-foreground whitespace-nowrap">
                         {row.rowCount}

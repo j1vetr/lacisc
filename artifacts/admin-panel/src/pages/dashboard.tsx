@@ -3,7 +3,6 @@ import { Link } from "wouter";
 import {
   Database,
   HardDrive,
-  DollarSign,
   CalendarClock,
   RefreshCw,
   AlertCircle,
@@ -23,7 +22,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatCurrency, formatNumber, formatDate } from "@/lib/format";
+import { formatNumber, formatDate } from "@/lib/format";
 
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
@@ -54,7 +53,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 lg:space-y-10 animate-in fade-in duration-500">
       {/* KPI Cards */}
-      <div className="grid gap-3 sm:gap-6 grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:gap-6 grid-cols-2 xl:grid-cols-3">
         <Card className="border border-border bg-card shadow-none rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
             <CardTitle className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Toplam KIT</CardTitle>
@@ -92,22 +91,6 @@ export default function Dashboard() {
 
         <Card className="border border-border bg-card shadow-none rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
-            <CardTitle className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Toplam Tutar</CardTitle>
-            <DollarSign className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-10 w-36 rounded" />
-            ) : (
-              <div className="text-3xl font-normal tracking-tight text-foreground font-mono">
-                {formatCurrency(summary?.totalUsd)}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border border-border bg-card shadow-none rounded-xl">
-          <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
             <CardTitle className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Aktif Dönem</CardTitle>
             <CalendarClock className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
@@ -130,7 +113,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-lg font-normal tracking-tight">Terminaller</CardTitle>
-                <CardDescription className="mt-1 text-sm uppercase tracking-wide">KIT BAZINDA TOPLAM KULLANIM VE FATURALAMA</CardDescription>
+                <CardDescription className="mt-1 text-sm uppercase tracking-wide">KIT BAZINDA TOPLAM VERİ KULLANIMI</CardDescription>
               </div>
               <Link href="/kits">
                 <Button variant="ghost" size="sm" className="text-xs h-8 text-foreground hover:bg-secondary rounded-lg">
@@ -165,13 +148,9 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3 sm:gap-6 shrink-0">
-                        <div className="text-right">
+                        <div className="text-right min-w-[80px]">
                           <div className="font-mono text-[12px] sm:text-[13px] text-foreground">{formatNumber(row.totalGib, 2)}</div>
                           <div className="text-[10px] uppercase tracking-widest text-muted-foreground">GB</div>
-                        </div>
-                        <div className="text-right min-w-[70px] sm:min-w-[90px]">
-                          <div className="font-mono text-[12px] sm:text-[13px] text-foreground">{formatCurrency(row.totalUsd)}</div>
-                          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Tutar</div>
                         </div>
                       </div>
                     </div>
