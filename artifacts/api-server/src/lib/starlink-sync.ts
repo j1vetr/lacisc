@@ -325,7 +325,15 @@ async function persistTerminal(
     plan: pickField<string>(d, "plan") ?? null,
     planAllowanceGb:
       pickField<number>(d, "planAllowanceGB", "plan_allowance_gb", "planAllowanceGb") ?? null,
-    ipv4: pickField<string>(d, "ipv4") ?? null,
+    ipv4: (() => {
+      // Tototheo returns ipv4 as string[] — normalize to a single string.
+      const raw = pickField<unknown>(d, "ipv4");
+      if (Array.isArray(raw)) {
+        return raw.filter((v) => typeof v === "string" && v.trim()).join(", ") || null;
+      }
+      if (typeof raw === "string") return raw.trim() || null;
+      return null;
+    })(),
     optIn: pickField<boolean>(d, "optIn", "opt_in") ?? null,
     pingDropRate:
       pickField<number>(d, "pingDropRate", "ping_drop_rate") ?? null,

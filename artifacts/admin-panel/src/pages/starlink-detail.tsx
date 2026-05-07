@@ -229,7 +229,19 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
   const used = detail?.currentPeriodTotalGb ?? 0;
   const remaining = planAllowance != null ? Math.max(planAllowance - used, 0) : null;
   const usedPct = planAllowance && planAllowance > 0 ? (used / planAllowance) * 100 : null;
-  const ipv4 = detail?.ipv4 ?? undefined;
+  // Eski kayıtlarda ipv4 Postgres array literal olarak yazılmış olabilir
+  // (örn. `{"143.105.184.160"}`). Görüntülerken temizle.
+  const ipv4 = (() => {
+    const raw = detail?.ipv4;
+    if (!raw) return undefined;
+    const cleaned = raw
+      .replace(/^\{|\}$/g, "")
+      .split(",")
+      .map((s) => s.trim().replace(/^"|"$/g, ""))
+      .filter(Boolean)
+      .join(", ");
+    return cleaned || undefined;
+  })();
   const plan = detail?.plan ?? undefined;
   const optIn = Boolean(detail?.optIn);
   const pingDropRate = detail?.pingDropRate ?? undefined;
@@ -277,7 +289,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
           )}
           {ipv4 && (
             <span>
-              <span className="text-muted-foreground">Direkt IP Adresi:</span>{" "}
+              <span className="text-muted-foreground">IP Adresi:</span>{" "}
               <span className="text-foreground">{ipv4}</span>
             </span>
           )}
