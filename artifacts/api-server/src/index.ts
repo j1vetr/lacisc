@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { startScheduler } from "./lib/scheduler";
 import { db, adminUsers } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
 const rawPort = process.env["PORT"];
@@ -26,9 +27,33 @@ async function seed(): Promise<void> {
       name: "Admin",
       email: "admin@example.com",
       passwordHash,
+      role: "owner",
     });
     logger.info("Default admin user created: admin@example.com / admin123456");
+    return;
   }
+  // Existing deployments: promote oldest user to owner if no owner exists
+  // (e.g. fresh role column with default 'admin' applied to legacy rows).
+  const owners = await db
+    .select({ id: adminUsers.id })
+    .from(adminUsers)
+    .where(eq(adminUsers.role, "owner"))
+    .limit(1);
+  if (owners.length === 0) {
+    const [oldest] = await db
+      .select({ id: adminUsers.id, email: adminUsers.email })
+      .from(adminUsers)
+      .orderBy(adminUsers.id)
+      .limit(1);
+    if (oldest) {
+      await db
+        .update(adminUsers)
+        .set({ role: "owner", updatedAt: new Date() })
+        .where(eq(adminUsers.id, oldest.id));
+      logger.info({ userId: oldest.id, email: oldest.email }, "Promoted existing user to owner");
+    }
+  }
+  void sql; // keep import in case of future use
 }
 
 app.listen(port, async (err) => {

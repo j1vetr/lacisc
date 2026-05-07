@@ -10,6 +10,9 @@ export type AuthTokenGetter = () => Promise<string | null> | string | null;
 
 const NO_BODY_STATUS = new Set([204, 205, 304]);
 const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+const CSRF_COOKIE = "csrf_token";
+const CSRF_HEADER = "x-csrf-token";
 
 // ---------------------------------------------------------------------------
 // Module-level configuration
@@ -37,8 +40,8 @@ export function setBaseUrl(url: string | null): void {
  * Useful for Expo bundles making token-gated API calls.
  * Pass `null` to clear the getter.
  *
- * NOTE: This function should never be used in web applications where session
- * token cookies are automatically associated with API calls by the browser.
+ * NOTE: Web apps using cookie-based auth do not need this — the browser
+ * automatically attaches the httpOnly auth cookie via `credentials: 'include'`.
  */
 export function setAuthTokenGetter(getter: AuthTokenGetter | null): void {
   _authTokenGetter = getter;
@@ -54,8 +57,6 @@ function resolveMethod(input: RequestInfo | URL, explicitMethod?: string): strin
   return "GET";
 }
 
-// Use loose check for URL — some runtimes (e.g. React Native) polyfill URL
-// differently, so `instanceof URL` can fail.
 function isUrl(input: RequestInfo | URL): input is URL {
   return typeof URL !== "undefined" && input instanceof URL;
 }
@@ -63,7 +64,6 @@ function isUrl(input: RequestInfo | URL): input is URL {
 function applyBaseUrl(input: RequestInfo | URL): RequestInfo | URL {
   if (!_baseUrl) return input;
   const url = resolveUrl(input);
-  // Only prepend to relative paths (starting with /)
   if (!url.startsWith("/")) return input;
 
   const absolute = `${_baseUrl}${url}`;
@@ -80,15 +80,25 @@ function resolveUrl(input: RequestInfo | URL): string {
 
 function mergeHeaders(...sources: Array<HeadersInit | undefined>): Headers {
   const headers = new Headers();
-
   for (const source of sources) {
     if (!source) continue;
     new Headers(source).forEach((value, key) => {
       headers.set(key, value);
     });
   }
-
   return headers;
+}
+
+function readCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const prefix = `${name}=`;
+  for (const part of document.cookie.split(";")) {
+    const trimmed = part.trim();
+    if (trimmed.startsWith(prefix)) {
+      return decodeURIComponent(trimmed.slice(prefix.length));
+    }
+  }
+  return null;
 }
 
 function getMediaType(headers: Headers): string | null {
@@ -111,12 +121,6 @@ function isTextMediaType(mediaType: string | null): boolean {
   );
 }
 
-// Use strict equality: in browsers, `response.body` is `null` when the
-// response genuinely has no content.  In React Native, `response.body` is
-// always `undefined` because the ReadableStream API is not implemented —
-// even when the response carries a full payload readable via `.text()` or
-// `.json()`.  Loose equality (`== null`) matches both `null` and `undefined`,
-// which causes every React Native response to be treated as empty.
 function hasNoBody(response: Response, method: string): boolean {
   if (method === "HEAD") return true;
   if (NO_BODY_STATUS.has(response.status)) return true;
@@ -136,10 +140,8 @@ function looksLikeJson(text: string): boolean {
 
 function getStringField(value: unknown, key: string): string | undefined {
   if (!value || typeof value !== "object") return undefined;
-
   const candidate = (value as Record<string, unknown>)[key];
   if (typeof candidate !== "string") return undefined;
-
   const trimmed = candidate.trim();
   return trimmed === "" ? undefined : trimmed;
 }
@@ -150,24 +152,20 @@ function truncate(text: string, maxLength = 300): string {
 
 function buildErrorMessage(response: Response, data: unknown): string {
   const prefix = `HTTP ${response.status} ${response.statusText}`;
-
   if (typeof data === "string") {
     const text = data.trim();
     return text ? `${prefix}: ${truncate(text)}` : prefix;
   }
-
   const title = getStringField(data, "title");
   const detail = getStringField(data, "detail");
   const message =
     getStringField(data, "message") ??
     getStringField(data, "error_description") ??
     getStringField(data, "error");
-
   if (title && detail) return `${prefix}: ${title} — ${detail}`;
   if (detail) return `${prefix}: ${detail}`;
   if (message) return `${prefix}: ${message}`;
   if (title) return `${prefix}: ${title}`;
-
   return prefix;
 }
 
@@ -188,7 +186,6 @@ export class ApiError<T = unknown> extends Error {
   ) {
     super(buildErrorMessage(response, data));
     Object.setPrototypeOf(this, new.target.prototype);
-
     this.status = response.status;
     this.statusText = response.statusText;
     this.data = data;
@@ -221,7 +218,6 @@ export class ResponseParseError extends Error {
         `(${response.status} ${response.statusText}) as JSON`,
     );
     Object.setPrototypeOf(this, new.target.prototype);
-
     this.status = response.status;
     this.statusText = response.statusText;
     this.headers = response.headers;
@@ -239,11 +235,7 @@ async function parseJsonBody(
 ): Promise<unknown> {
   const raw = await response.text();
   const normalized = stripBom(raw);
-
-  if (normalized.trim() === "") {
-    return null;
-  }
-
+  if (normalized.trim() === "") return null;
   try {
     return JSON.parse(normalized);
   } catch (cause) {
@@ -252,25 +244,15 @@ async function parseJsonBody(
 }
 
 async function parseErrorBody(response: Response, method: string): Promise<unknown> {
-  if (hasNoBody(response, method)) {
-    return null;
-  }
-
+  if (hasNoBody(response, method)) return null;
   const mediaType = getMediaType(response.headers);
-
-  // Fall back to text when blob() is unavailable (e.g. some React Native builds).
   if (mediaType && !isJsonMediaType(mediaType) && !isTextMediaType(mediaType)) {
     return typeof response.blob === "function" ? response.blob() : response.text();
   }
-
   const raw = await response.text();
   const normalized = stripBom(raw);
   const trimmed = normalized.trim();
-
-  if (trimmed === "") {
-    return null;
-  }
-
+  if (trimmed === "") return null;
   if (isJsonMediaType(mediaType) || looksLikeJson(normalized)) {
     try {
       return JSON.parse(normalized);
@@ -278,13 +260,11 @@ async function parseErrorBody(response: Response, method: string): Promise<unkno
       return raw;
     }
   }
-
   return raw;
 }
 
 function inferResponseType(response: Response): "json" | "text" | "blob" {
   const mediaType = getMediaType(response.headers);
-
   if (isJsonMediaType(mediaType)) return "json";
   if (isTextMediaType(mediaType) || mediaType == null) return "text";
   return "blob";
@@ -295,27 +275,20 @@ async function parseSuccessBody(
   responseType: "json" | "text" | "blob" | "auto",
   requestInfo: { method: string; url: string },
 ): Promise<unknown> {
-  if (hasNoBody(response, requestInfo.method)) {
-    return null;
-  }
-
+  if (hasNoBody(response, requestInfo.method)) return null;
   const effectiveType =
     responseType === "auto" ? inferResponseType(response) : responseType;
-
   switch (effectiveType) {
     case "json":
       return parseJsonBody(response, requestInfo);
-
     case "text": {
       const text = await response.text();
       return text === "" ? null : text;
     }
-
     case "blob":
       if (typeof response.blob !== "function") {
         throw new TypeError(
-          "Blob responses are not supported in this runtime. " +
-            "Use responseType \"json\" or \"text\" instead.",
+          "Blob responses are not supported in this runtime.",
         );
       }
       return response.blob();
@@ -349,27 +322,33 @@ export async function customFetch<T = unknown>(
     headers.set("accept", DEFAULT_JSON_ACCEPT);
   }
 
-  // Attach bearer token when an auth getter is configured and no
-  // Authorization header has been explicitly provided.
-  if (!headers.has("authorization")) {
-    const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
-    if (token) {
-      headers.set("authorization", `Bearer ${token}`);
-    } else if (_authTokenGetter) {
-      const getterToken = await _authTokenGetter();
-      if (getterToken) {
-        headers.set("authorization", `Bearer ${getterToken}`);
-      }
+  // Bearer token only as a fallback for non-browser callers (Expo, scripts).
+  // Browsers send the httpOnly auth cookie automatically via credentials.
+  if (!headers.has("authorization") && _authTokenGetter) {
+    const getterToken = await _authTokenGetter();
+    if (getterToken) {
+      headers.set("authorization", `Bearer ${getterToken}`);
     }
   }
 
+  // Double-submit CSRF: echo the csrf_token cookie on every mutation.
+  if (!SAFE_METHODS.has(method) && !headers.has(CSRF_HEADER)) {
+    const csrf = readCookie(CSRF_COOKIE);
+    if (csrf) headers.set(CSRF_HEADER, csrf);
+  }
+
+  // Always include cookies so the httpOnly auth_token travels (web auth).
+  const credentials: RequestCredentials = init.credentials ?? "include";
+
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  const response = await fetch(input, { ...init, method, headers, credentials });
 
   if (response.status === 401 && typeof window !== "undefined") {
-    localStorage.removeItem("auth_token");
-    if (!window.location.pathname.includes("/login")) {
+    if (
+      !window.location.pathname.endsWith("/login") &&
+      !window.location.pathname.includes("/login")
+    ) {
       window.location.href = "/login";
     }
   }

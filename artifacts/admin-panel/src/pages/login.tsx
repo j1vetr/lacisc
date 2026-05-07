@@ -47,8 +47,8 @@ export default function Login() {
     loginMutation.mutate(
       { data },
       {
-        onSuccess: (res) => {
-          localStorage.setItem("auth_token", res.token);
+        onSuccess: () => {
+          // httpOnly cookie set by server — no localStorage handling here.
           setLocation("/");
         },
         onError: (err: any) => {

@@ -12,6 +12,8 @@ tags:
   - name: auth
   - name: station
   - name: records
+  - name: admin
+  - name: audit
 
 paths:
   /healthz:
@@ -26,6 +28,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /readyz:
+    get:
+      operationId: readinessCheck
+      tags: [health]
+      summary: Readiness probe (DB + last sync + scheduler)
+      responses:
+        "200":
+          description: Ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessStatus"
+        "503":
+          description: Not ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessStatus"
 
   /auth/login:
     post:
@@ -499,6 +520,102 @@ paths:
               schema:
                 $ref: "#/components/schemas/DashboardSummary"
 
+  /admin/users:
+    get:
+      operationId: listAdminUsers
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: List of admin users
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AdminUserDetail" }
+    post:
+      operationId: createAdminUser
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateAdminUserBody" }
+      responses:
+        "200":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminUserDetail" }
+
+  /admin/users/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    patch:
+      operationId: updateAdminUser
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateAdminUserBody" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminUserDetail" }
+    delete:
+      operationId: deleteAdminUser
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+
+  /admin/users/{id}/reset-password:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: resetAdminUserPassword
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ResetPasswordBody" }
+      responses:
+        "200":
+          description: Reset
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+
+  /audit-logs:
+    get:
+      operationId: listAuditLogs
+      tags: [audit]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, default: 50 } }
+        - { name: actorUserId, in: query, schema: { type: integer } }
+        - { name: action, in: query, schema: { type: string } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+      responses:
+        "200":
+          description: Audit log page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuditLogsResponse" }
+
   /station/sync-logs:
     get:
       operationId: getSyncLogs
@@ -567,8 +684,86 @@ components:
         id: { type: integer }
         name: { type: string }
         email: { type: string }
+        role: { type: string, enum: [owner, admin, viewer] }
+        lastLoginAt: { type: string, format: date-time, nullable: true }
         createdAt: { type: string, format: date-time }
-      required: [id, name, email, createdAt]
+      required: [id, name, email, role, createdAt]
+
+    AdminUserDetail:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string }
+        role: { type: string, enum: [owner, admin, viewer] }
+        lastLoginAt: { type: string, format: date-time, nullable: true }
+        lockedUntil: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, name, email, role, createdAt, updatedAt]
+
+    CreateAdminUserBody:
+      type: object
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        password: { type: string }
+        role: { type: string, enum: [owner, admin, viewer] }
+      required: [name, email, password]
+
+    UpdateAdminUserBody:
+      type: object
+      properties:
+        name: { type: string }
+        role: { type: string, enum: [owner, admin, viewer] }
+        unlock: { type: boolean }
+
+    ResetPasswordBody:
+      type: object
+      properties:
+        newPassword: { type: string }
+      required: [newPassword]
+
+    ReadinessStatus:
+      type: object
+      properties:
+        status: { type: string }
+        checks:
+          type: object
+          additionalProperties: true
+      required: [status, checks]
+
+    AuditLogEntry:
+      type: object
+      properties:
+        id: { type: integer }
+        actorUserId: { type: integer, nullable: true }
+        actorEmail: { type: string, nullable: true }
+        actorName: { type: string, nullable: true }
+        action: { type: string }
+        target: { type: string, nullable: true }
+        meta:
+          nullable: true
+        ip: { type: string, nullable: true }
+        userAgent: { type: string, nullable: true }
+        success: { type: boolean }
+        createdAt: { type: string, format: date-time }
+      required: [id, action, success, createdAt]
+
+    AuditLogsResponse:
+      type: object
+      properties:
+        logs:
+          type: array
+          items: { $ref: "#/components/schemas/AuditLogEntry" }
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
+        totalPages: { type: integer }
+        actions:
+          type: array
+          items: { type: string }
+      required: [logs, total, page, limit, totalPages, actions]
 
     ChangePasswordBody:
       type: object

@@ -22,16 +22,111 @@ export interface LoginBody {
   password: string;
 }
 
+export type AdminUserRole = (typeof AdminUserRole)[keyof typeof AdminUserRole];
+
+export const AdminUserRole = {
+  owner: "owner",
+  admin: "admin",
+  viewer: "viewer",
+} as const;
+
 export interface AdminUser {
   id: number;
   name: string;
   email: string;
+  role: AdminUserRole;
+  lastLoginAt?: string | null;
   createdAt: string;
 }
 
 export interface AuthResponse {
   token: string;
   user: AdminUser;
+}
+
+export type AdminUserDetailRole =
+  (typeof AdminUserDetailRole)[keyof typeof AdminUserDetailRole];
+
+export const AdminUserDetailRole = {
+  owner: "owner",
+  admin: "admin",
+  viewer: "viewer",
+} as const;
+
+export interface AdminUserDetail {
+  id: number;
+  name: string;
+  email: string;
+  role: AdminUserDetailRole;
+  lastLoginAt?: string | null;
+  lockedUntil?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateAdminUserBodyRole =
+  (typeof CreateAdminUserBodyRole)[keyof typeof CreateAdminUserBodyRole];
+
+export const CreateAdminUserBodyRole = {
+  owner: "owner",
+  admin: "admin",
+  viewer: "viewer",
+} as const;
+
+export interface CreateAdminUserBody {
+  name: string;
+  email: string;
+  password: string;
+  role?: CreateAdminUserBodyRole;
+}
+
+export type UpdateAdminUserBodyRole =
+  (typeof UpdateAdminUserBodyRole)[keyof typeof UpdateAdminUserBodyRole];
+
+export const UpdateAdminUserBodyRole = {
+  owner: "owner",
+  admin: "admin",
+  viewer: "viewer",
+} as const;
+
+export interface UpdateAdminUserBody {
+  name?: string;
+  role?: UpdateAdminUserBodyRole;
+  unlock?: boolean;
+}
+
+export interface ResetPasswordBody {
+  newPassword: string;
+}
+
+export type ReadinessStatusChecks = { [key: string]: unknown };
+
+export interface ReadinessStatus {
+  status: string;
+  checks: ReadinessStatusChecks;
+}
+
+export interface AuditLogEntry {
+  id: number;
+  actorUserId?: number | null;
+  actorEmail?: string | null;
+  actorName?: string | null;
+  action: string;
+  target?: string | null;
+  meta?: unknown | null;
+  ip?: string | null;
+  userAgent?: string | null;
+  success: boolean;
+  createdAt: string;
+}
+
+export interface AuditLogsResponse {
+  logs: AuditLogEntry[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  actions: string[];
 }
 
 export interface ChangePasswordBody {
@@ -312,6 +407,15 @@ export const GetKitsSortBy = {
 
 export type GetKitDailyParams = {
   period?: string;
+};
+
+export type ListAuditLogsParams = {
+  page?: number;
+  limit?: number;
+  actorUserId?: number;
+  action?: string;
+  from?: string;
+  to?: string;
 };
 
 export type GetSyncLogsParams = {

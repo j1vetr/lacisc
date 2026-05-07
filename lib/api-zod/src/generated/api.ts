@@ -15,6 +15,14 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
+ * @summary Readiness probe (DB + last sync + scheduler)
+ */
+export const ReadinessCheckResponse = zod.object({
+  status: zod.string(),
+  checks: zod.record(zod.string(), zod.unknown()),
+});
+
+/**
  * @summary Admin login
  */
 export const LoginBody = zod.object({
@@ -28,6 +36,8 @@ export const LoginResponse = zod.object({
     id: zod.number(),
     name: zod.string(),
     email: zod.string(),
+    role: zod.enum(["owner", "admin", "viewer"]),
+    lastLoginAt: zod.coerce.date().nullish(),
     createdAt: zod.coerce.date(),
   }),
 });
@@ -46,6 +56,8 @@ export const GetMeResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
   email: zod.string(),
+  role: zod.enum(["owner", "admin", "viewer"]),
+  lastLoginAt: zod.coerce.date().nullish(),
   createdAt: zod.coerce.date(),
 });
 
@@ -449,6 +461,112 @@ export const GetDashboardSummaryResponse = zod.object({
   lastSyncRecordsFound: zod.number().nullish(),
   lastSyncRecordsInserted: zod.number().nullish(),
   lastSyncRecordsUpdated: zod.number().nullish(),
+});
+
+export const ListAdminUsersResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.enum(["owner", "admin", "viewer"]),
+  lastLoginAt: zod.coerce.date().nullish(),
+  lockedUntil: zod.coerce.date().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListAdminUsersResponse = zod.array(ListAdminUsersResponseItem);
+
+export const CreateAdminUserBody = zod.object({
+  name: zod.string(),
+  email: zod.string().email(),
+  password: zod.string(),
+  role: zod.enum(["owner", "admin", "viewer"]).optional(),
+});
+
+export const CreateAdminUserResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.enum(["owner", "admin", "viewer"]),
+  lastLoginAt: zod.coerce.date().nullish(),
+  lockedUntil: zod.coerce.date().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+export const UpdateAdminUserParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateAdminUserBody = zod.object({
+  name: zod.string().optional(),
+  role: zod.enum(["owner", "admin", "viewer"]).optional(),
+  unlock: zod.boolean().optional(),
+});
+
+export const UpdateAdminUserResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.enum(["owner", "admin", "viewer"]),
+  lastLoginAt: zod.coerce.date().nullish(),
+  lockedUntil: zod.coerce.date().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+export const DeleteAdminUserParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteAdminUserResponse = zod.object({
+  message: zod.string(),
+});
+
+export const ResetAdminUserPasswordParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ResetAdminUserPasswordBody = zod.object({
+  newPassword: zod.string(),
+});
+
+export const ResetAdminUserPasswordResponse = zod.object({
+  message: zod.string(),
+});
+
+export const listAuditLogsQueryPageDefault = 1;
+export const listAuditLogsQueryLimitDefault = 50;
+
+export const ListAuditLogsQueryParams = zod.object({
+  page: zod.coerce.number().default(listAuditLogsQueryPageDefault),
+  limit: zod.coerce.number().default(listAuditLogsQueryLimitDefault),
+  actorUserId: zod.coerce.number().optional(),
+  action: zod.coerce.string().optional(),
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+});
+
+export const ListAuditLogsResponse = zod.object({
+  logs: zod.array(
+    zod.object({
+      id: zod.number(),
+      actorUserId: zod.number().nullish(),
+      actorEmail: zod.string().nullish(),
+      actorName: zod.string().nullish(),
+      action: zod.string(),
+      target: zod.string().nullish(),
+      meta: zod.unknown().nullish(),
+      ip: zod.string().nullish(),
+      userAgent: zod.string().nullish(),
+      success: zod.boolean(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  total: zod.number(),
+  page: zod.number(),
+  limit: zod.number(),
+  totalPages: zod.number(),
+  actions: zod.array(zod.string()),
 });
 
 export const getSyncLogsQueryPageDefault = 1;

@@ -9,7 +9,8 @@ import {
 } from "@workspace/db";
 import { eq, asc, desc, sql, count } from "drizzle-orm";
 import { encrypt, decrypt } from "../lib/crypto";
-import { requireAuth, type AuthRequest } from "../middlewares/auth";
+import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
+import { audit } from "../lib/audit";
 import { logger } from "../lib/logger";
 import { runSync } from "../lib/scraper";
 import {
@@ -70,7 +71,7 @@ router.get("/station/accounts", requireAuth, async (_req, res): Promise<void> =>
   res.json(accounts.map((c) => accountSummary(c, byCred.get(c.id) ?? 0)));
 });
 
-router.post("/station/accounts", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+router.post("/station/accounts", requireAuth, requireRole("admin"), async (req: AuthRequest, res): Promise<void> => {
   const {
     label,
     portalUrl,
@@ -104,10 +105,15 @@ router.post("/station/accounts", requireAuth, async (req: AuthRequest, res): Pro
     })
     .returning();
   req.log.info({ id: created.id, label }, "Station account created");
+  await audit(req, {
+    action: "station.account.create",
+    target: `account:${created.id}`,
+    meta: { label, username, portalUrl },
+  });
   res.json(accountSummary(created, 0));
 });
 
-router.patch("/station/accounts/:id", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+router.patch("/station/accounts/:id", requireAuth, requireRole("admin"), async (req: AuthRequest, res): Promise<void> => {
   const id = parseInt(String(req.params.id), 10);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "Geçersiz hesap ID." });
@@ -152,10 +158,18 @@ router.patch("/station/accounts/:id", requireAuth, async (req: AuthRequest, res)
     .select({ n: count() })
     .from(stationKits)
     .where(eq(stationKits.credentialId, id));
+  await audit(req, {
+    action: "station.account.update",
+    target: `account:${id}`,
+    meta: {
+      changedFields: Object.keys(updates).filter((k) => k !== "updatedAt"),
+      passwordChanged: Boolean(password && password.trim()),
+    },
+  });
   res.json(accountSummary(updated, Number(n ?? 0)));
 });
 
-router.delete("/station/accounts/:id", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+router.delete("/station/accounts/:id", requireAuth, requireRole("admin"), async (req: AuthRequest, res): Promise<void> => {
   const id = parseInt(String(req.params.id), 10);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "Geçersiz hesap ID." });
@@ -170,12 +184,17 @@ router.delete("/station/accounts/:id", requireAuth, async (req: AuthRequest, res
     return;
   }
   req.log.warn({ id }, "Station account deleted (cascade wiped data)");
+  await audit(req, {
+    action: "station.account.delete",
+    target: `account:${id}`,
+  });
   res.json({ message: "Hesap ve tüm verisi silindi." });
 });
 
 router.post(
   "/station/accounts/:id/test-connection",
   requireAuth,
+  requireRole("admin"),
   async (req: AuthRequest, res): Promise<void> => {
     const id = parseInt(String(req.params.id), 10);
     const [c] = await db
@@ -243,7 +262,7 @@ router.get("/station/settings", requireAuth, async (_req, res): Promise<void> =>
   });
 });
 
-router.post("/station/settings", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+router.post("/station/settings", requireAuth, requireRole("admin"), async (req: AuthRequest, res): Promise<void> => {
   const {
     portalUrl,
     username,
@@ -319,7 +338,7 @@ router.post("/station/settings", requireAuth, async (req: AuthRequest, res): Pro
   });
 });
 
-router.post("/station/test-connection", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+router.post("/station/test-connection", requireAuth, requireRole("admin"), async (req: AuthRequest, res): Promise<void> => {
   const settings = await firstAccount();
   if (!settings) {
     res.json({ success: false, message: "Önce portal ayarlarını kaydedin." });
@@ -353,7 +372,7 @@ router.post("/station/test-connection", requireAuth, async (req: AuthRequest, re
 // Sync orchestration + live progress
 // =============================================================================
 
-router.post("/station/sync-now", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+router.post("/station/sync-now", requireAuth, requireRole("admin"), async (req: AuthRequest, res): Promise<void> => {
   // Atomic claim BEFORE any async work — guarantees two concurrent requests
   // cannot both pass the gate.
   if (!tryClaimRun()) {
@@ -386,6 +405,7 @@ router.post("/station/sync-now", requireAuth, async (req: AuthRequest, res): Pro
     .catch((err) => {
       logger.error({ err }, "Multi-account sync crashed");
     });
+  await audit(req, { action: "station.sync_now" });
   res.json({
     success: true,
     message: "Senkronizasyon başlatıldı.",
@@ -403,7 +423,7 @@ router.get("/station/sync-progress", requireAuth, async (_req, res): Promise<voi
 // Wipe data (single account or all)
 // =============================================================================
 
-router.post("/station/wipe-data", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+router.post("/station/wipe-data", requireAuth, requireRole("admin"), async (req: AuthRequest, res): Promise<void> => {
   if (isOrchestratorRunning()) {
     res
       .status(409)
@@ -477,6 +497,11 @@ router.post("/station/wipe-data", requireAuth, async (req: AuthRequest, res): Pr
     syncLogs: logsDel.length,
   };
   req.log.warn({ deleted, credentialId }, "Station data wiped by admin");
+  await audit(req, {
+    action: "station.wipe_data",
+    target: credentialId !== null ? `account:${credentialId}` : "all",
+    meta: deleted,
+  });
 
   res.json({
     success: true,
@@ -497,7 +522,7 @@ router.get("/station/email-settings", requireAuth, async (_req, res): Promise<vo
   res.json(settings);
 });
 
-router.put("/station/email-settings", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+router.put("/station/email-settings", requireAuth, requireRole("admin"), async (req: AuthRequest, res): Promise<void> => {
   const parsed = UpdateEmailSettingsBody.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -507,10 +532,14 @@ router.put("/station/email-settings", requireAuth, async (req: AuthRequest, res)
     return;
   }
   const updated = await saveEmailSettings(parsed.data);
+  await audit(req, {
+    action: "station.email_settings.update",
+    meta: { enabled: updated.enabled, thresholdStepGib: updated.thresholdStepGib },
+  });
   res.json(updated);
 });
 
-router.post("/station/email-settings/test", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+router.post("/station/email-settings/test", requireAuth, requireRole("admin"), async (req: AuthRequest, res): Promise<void> => {
   const body = (req.body ?? {}) as { to?: string };
   const result = await sendTestEmail(body.to);
   res.json(result);

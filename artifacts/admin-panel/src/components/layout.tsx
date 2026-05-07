@@ -2,24 +2,33 @@ import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import brandLogo from "@assets/1_1778023047729.png";
 import toovLogo from "@assets/TOOV_1778023131850.png";
-import { Activity, LayoutDashboard, Settings, List, LogOut, Menu } from "lucide-react";
+import { Activity, LayoutDashboard, Settings, List, LogOut, Menu, Users, ShieldCheck, UserCircle2 } from "lucide-react";
 import { useLogout, useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetTitle, SheetHeader } from "@/components/ui/sheet";
 
-const navItems = [
-  { title: "Panel", url: "/", icon: LayoutDashboard },
-  { title: "Terminaller", url: "/kits", icon: List },
-  { title: "Senkronizasyon Kayıtları", url: "/sync-logs", icon: Activity },
-  { title: "Ayarlar", url: "/settings", icon: Settings },
+type Role = "owner" | "admin" | "viewer";
+
+const baseNav = [
+  { title: "Panel", url: "/", icon: LayoutDashboard, minRole: "viewer" as Role },
+  { title: "Terminaller", url: "/kits", icon: List, minRole: "viewer" as Role },
+  { title: "Senkronizasyon Kayıtları", url: "/sync-logs", icon: Activity, minRole: "viewer" as Role },
+  { title: "Ayarlar", url: "/settings", icon: Settings, minRole: "admin" as Role },
+  { title: "Kullanıcılar", url: "/admin/users", icon: Users, minRole: "admin" as Role },
+  { title: "Denetim Kayıtları", url: "/audit-logs", icon: ShieldCheck, minRole: "admin" as Role },
+  { title: "Profilim", url: "/profile", icon: UserCircle2, minRole: "viewer" as Role },
 ];
+
+const ROLE_RANK: Record<Role, number> = { viewer: 0, admin: 1, owner: 2 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const logout = useLogout();
+  const qc = useQueryClient();
   const { data: user, isLoading: userLoading } = useGetMe({ query: { queryKey: getGetMeQueryKey() } });
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -28,10 +37,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     setMobileOpen(false);
   }, [location]);
 
+  const role = ((user as { role?: Role } | undefined)?.role ?? "viewer") as Role;
+  const navItems = baseNav.filter((item) => ROLE_RANK[role] >= ROLE_RANK[item.minRole]);
+
   const handleLogout = () => {
     logout.mutate(undefined, {
       onSuccess: () => {
-        localStorage.removeItem("auth_token");
+        qc.clear();
+        window.location.href = "/login";
+      },
+      onError: () => {
+        qc.clear();
         window.location.href = "/login";
       },
     });
@@ -84,6 +100,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <>
                 <span className="text-xs font-semibold truncate text-foreground">{user?.name || "Yönetici"}</span>
                 <span className="text-[11px] text-muted-foreground truncate">{user?.email || "admin@example.com"}</span>
+                <span className="text-[10px] uppercase tracking-widest text-primary mt-0.5 font-mono">{role}</span>
               </>
             )}
           </div>

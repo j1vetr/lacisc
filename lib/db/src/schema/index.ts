@@ -8,6 +8,8 @@ import {
   timestamp,
   date,
   uniqueIndex,
+  jsonb,
+  index,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -17,9 +19,44 @@ export const adminUsers = pgTable("admin_users", {
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  // 'owner' | 'admin' | 'viewer'. Owner is bootstrap super-admin (cannot be
+  // deleted/demoted while there is only one). Admin has full write access.
+  // Viewer is read-only — UI hides write actions and API blocks them.
+  role: text("role").default("admin").notNull(),
+  lastLoginAt: timestamp("last_login_at"),
+  failedLoginCount: integer("failed_login_count").default(0).notNull(),
+  // While set, login is rejected even with correct credentials. Cleared on
+  // first successful login after the timestamp passes.
+  lockedUntil: timestamp("locked_until"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// Append-only audit trail of administrative actions. `actorUserId` is null
+// for unauthenticated events (failed logins, system actions). `meta` holds
+// arbitrary structured detail (account ids, target user ids, etc.).
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: serial("id").primaryKey(),
+    actorUserId: integer("actor_user_id").references(() => adminUsers.id, {
+      onDelete: "set null",
+    }),
+    actorEmail: text("actor_email"),
+    action: text("action").notNull(),
+    target: text("target"),
+    meta: jsonb("meta"),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+    success: boolean("success").default(true).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("audit_logs_created_at_idx").on(t.createdAt),
+    index("audit_logs_actor_idx").on(t.actorUserId),
+  ]
+);
+export type AuditLog = typeof auditLogs.$inferSelect;
 
 export const stationCredentials = pgTable("station_credentials", {
   id: serial("id").primaryKey(),
