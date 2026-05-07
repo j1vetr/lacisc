@@ -17,7 +17,9 @@ import {
   runAllAccountsClaimed,
   isOrchestratorRunning,
   tryClaimRun,
+  releaseRun,
 } from "../lib/sync-orchestrator";
+import { runStarlinkSync, isStarlinkSyncRunning } from "../lib/starlink-sync";
 import * as progress from "../lib/sync-progress";
 import {
   getEmailSettings,
@@ -430,18 +432,66 @@ router.post("/station/sync-now", requireAuth, requireRole("admin"), async (req: 
   }
   // Fire-and-forget — claim already held, runAllAccountsClaimed() reuses it
   // and releases on completion. Manual button always forces a full backfill
-  // (202601 → current) for every account.
-  void runAllAccountsClaimed({ forceFull: true })
-    .then((r) => {
-      logger.info({ ...r }, "Multi-account sync finished");
-    })
-    .catch((err) => {
-      logger.error({ err }, "Multi-account sync crashed");
-    });
+  // (202601 → current) for every account. After Satcom finishes, chain a
+  // Tototheo (Starlink API) sync so the manual button from /sync-logs runs
+  // both data sources end-to-end. Both phases share a single combined
+  // run-state envelope so /sync-progress shows one continuous run.
+  progress.startCombinedRun();
+  void (async () => {
+    let satcomOk = true;
+    let starlinkOk = true;
+    try {
+      const r = await runAllAccountsClaimed({ forceFull: true });
+      logger.info({ ...r }, "Manual Satcom phase finished");
+      satcomOk =
+        r.success ||
+        (r.recordsFound === 0 && r.message.includes("Aktif"));
+    } catch (err) {
+      satcomOk = false;
+      logger.error({ err }, "Manual Satcom phase crashed");
+    }
+    // Re-claim the orchestrator lock for the Tototheo phase so a second
+    // /station/sync-now click cannot squeeze a fresh Satcom run in between
+    // the two phases. runAllAccountsClaimed() releases the lock in its own
+    // finally{}, so we re-grab it here. If reclaim fails (cron tick slipped
+    // in), we log and skip Starlink — Starlink has its own lock anyway, and
+    // the cron tick will already be running it.
+    const reclaimed = tryClaimRun();
+    try {
+      if (!reclaimed) {
+        logger.warn("Could not reclaim orchestrator lock between phases — skipping chained Tototheo");
+      } else if (isStarlinkSyncRunning()) {
+        logger.debug("Starlink sync already in flight, skipping chained phase");
+      } else {
+        try {
+          const r = await runStarlinkSync();
+          logger.info({ ...r }, "Manual Starlink phase finished");
+          if (!r.success && r.terminalCount === 0) {
+            // No-op (disabled / no token) — informational, not a hard failure.
+            starlinkOk = true;
+          } else {
+            starlinkOk = r.success;
+          }
+        } catch (err) {
+          starlinkOk = false;
+          logger.error({ err }, "Manual Starlink phase crashed");
+        }
+      }
+    } finally {
+      if (reclaimed) releaseRun();
+    }
+    const ok = satcomOk && starlinkOk;
+    progress.finishCombinedRun(
+      ok
+        ? "Manuel tur tamamlandı (Satcom + Tototheo)."
+        : "Manuel tur kısmen tamamlandı (bir veya daha fazla faz başarısız).",
+      ok
+    );
+  })();
   await audit(req, { action: "station.sync_now" });
   res.json({
     success: true,
-    message: "Senkronizasyon başlatıldı.",
+    message: "Senkronizasyon başlatıldı (Satcom → Tototheo).",
     recordsFound: 0,
     recordsInserted: 0,
     recordsUpdated: 0,

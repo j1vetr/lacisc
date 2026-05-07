@@ -1,4 +1,5 @@
 import React from "react";
+import { useLocation } from "wouter";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -51,6 +52,7 @@ export default function StarlinkSettingsPage() {
   });
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const updateMutation = useUpdateStarlinkSettings();
   const testMutation = useTestStarlinkConnection();
   const syncMutation = useSyncStarlinkNow();
@@ -140,10 +142,12 @@ export default function StarlinkSettingsPage() {
     syncMutation.mutate(undefined, {
       onSuccess: () => {
         toast({
-          title: "Senkronizasyon Başlatıldı",
+          title: "Tototheo Senkronizasyonu Başlatıldı",
           description:
-            "Tototheo'dan tüm terminaller arka planda çekiliyor. İlerlemeyi panelin üst kısmından takip edebilirsiniz.",
+            "Sadece Tototheo terminalleri çekiliyor. İlerlemeyi senkronizasyon kayıtlarından takip edebilirsiniz.",
         });
+        // Operatörü doğrudan canlı durum panelinin olduğu sayfaya götür.
+        navigate("/sync-logs");
       },
       onError: (err: unknown) => {
         toast({
@@ -163,12 +167,12 @@ export default function StarlinkSettingsPage() {
             <div className="p-1.5 bg-background rounded border border-border">
               <Satellite className="w-4 h-4 text-foreground" />
             </div>
-            Starlink (Tototheo) API
+            Tototheo API
           </CardTitle>
           <CardDescription className="mt-1 text-sm text-muted-foreground">
-            TM Starlink portalından (Tototheo) terminal envanterini ve aylık kullanımı
-            otomatik olarak çeker. Token kayıtlıyken her 30 dakikada bir senkronizasyon
-            çalışır (Starlink önce, ardından Satcom).
+            Tototheo (TM Starlink) portalından terminal envanterini ve aylık kullanımı
+            otomatik olarak çeker. Token kayıtlıyken her 30 dakikada bir otomatik
+            senkronizasyon çalışır.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-4 sm:p-6 lg:p-8">
@@ -187,7 +191,7 @@ export default function StarlinkSettingsPage() {
                           Entegrasyonu Etkinleştir
                         </FormLabel>
                         <FormDescription className="text-xs">
-                          Kapalıyken cron Starlink fazını atlar.
+                          Kapalıyken otomatik tur Tototheo fazını atlar.
                         </FormDescription>
                       </div>
                       <FormControl>

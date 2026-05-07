@@ -24,6 +24,14 @@ export function tryClaimRun(): boolean {
   return true;
 }
 
+// Release a lock previously acquired with tryClaimRun(). Use ONLY when the
+// caller manages the lock manually (e.g. holding the lock across multiple
+// phases in /station/sync-now). The runAllAccounts*() helpers release on
+// their own — never call this on a lock they own.
+export function releaseRun(): void {
+  running = false;
+}
+
 export interface OrchestratorResult {
   success: boolean;
   message: string;

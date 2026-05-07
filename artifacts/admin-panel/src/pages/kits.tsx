@@ -178,7 +178,7 @@ export default function Kits() {
             KIT Özeti
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground">
-            Satcom CDR aggregasyonları + Starlink (Tototheo) terminalleri tek listede.
+            Satcom CDR aggregasyonları + Tototheo terminalleri tek listede.
           </p>
         </div>
       </div>
@@ -274,7 +274,7 @@ export default function Kits() {
                           </p>
                           <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
                             {canManageAccounts
-                              ? "KIT verisi görmek için bir Satcom portal hesabı ekleyin veya Starlink (Tototheo) entegrasyonunu açın."
+                              ? "KIT verisi görmek için bir Satcom portal hesabı ekleyin veya Tototheo entegrasyonunu açın."
                               : "Henüz veri kaynağı yok. Bir yöneticinin Ayarlar'dan kaynak eklemesi gerekiyor."}
                           </p>
                         </div>
@@ -290,7 +290,7 @@ export default function Kits() {
                                 variant="outline"
                                 className="rounded-lg shadow-none mt-1"
                               >
-                                <Satellite className="w-4 h-4 mr-2" /> Starlink Aç
+                                <Satellite className="w-4 h-4 mr-2" /> Tototheo Aç
                               </Button>
                             </Link>
                           </div>

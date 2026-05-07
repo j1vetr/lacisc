@@ -139,7 +139,7 @@ export default function Dashboard() {
                 </div>
                 {starlinkActive && (
                   <div className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1 font-mono">
-                    {summary?.totalKits ?? 0} satcom · {starlinkKitCount} starlink
+                    {summary?.totalKits ?? 0} satcom · {starlinkKitCount} tototheo
                   </div>
                 )}
               </>
@@ -166,7 +166,7 @@ export default function Dashboard() {
                 {starlinkActive && (
                   <div className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1 font-mono">
                     {formatNumber(summary?.totalGib ?? 0, 1)} satcom ·{" "}
-                    {formatNumber(starlinkTotalGib, 1)} starlink
+                    {formatNumber(starlinkTotalGib, 1)} tototheo
                   </div>
                 )}
               </>
