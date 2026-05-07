@@ -10,7 +10,8 @@ import { decrypt, encrypt } from "./crypto";
 import { logger } from "./logger";
 import {
   TototheoClient,
-  type TototheoTerminalDetail,
+  pickField,
+  type RawTototheoDetail,
   type TototheoMonthlyUsage,
 } from "./tototheo";
 import * as progress from "./sync-progress";
@@ -192,6 +193,7 @@ async function runInner(): Promise<StarlinkSyncResult> {
     const today = new Date().toISOString().slice(0, 10);
 
     let processed = 0;
+    let loggedShape = false;
     for (const item of list) {
       processed += 1;
       const label = item.nickname || item.assetName || item.kitSerialNumber;
@@ -207,17 +209,35 @@ async function runInner(): Promise<StarlinkSyncResult> {
           progress.reportStarlinkFailure(item.kitSerialNumber, msg);
           continue;
         }
-        await persistTerminal(detail, today);
-        await persistMonthlyTotals(
-          item.kitSerialNumber,
-          detail.poolPlanMonthlyUsage ?? []
-        );
-        progress.reportStarlinkDone(
-          item.kitSerialNumber,
-          detail.standardTrafficSpent +
-            detail.priorityTrafficSpent +
-            detail.overageTrafficSpent
-        );
+        // One-shot per sync run: dump the keys (not values) of the first
+        // terminal detail we receive so operators can spot field-name shifts
+        // in Tototheo's response without leaking telemetry into the logs.
+        if (!loggedShape) {
+          loggedShape = true;
+          logger.info(
+            {
+              kitSerialNumber: item.kitSerialNumber,
+              detailKeys: Object.keys(detail),
+              monthlySample: pickField(detail, "poolPlanMonthlyUsage", "pool_plan_monthly_usage"),
+            },
+            "Tototheo detail shape (first terminal of run)"
+          );
+        }
+        await persistTerminal(detail, item.kitSerialNumber, today);
+        const months =
+          (pickField<TototheoMonthlyUsage[]>(
+            detail,
+            "poolPlanMonthlyUsage",
+            "pool_plan_monthly_usage"
+          ) as TototheoMonthlyUsage[] | undefined) ?? [];
+        await persistMonthlyTotals(item.kitSerialNumber, months);
+        const standard =
+          pickField<number>(detail, "standardTrafficSpent", "standard_traffic_spent") ?? 0;
+        const priority =
+          pickField<number>(detail, "priorityTrafficSpent", "priority_traffic_spent") ?? 0;
+        const overage =
+          pickField<number>(detail, "overageTrafficSpent", "overage_traffic_spent") ?? 0;
+        progress.reportStarlinkDone(item.kitSerialNumber, standard + priority + overage);
       } catch (err) {
         const msg = (err as Error).message;
         errors.push(`${item.kitSerialNumber}: ${msg}`);
@@ -269,39 +289,46 @@ async function runInner(): Promise<StarlinkSyncResult> {
 }
 
 async function persistTerminal(
-  d: TototheoTerminalDetail,
+  d: RawTototheoDetail,
+  // Always trust the outer kitSerialNumber from the list endpoint — the
+  // detail payload may not echo it back, and we need a non-null PK either way.
+  kitSerialNumber: string,
   today: string
 ): Promise<void> {
-  const lat = d.h3Coordinates?.lat ?? null;
-  const lng = d.h3Coordinates?.lng ?? null;
-  const lastFixAt = d.h3Coordinates?.timestamp
-    ? new Date(d.h3Coordinates.timestamp * 1000)
-    : null;
-  const lastSeenAt = d.lastUpdated
-    ? new Date(d.lastUpdated * 1000)
-    : new Date();
+  const coords = pickField<{
+    lat?: number;
+    lng?: number;
+    timestamp?: number;
+  }>(d, "h3Coordinates", "h3_coordinates");
+  const lat = coords?.lat ?? null;
+  const lng = coords?.lng ?? null;
+  const lastFixAt = coords?.timestamp ? new Date(coords.timestamp * 1000) : null;
+  const lastUpdatedTs = pickField<number>(d, "lastUpdated", "last_updated");
+  const lastSeenAt = lastUpdatedTs ? new Date(lastUpdatedTs * 1000) : new Date();
+
+  const activeAlerts = pickField<unknown[]>(d, "activeAlerts", "active_alerts");
 
   const terminalRow = {
-    nickname: d.nickname || null,
-    assetName: d.assetName || null,
-    isOnline: d.isOnline,
-    activated: d.activated,
-    blocked: d.blocked,
-    signalQuality: d.signalQuality ?? null,
-    latency: d.latency ?? null,
-    obstruction: d.obstruction ?? null,
-    downloadSpeed: d.downloadSpeed ?? null,
-    uploadSpeed: d.uploadSpeed ?? null,
+    nickname: pickField<string>(d, "nickname") ?? null,
+    assetName: pickField<string>(d, "assetName", "asset_name") ?? null,
+    isOnline: pickField<boolean>(d, "isOnline", "is_online") ?? false,
+    activated: pickField<boolean>(d, "activated") ?? false,
+    blocked: pickField<boolean>(d, "blocked") ?? false,
+    signalQuality: pickField<number>(d, "signalQuality", "signal_quality") ?? null,
+    latency: pickField<number>(d, "latency") ?? null,
+    obstruction: pickField<number>(d, "obstruction") ?? null,
+    downloadSpeed: pickField<number>(d, "downloadSpeed", "download_speed") ?? null,
+    uploadSpeed: pickField<number>(d, "uploadSpeed", "upload_speed") ?? null,
     lat,
     lng,
     lastFixAt,
-    activeAlertsCount: d.activeAlerts?.length ?? 0,
+    activeAlertsCount: Array.isArray(activeAlerts) ? activeAlerts.length : 0,
     lastSeenAt,
     updatedAt: new Date(),
   };
   await db
     .insert(starlinkTerminals)
-    .values({ kitSerialNumber: d.kitSerialNumber, ...terminalRow })
+    .values({ kitSerialNumber, ...terminalRow })
     .onConflictDoUpdate({
       target: starlinkTerminals.kitSerialNumber,
       set: terminalRow,
@@ -309,15 +336,18 @@ async function persistTerminal(
 
   // Daily snapshot — UPSERT today's row with cumulative cycle totals.
   // Last write of the day naturally captures the day's end-of-day reading.
-  const standard = d.standardTrafficSpent ?? 0;
-  const priority = d.priorityTrafficSpent ?? 0;
-  const overage = d.overageTrafficSpent ?? 0;
+  const standard =
+    pickField<number>(d, "standardTrafficSpent", "standard_traffic_spent") ?? 0;
+  const priority =
+    pickField<number>(d, "priorityTrafficSpent", "priority_traffic_spent") ?? 0;
+  const overage =
+    pickField<number>(d, "overageTrafficSpent", "overage_traffic_spent") ?? 0;
   const packageUsage = standard + priority + overage;
 
   await db
     .insert(starlinkTerminalDaily)
     .values({
-      kitSerialNumber: d.kitSerialNumber,
+      kitSerialNumber,
       dayDate: today,
       packageUsageGb: packageUsage,
       priorityGb: priority,
@@ -342,12 +372,18 @@ async function persistMonthlyTotals(
   kitSerialNumber: string,
   months: TototheoMonthlyUsage[]
 ): Promise<void> {
-  for (const m of months) {
-    if (!m.usage) continue;
-    const period = `${m.year}${String(m.month).padStart(2, "0")}`;
-    const pkg = m.usage.package_usage_gb ?? 0;
-    const pri = m.usage.priority_gb ?? 0;
-    const ovg = m.usage.overage_gb ?? 0;
+  for (const raw of months) {
+    const m = raw as unknown as RawTototheoDetail;
+    const usage = pickField<RawTototheoDetail>(m, "usage");
+    if (!usage) continue;
+    const year = pickField<number>(m, "year");
+    const month = pickField<number>(m, "month");
+    if (year === undefined || month === undefined) continue;
+    const period = `${year}${String(month).padStart(2, "0")}`;
+    const pkg =
+      pickField<number>(usage, "package_usage_gb", "packageUsageGb") ?? 0;
+    const pri = pickField<number>(usage, "priority_gb", "priorityGb") ?? 0;
+    const ovg = pickField<number>(usage, "overage_gb", "overageGb") ?? 0;
     const total = pkg + pri + ovg;
     await db
       .insert(starlinkTerminalPeriodTotal)

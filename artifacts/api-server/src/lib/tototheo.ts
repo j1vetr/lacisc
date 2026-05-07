@@ -127,35 +127,76 @@ export class TototheoClient {
     );
   }
 
-  // Detail response is wrapped: data.imo[<imo|0>][<userTerminalId>] = {...}.
-  // Walk the nested structure and return the first detail object found.
+  // Detail response is documented as: data.imo[<imo|0>][<userTerminalId>] = {...}.
+  // In practice Tototheo nests inconsistently and may use snake_case keys at
+  // the top level, so we walk recursively and return the first object that
+  // looks like an actual terminal detail (has at least one of the known
+  // identifier or telemetry fields). The naive depth-2 walker was matching
+  // empty intermediate wrappers and returning all nulls.
   async getTerminalDetails(opts: {
     kitSerialNumber?: string;
     imo?: string;
     mmsi?: string;
     consumptionYear?: number;
-  }): Promise<TototheoTerminalDetail | null> {
+  }): Promise<RawTototheoDetail | null> {
     const q: Record<string, string> = {};
     if (opts.kitSerialNumber) q.kitSerialNumber = opts.kitSerialNumber;
     if (opts.imo) q.imo = opts.imo;
     if (opts.mmsi) q.mmsi = opts.mmsi;
     if (opts.consumptionYear !== undefined)
       q.consumptionYear = String(opts.consumptionYear);
-    const data = await this.request<{
-      imo?: Record<string, Record<string, TototheoTerminalDetail>>;
-      mmsi?: Record<string, Record<string, TototheoTerminalDetail>>;
-    }>("/api/v1/getTerminalDetails", q);
-    for (const top of [data.imo, data.mmsi]) {
-      if (!top) continue;
-      for (const inner of Object.values(top)) {
-        if (!inner) continue;
-        for (const v of Object.values(inner)) {
-          return v;
-        }
-      }
-    }
-    return null;
+    const data = await this.request<unknown>("/api/v1/getTerminalDetails", q);
+    return findTerminalDetailLeaf(data);
   }
+}
+
+// Loose object shape returned from Tototheo before normalization.
+export type RawTototheoDetail = Record<string, unknown>;
+
+const DETAIL_MARKER_KEYS = new Set([
+  "kitSerialNumber",
+  "kit_serial_number",
+  "userTerminalId",
+  "user_terminal_id",
+  "serviceLineNumber",
+  "service_line_number",
+  "signalQuality",
+  "signal_quality",
+  "isOnline",
+  "is_online",
+  "poolPlanMonthlyUsage",
+  "pool_plan_monthly_usage",
+]);
+
+// DFS through the response until we hit an object with a marker key. This
+// handles arbitrary wrapper depths (data → imo → "0" → "<id>" → leaf, or
+// shallower variants) without false-matching empty containers.
+function findTerminalDetailLeaf(node: unknown): RawTototheoDetail | null {
+  if (!node || typeof node !== "object") return null;
+  const obj = node as Record<string, unknown>;
+  for (const k of Object.keys(obj)) {
+    if (DETAIL_MARKER_KEYS.has(k)) return obj;
+  }
+  for (const v of Object.values(obj)) {
+    const found = findTerminalDetailLeaf(v);
+    if (found) return found;
+  }
+  return null;
+}
+
+// Pick the first defined value out of a list of candidate keys. Tototheo
+// mixes camelCase and snake_case across endpoints (and even within a single
+// payload), so every field read goes through this helper.
+export function pickField<T = unknown>(
+  obj: RawTototheoDetail | null | undefined,
+  ...keys: string[]
+): T | undefined {
+  if (!obj) return undefined;
+  for (const k of keys) {
+    const v = obj[k];
+    if (v !== undefined && v !== null) return v as T;
+  }
+  return undefined;
 }
 
 export async function testTototheoCredentials(
