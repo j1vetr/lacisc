@@ -156,16 +156,27 @@ function MiniSparkline({
   data,
   unit,
   decimals = 1,
+  gradientId,
 }: {
   data: SparkPoint[];
   unit: string;
   decimals?: number;
+  gradientId: string;
 }) {
   const valid = data.filter((d) => d.value != null);
   if (valid.length === 0) {
     return (
       <div className="h-16 flex items-center justify-center text-[11px] text-muted-foreground">
         Veri yok
+      </div>
+    );
+  }
+  if (valid.length === 1) {
+    // Tek nokta sparkline çizilemiyor — büyük değeri tek başına göster.
+    return (
+      <div className="h-16 flex items-center justify-center font-mono text-base text-foreground">
+        {formatNumber(valid[0].value!, decimals)}
+        <span className="ml-1 text-[11px] text-muted-foreground">{unit}</span>
       </div>
     );
   }
@@ -177,7 +188,7 @@ function MiniSparkline({
           margin={{ top: 4, right: 4, left: 4, bottom: 0 }}
         >
           <defs>
-            <linearGradient id={`spark-${unit}`} x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#f54e00" stopOpacity={0.32} />
               <stop offset="100%" stopColor="#f54e00" stopOpacity={0} />
             </linearGradient>
@@ -204,7 +215,7 @@ function MiniSparkline({
             dataKey="value"
             stroke="#f54e00"
             strokeWidth={1.5}
-            fill={`url(#spark-${unit})`}
+            fill={`url(#${gradientId})`}
             isAnimationActive={false}
             connectNulls
             dot={false}
@@ -272,7 +283,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
       },
     });
 
-  const { data: subscriptions, isLoading: subscriptionsLoading } =
+  const { data: subscriptions } =
     useGetKitSubscriptions(kitNo, {
       query: {
         queryKey: getGetKitSubscriptionsQueryKey(kitNo),
@@ -338,8 +349,29 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
   const usedPct =
     allowance && allowance > 0 ? (used / allowance) * 100 : null;
 
-  const isOnline = Boolean(detail?.lastSessionActive);
   const locActive = location ? location.active && !location.offline : false;
+  // CardDetails enrichment durumu — null lastSessionActive durumunda harita
+  // verisini kullan; aksi halde "Pasif" rozeti yanıltıcı olur.
+  const onlineKnown =
+    detail?.lastSessionActive != null || location != null;
+  const isOnline =
+    detail?.lastSessionActive != null
+      ? Boolean(detail.lastSessionActive)
+      : locActive;
+
+  // Hangi opsiyonel alanlar gerçekten dolu? Boş kartları gizlemek için.
+  const hasHeaderMeta = Boolean(
+    detail?.mobileNumber ||
+      detail?.costCenter ||
+      detail?.lastSessionStart ||
+      detail?.lastSyncedAt,
+  );
+  const hasPlanInfo = Boolean(
+    planName != null || optOutGib != null || stepAlertGib != null,
+  );
+  const hasSubscriptions = (subscriptions ?? []).length > 0;
+  const hasLastHour = lastHour != null;
+  const cardDetailsCollected = Boolean(detail?.cardDetailsSyncedAt);
 
   // Helpers to render Avg values from `lastHour` with proper units / scaling.
   const fmtPct = (v?: number | null, dec = 1) =>
@@ -386,7 +418,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
             {kitNo}
           </span>
           <div className="ml-auto flex items-center gap-1.5 flex-wrap">
-            {!detailLoading && (
+            {!detailLoading && onlineKnown && (
               <Pill tone={isOnline ? "ok" : "warn"}>
                 {isOnline ? (
                   <>
@@ -402,6 +434,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
             {planName && <Pill tone="info">{planName}</Pill>}
           </div>
         </div>
+        {hasHeaderMeta && (
         <div className="px-4 sm:px-5 py-2 flex items-center gap-4 sm:gap-6 text-[11px] font-mono text-muted-foreground flex-wrap">
           {detail?.mobileNumber && (
             <span className="inline-flex items-center gap-1.5">
@@ -436,7 +469,17 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
             </span>
           )}
         </div>
+        )}
       </div>
+
+      {!detailLoading && !cardDetailsCollected && (
+        <div className="rounded-lg border border-dashed border-border bg-secondary/30 px-4 py-2.5 text-[12px] text-muted-foreground flex items-center gap-2">
+          <PlugZap className="w-3.5 h-3.5" />
+          Bu KIT için portal detay sayfası henüz taranmadı — plan, mobile
+          numara, abonelik geçmişi ve oturum bilgileri sonraki senkronizasyondan
+          sonra görünecek.
+        </div>
+      )}
 
       {/* Top row: Live telemetry (8) + Map (4) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -454,6 +497,15 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
               )}
             </div>
           </div>
+          {!telemetryDayLoading && !hasLastHour ? (
+            <div className="m-4 text-center py-10 text-sm text-muted-foreground border border-dashed border-border rounded-lg">
+              Saatlik telemetri henüz toplanmadı.
+              <div className="mt-1 text-[11px]">
+                Bir sonraki senkronizasyon turundan sonra burada anlık metrikler
+                görünecek.
+              </div>
+            </div>
+          ) : (
           <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
             {telemetryDayLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
@@ -550,6 +602,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
               </>
             )}
           </div>
+          )}
         </Card>
 
         <Card className="lg:col-span-4 overflow-hidden">
@@ -611,7 +664,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
           <div className="flex items-center gap-2">
             <HardDrive className="w-4 h-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold tracking-tight">
-              Plan ve Kota
+              {hasPlanInfo ? "Plan ve Kota" : "Dönem Kullanımı"}
             </h2>
             <Pill tone="info">{periodLabel}</Pill>
           </div>
@@ -624,6 +677,25 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
         <div className="p-6">
           {detailLoading ? (
             <Skeleton className="h-32 w-full" />
+          ) : !hasPlanInfo ? (
+            <div className="flex flex-col gap-3">
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                Bu Dönem Kullanım
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="font-mono text-5xl tracking-tight tabular-nums">
+                  {formatNumber(used, 1)}
+                </span>
+                <span className="text-sm text-muted-foreground">GiB</span>
+                <span className="ml-3 text-[11px] font-mono text-muted-foreground">
+                  · {detail?.rowCount ?? 0} CDR satırı
+                </span>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Plan tahsisi ve eşik bilgileri portal detay sayfasından henüz
+                alınmadı — yalnızca tüketim gösteriliyor.
+              </div>
+            </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               <div className="lg:col-span-5">
@@ -732,6 +804,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
           <div className="p-4 grid grid-cols-2 lg:grid-cols-3 gap-3">
             {[
               {
+                key: "download",
                 label: "İndirme",
                 unit: "Mbps",
                 series: sparkSeries.download,
@@ -739,6 +812,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                 decimals: 1,
               },
               {
+                key: "upload",
                 label: "Yükleme",
                 unit: "Mbps",
                 series: sparkSeries.upload,
@@ -746,6 +820,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                 decimals: 1,
               },
               {
+                key: "latency",
                 label: "Gecikme",
                 unit: "ms",
                 series: sparkSeries.latency,
@@ -753,6 +828,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                 decimals: 0,
               },
               {
+                key: "pingDrop",
                 label: "Paket Kaybı",
                 unit: "%",
                 series: sparkSeries.pingDrop,
@@ -760,6 +836,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                 decimals: 2,
               },
               {
+                key: "obstruction",
                 label: "Engel",
                 unit: "%",
                 series: sparkSeries.obstruction,
@@ -767,6 +844,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                 decimals: 2,
               },
               {
+                key: "signal",
                 label: "Sinyal",
                 unit: "%",
                 series: sparkSeries.signal,
@@ -775,7 +853,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
               },
             ].map((m) => (
               <div
-                key={m.label}
+                key={m.key}
                 className="rounded-lg border border-border bg-card p-3"
               >
                 <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
@@ -791,6 +869,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                   data={m.series}
                   unit={m.unit}
                   decimals={m.decimals}
+                  gradientId={`ssa-spark-${m.key}`}
                 />
               </div>
             ))}
@@ -810,6 +889,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
           </div>
           {periodOptions.length > 0 && (
             <select
+              aria-label="Dönem seçimi"
               value={activePeriod ?? undefined}
               onChange={(e) => setSelectedPeriod(e.target.value)}
               className="h-8 px-2 rounded border border-border bg-card font-mono text-[11px] text-foreground"
@@ -885,44 +965,38 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
         </div>
       </Card>
 
-      {/* Subscription history */}
-      <Card>
-        <div className="px-4 py-3 border-b border-border flex items-center gap-2">
-          <Briefcase className="w-4 h-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold tracking-tight">
-            Abonelik Geçmişi
-          </h2>
-        </div>
-        {subscriptionsLoading ? (
-          <div className="p-4">
-            <Skeleton className="h-24 w-full" />
+      {/* Subscription history — sadece veri varsa göster */}
+      {hasSubscriptions && (
+        <Card>
+          <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+            <Briefcase className="w-4 h-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold tracking-tight">
+              Abonelik Geçmişi
+            </h2>
+            <span className="text-[10px] font-mono text-muted-foreground">
+              {(subscriptions ?? []).length} kayıt
+            </span>
           </div>
-        ) : !subscriptions || subscriptions.length === 0 ? (
-          <div className="m-4 text-center py-12 text-sm text-muted-foreground border border-dashed border-border rounded-lg">
-            Abonelik kaydı yok.
-          </div>
-        ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-[12px] min-w-[560px]">
               <thead className="bg-secondary/40">
                 <tr>
-                  {[
-                    { label: "Plan", align: "left", pad: "pl-4" },
-                    { label: "Başlama", align: "left" },
-                    { label: "Bitiş", align: "left" },
-                    { label: "Müşteri", align: "left", pad: "pr-4" },
-                  ].map((h) => (
-                    <th
-                      key={h.label}
-                      className={`h-9 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold text-${h.align} ${h.pad ?? ""}`}
-                    >
-                      {h.label}
-                    </th>
-                  ))}
+                  <th className="h-9 pl-4 text-left text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                    Plan
+                  </th>
+                  <th className="h-9 text-left text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                    Başlama
+                  </th>
+                  <th className="h-9 text-left text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                    Bitiş
+                  </th>
+                  <th className="h-9 pr-4 text-left text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                    Müşteri
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {subscriptions.map((s) => (
+                {(subscriptions ?? []).map((s) => (
                   <tr
                     key={s.subscriptionId}
                     className="border-t border-border h-11 hover:bg-secondary/40"
@@ -940,8 +1014,8 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
               </tbody>
             </table>
           </div>
-        )}
-      </Card>
+        </Card>
+      )}
 
       {/* Monthly summary */}
       <Card>
@@ -962,19 +1036,18 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
             <table className="w-full text-[12px] min-w-[560px]">
               <thead className="bg-secondary/40">
                 <tr>
-                  {[
-                    { label: "Dönem", align: "left", pad: "pl-4" },
-                    { label: "Toplam GiB", align: "right" },
-                    { label: "Satır", align: "right" },
-                    { label: "Tarama", align: "right", pad: "pr-4" },
-                  ].map((h) => (
-                    <th
-                      key={h.label}
-                      className={`h-9 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold text-${h.align} ${h.pad ?? ""}`}
-                    >
-                      {h.label}
-                    </th>
-                  ))}
+                  <th className="h-9 pl-4 text-left text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                    Dönem
+                  </th>
+                  <th className="h-9 text-right text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                    Toplam GiB
+                  </th>
+                  <th className="h-9 text-right text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                    Satır
+                  </th>
+                  <th className="h-9 pr-4 text-right text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                    Tarama
+                  </th>
                 </tr>
               </thead>
               <tbody>
