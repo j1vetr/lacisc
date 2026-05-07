@@ -17,6 +17,16 @@ import {
   isCustomer,
   classifyKitDb,
 } from "../lib/customer-scope";
+import {
+  GetKitLocationParams,
+  GetKitLocationResponse,
+  GetKitLocationsResponse,
+  GetKitTelemetryHourlyParams,
+  GetKitTelemetryHourlyQueryParams,
+  GetKitTelemetryHourlyResponse,
+  GetKitSubscriptionsParams,
+  GetKitSubscriptionsResponse,
+} from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
@@ -212,7 +222,12 @@ router.get(
   "/station/kits/:kitNo/location",
   requireAuth,
   async (req: AuthRequest, res): Promise<void> => {
-    const kitNo = String(req.params.kitNo);
+    const params = GetKitLocationParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: "Geçersiz KIT no." });
+      return;
+    }
+    const { kitNo } = params.data;
     const scope = await customerSatcomScope(req);
     if (scope !== null && !scope.includes(kitNo)) {
       res.status(404).json({ error: "KIT bulunamadı." });
@@ -238,7 +253,16 @@ router.get(
       res.status(404).json({ error: "KIT konum verisi yok." });
       return;
     }
-    res.json(row);
+    const parsed = GetKitLocationResponse.safeParse(row);
+    if (!parsed.success) {
+      req.log.error(
+        { kitNo, issues: parsed.error.issues },
+        "GetKitLocationResponse zod parse failed"
+      );
+      res.status(500).json({ error: "Sunucu yanıtı doğrulanamadı." });
+      return;
+    }
+    res.json(parsed.data);
   }
 );
 
@@ -269,7 +293,16 @@ router.get(
     const rows = scope
       ? await baseQuery.where(inArray(stationKitLocation.kitNo, scope))
       : await baseQuery;
-    res.json(rows);
+    const parsed = GetKitLocationsResponse.safeParse(rows);
+    if (!parsed.success) {
+      req.log.error(
+        { issues: parsed.error.issues },
+        "GetKitLocationsResponse zod parse failed"
+      );
+      res.status(500).json({ error: "Sunucu yanıtı doğrulanamadı." });
+      return;
+    }
+    res.json(parsed.data);
   }
 );
 
@@ -278,14 +311,23 @@ router.get(
   "/station/kits/:kitNo/telemetry/hourly",
   requireAuth,
   async (req: AuthRequest, res): Promise<void> => {
-    const kitNo = String(req.params.kitNo);
+    const params = GetKitTelemetryHourlyParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: "Geçersiz KIT no." });
+      return;
+    }
+    const query = GetKitTelemetryHourlyQueryParams.safeParse(req.query);
+    if (!query.success) {
+      res.status(400).json({ error: "Geçersiz sorgu (days 1-30)." });
+      return;
+    }
+    const { kitNo } = params.data;
     const scope = await customerSatcomScope(req);
     if (scope !== null && !scope.includes(kitNo)) {
       res.status(404).json({ error: "KIT bulunamadı." });
       return;
     }
-    const daysRaw = Number((req.query as { days?: string }).days ?? 7);
-    const days = Math.max(1, Math.min(30, isNaN(daysRaw) ? 7 : daysRaw));
+    const days = query.data.days ?? 7;
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const rows = await db
       .select({
@@ -317,7 +359,16 @@ router.get(
         )
       )
       .orderBy(asc(stationKitTelemetryHourly.intervalStart));
-    res.json(rows);
+    const parsed = GetKitTelemetryHourlyResponse.safeParse(rows);
+    if (!parsed.success) {
+      req.log.error(
+        { kitNo, issues: parsed.error.issues },
+        "GetKitTelemetryHourlyResponse zod parse failed"
+      );
+      res.status(500).json({ error: "Sunucu yanıtı doğrulanamadı." });
+      return;
+    }
+    res.json(parsed.data);
   }
 );
 
@@ -326,7 +377,12 @@ router.get(
   "/station/kits/:kitNo/subscriptions",
   requireAuth,
   async (req: AuthRequest, res): Promise<void> => {
-    const kitNo = String(req.params.kitNo);
+    const params = GetKitSubscriptionsParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: "Geçersiz KIT no." });
+      return;
+    }
+    const { kitNo } = params.data;
     const scope = await customerSatcomScope(req);
     if (scope !== null && !scope.includes(kitNo)) {
       res.status(404).json({ error: "KIT bulunamadı." });
@@ -345,7 +401,16 @@ router.get(
       .from(stationKitSubscriptionHistory)
       .where(eq(stationKitSubscriptionHistory.kitNo, kitNo))
       .orderBy(desc(stationKitSubscriptionHistory.startDate));
-    res.json(rows);
+    const parsed = GetKitSubscriptionsResponse.safeParse(rows);
+    if (!parsed.success) {
+      req.log.error(
+        { kitNo, issues: parsed.error.issues },
+        "GetKitSubscriptionsResponse zod parse failed"
+      );
+      res.status(500).json({ error: "Sunucu yanıtı doğrulanamadı." });
+      return;
+    }
+    res.json(parsed.data);
   }
 );
 

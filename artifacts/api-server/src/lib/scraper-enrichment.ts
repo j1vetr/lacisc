@@ -4,7 +4,7 @@
 //   1. fetchKitLocations(page, baseUrl, credentialId) — /Starlink/Telemetry/Map
 //      sayfasından inline `terminals: [...]` JSON'ını alır, station_kit_location'a
 //      upsert eder. Tüm hesabın KIT'leri için snapshot'tır (overwrite).
-//   2. fetchHourlyTelemetry(page, baseUrl, credentialId, fullSync) —
+//   2. fetchHourlyTelemetry(page, baseUrl, credentialId, isFirstFull) —
 //      /Starlink/Telemetry/Measurements sayfasındaki `gvStarlinkMeasurementsOneHour`
 //      grid'inden saatlik metrikleri okur ve station_kit_telemetry_hourly'ye
 //      upsert eder. fullSync=true ise tarihsel sayfaları da tarar (max 80 sayfa);
@@ -192,12 +192,91 @@ async function parseMeasurementsPage(page: Page): Promise<
   return out;
 }
 
+// Generic ASPx.GVPagerOnClick helper — same proven mechanism as
+// `setGridPageSize()` in scraper.ts, parameterized by grid id. DevExpress's
+// `Page size` dropdown calls `ASPx.GVPagerOnClick(gridId, size)`; SetValue /
+// PerformCallback / __doPostBack silently fail (see replit.md gotcha).
+async function setMeasurementsGridPageSize(
+  page: Page,
+  size: number
+): Promise<void> {
+  const gridId = "ctl00_ContentPlaceHolder1_gvStarlinkMeasurementsOneHour";
+  const before = await page
+    .evaluate(
+      (gid) => document.querySelectorAll(`[id^='${gid}_DXDataRow']`).length,
+      gridId
+    )
+    .catch(() => 0);
+  const triggered = await page
+    .evaluate(
+      ([gid, sz]) => {
+        const w = window as unknown as Record<string, unknown>;
+        const aspx = w["ASPx"] as
+          | { GVPagerOnClick?: (id: string, val: string) => void }
+          | undefined;
+        if (aspx && typeof aspx.GVPagerOnClick === "function") {
+          try {
+            aspx.GVPagerOnClick(gid as string, String(sz));
+            return "ASPx.GVPagerOnClick";
+          } catch {
+            /* fall through */
+          }
+        }
+        return "noop";
+      },
+      [gridId, size] as const
+    )
+    .catch(() => "error");
+  // Poll DOM row count until grid rerenders (or stabilises) — same approach as
+  // setGridPageSize() in scraper.ts.
+  const deadline = Date.now() + 12000;
+  let after = before;
+  let stableTicks = 0;
+  while (Date.now() < deadline) {
+    await page.waitForTimeout(400);
+    const n = await page
+      .evaluate(
+        (gid) => document.querySelectorAll(`[id^='${gid}_DXDataRow']`).length,
+        gridId
+      )
+      .catch(() => after);
+    if (n > before) {
+      after = n;
+      await page.waitForTimeout(400);
+      after = await page
+        .evaluate(
+          (gid) => document.querySelectorAll(`[id^='${gid}_DXDataRow']`).length,
+          gridId
+        )
+        .catch(() => after);
+      break;
+    }
+    if (n === after) {
+      stableTicks++;
+      if (stableTicks >= 4) break;
+    } else {
+      after = n;
+      stableTicks = 0;
+    }
+  }
+  logger.info(
+    {
+      gridId,
+      requestedSize: size,
+      triggered,
+      rowsBefore: before,
+      rowsAfter: after,
+    },
+    "setMeasurementsGridPageSize result"
+  );
+}
+
 export async function fetchHourlyTelemetry(
   page: Page,
   baseUrl: string,
   credentialId: number,
-  fullSync: boolean
-): Promise<{ inserted: number; updated: number; pages: number }> {
+  isFirstFull: boolean
+): Promise<{ inserted: number; updated: number; rows: number }> {
   try {
     await page.goto(`${baseUrl}/Starlink/Telemetry/Measurements`, {
       waitUntil: "networkidle",
@@ -208,7 +287,7 @@ export async function fetchHourlyTelemetry(
       { err: (e as Error).message },
       "Measurements sayfası açılamadı (atlandı)"
     );
-    return { inserted: 0, updated: 0, pages: 0 };
+    return { inserted: 0, updated: 0, rows: 0 };
   }
 
   // Grid'in oluşmasını bekle.
@@ -218,110 +297,71 @@ export async function fetchHourlyTelemetry(
     .waitFor({ timeout: 15000 })
     .catch(() => {});
 
-  const maxPages = fullSync ? 80 : 2;
+  // setGridPageSize pattern — DevExpress 25-row default; 200 satır incremental
+  // için yeterli (~2 gün × 4 KIT), 1000 satır first-full için 10 günü
+  // doldurmaya yeter (~960 satır). Tek sayfada parse → kırılgan pager kodu yok.
+  // Telemetri zaten upsert (overlap-safe), bu yüzden depth state'ten gelir.
+  const targetSize = isFirstFull ? 1000 : 200;
+  await setMeasurementsGridPageSize(page, targetSize);
+
+  const rows = await parseMeasurementsPage(page);
   let inserted = 0;
   let updated = 0;
-  let pageIdx = 0;
 
-  for (; pageIdx < maxPages; pageIdx++) {
-    const rows = await parseMeasurementsPage(page);
-    if (rows.length === 0) break;
-
-    // Aynı sayfada birden fazla satır olabilir; her birini upsert et.
-    for (const r of rows) {
-      const c = r.cells;
-      const values = {
-        credentialId,
-        kitNo: r.kitNo,
-        intervalStart: r.intervalStart,
-        downloadMinMbps: c[0],
-        downloadAvgMbps: c[1],
-        downloadMaxMbps: c[2],
-        uploadMinMbps: c[3],
-        uploadAvgMbps: c[4],
-        uploadMaxMbps: c[5],
-        latencyMinMs: c[6],
-        latencyAvgMs: c[7],
-        latencyMaxMs: c[8],
-        pingDropMinPct: c[9],
-        pingDropAvgPct: c[10],
-        pingDropMaxPct: c[11],
-        obstructionMinPct: c[12],
-        obstructionAvgPct: c[13],
-        obstructionMaxPct: c[14],
-        signalQualityMinPct: c[15],
-        signalQualityAvgPct: c[16],
-        signalQualityMaxPct: c[17],
-        scrapedAt: new Date(),
-      };
-      const result = await db
-        .insert(stationKitTelemetryHourly)
-        .values(values)
-        .onConflictDoUpdate({
-          target: [
-            stationKitTelemetryHourly.credentialId,
-            stationKitTelemetryHourly.kitNo,
-            stationKitTelemetryHourly.intervalStart,
-          ],
-          set: { ...values, scrapedAt: new Date() },
-        })
-        .returning({ inserted: sql<boolean>`xmax = 0` });
-      const wasInserted = result[0]?.inserted === true;
-      if (wasInserted) inserted++;
-      else updated++;
-    }
-
-    // Sonraki sayfaya git — DevExpress pager.
-    const moved = await goToNextMeasurementsPage(page);
-    if (!moved) break;
+  for (const r of rows) {
+    const c = r.cells;
+    const values = {
+      credentialId,
+      kitNo: r.kitNo,
+      intervalStart: r.intervalStart,
+      downloadMinMbps: c[0],
+      downloadAvgMbps: c[1],
+      downloadMaxMbps: c[2],
+      uploadMinMbps: c[3],
+      uploadAvgMbps: c[4],
+      uploadMaxMbps: c[5],
+      latencyMinMs: c[6],
+      latencyAvgMs: c[7],
+      latencyMaxMs: c[8],
+      pingDropMinPct: c[9],
+      pingDropAvgPct: c[10],
+      pingDropMaxPct: c[11],
+      obstructionMinPct: c[12],
+      obstructionAvgPct: c[13],
+      obstructionMaxPct: c[14],
+      signalQualityMinPct: c[15],
+      signalQualityAvgPct: c[16],
+      signalQualityMaxPct: c[17],
+      scrapedAt: new Date(),
+    };
+    const result = await db
+      .insert(stationKitTelemetryHourly)
+      .values(values)
+      .onConflictDoUpdate({
+        target: [
+          stationKitTelemetryHourly.credentialId,
+          stationKitTelemetryHourly.kitNo,
+          stationKitTelemetryHourly.intervalStart,
+        ],
+        set: { ...values, scrapedAt: new Date() },
+      })
+      .returning({ inserted: sql<boolean>`xmax = 0` });
+    const wasInserted = result[0]?.inserted === true;
+    if (wasInserted) inserted++;
+    else updated++;
   }
   logger.info(
-    { credentialId, pages: pageIdx + 1, inserted, updated, fullSync },
+    {
+      credentialId,
+      rows: rows.length,
+      inserted,
+      updated,
+      isFirstFull,
+      pageSize: targetSize,
+    },
     "Saatlik telemetri kaydedildi"
   );
-  return { inserted, updated, pages: pageIdx + 1 };
-}
-
-async function goToNextMeasurementsPage(page: Page): Promise<boolean> {
-  const before = await page
-    .evaluate(() => {
-      const first = document.querySelector(
-        "[id*='gvStarlinkMeasurementsOneHour_DXDataRow']"
-      );
-      return first?.id || "";
-    })
-    .catch(() => "");
-  // DevExpress "next page" düğmesi; class veya title ile bulunabilir.
-  const nextBtn = page
-    .locator(
-      "[id*='gvStarlinkMeasurementsOneHour'][id$='_PSP'], [id*='gvStarlinkMeasurementsOneHour'] .dxp-button[title='Next Page' i], [id*='gvStarlinkMeasurementsOneHour'] img[title='Next Page' i]"
-    )
-    .first();
-  if ((await nextBtn.count()) === 0) return false;
-  // Disabled olup olmadığını kontrol et.
-  const disabled = await nextBtn
-    .evaluate((el) => {
-      const cls = (el as HTMLElement).className || "";
-      return /Disabled|disabled/.test(cls);
-    })
-    .catch(() => false);
-  if (disabled) return false;
-  await nextBtn.click({ timeout: 5000 }).catch(() => {});
-  // Grid yenilenene kadar bekle (en üstteki satır id değişmeli).
-  const deadline = Date.now() + 6000;
-  while (Date.now() < deadline) {
-    await page.waitForTimeout(300);
-    const nowFirst = await page
-      .evaluate(() => {
-        const first = document.querySelector(
-          "[id*='gvStarlinkMeasurementsOneHour_DXDataRow']"
-        );
-        return first?.id || "";
-      })
-      .catch(() => before);
-    if (nowFirst && nowFirst !== before) return true;
-  }
-  return false;
+  return { inserted, updated, rows: rows.length };
 }
 
 // ---------------------------------------------------------------------------

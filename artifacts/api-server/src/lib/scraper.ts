@@ -1151,6 +1151,18 @@ export async function runSync(opts: RunSyncOptions): Promise<SyncResult> {
       logger.warn({ err: (e as Error).message }, "Ship-name enrichment failed (non-fatal)")
     );
 
+    // Telemetri derinliği credential state'e göre — `firstFullSyncAt` null ise
+    // 80 sayfa (10 günü doldur), aksi halde son sayfa yeterli (overlap-safe
+    // upsert sayesinde duplicate olmaz). Manuel `forceFull` butonu KIT-period
+    // döngüsünü etkiler ama telemetri için anlamsız: zaten her saatlik
+    // kova upsert.
+    const [credsForEnrich] = await db
+      .select({ firstFullSyncAt: stationCredentials.firstFullSyncAt })
+      .from(stationCredentials)
+      .where(eq(stationCredentials.id, credentialId))
+      .limit(1);
+    const telemetryFullBackfill = !credsForEnrich?.firstFullSyncAt;
+
     // Task #20 — Map + Measurements + CardDetails enrichment.
     // Hepsi best-effort; CDR scraping akışını bloklamaz. Map ve Measurements
     // tek hesap-genelidir (KIT döngüsünden bağımsız çalışır); CardDetails
@@ -1158,12 +1170,16 @@ export async function runSync(opts: RunSyncOptions): Promise<SyncResult> {
     await fetchKitLocations(page, baseUrl, credentialId).catch((e) =>
       logger.warn({ err: (e as Error).message }, "Map enrichment failed (non-fatal)")
     );
-    await fetchHourlyTelemetry(page, baseUrl, credentialId, forceFull).catch(
-      (e) =>
-        logger.warn(
-          { err: (e as Error).message },
-          "Telemetry enrichment failed (non-fatal)"
-        )
+    await fetchHourlyTelemetry(
+      page,
+      baseUrl,
+      credentialId,
+      telemetryFullBackfill
+    ).catch((e) =>
+      logger.warn(
+        { err: (e as Error).message },
+        "Telemetry enrichment failed (non-fatal)"
+      )
     );
     await enrichCardDetails(page, baseUrl, credentialId, kits).catch((e) =>
       logger.warn({ err: (e as Error).message }, "CardDetails enrichment failed (non-fatal)")
