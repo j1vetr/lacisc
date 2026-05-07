@@ -9,6 +9,7 @@ import { ThemeProvider } from "./components/theme-provider";
 
 // Layout (eager — needed for every authed page chrome)
 import Layout from "./components/layout";
+import CustomerLayout from "./components/customer-layout";
 
 // Login is eager so the unauthed flow has no flash; everything else is
 // route-split so vendor-charts / vendor-motion / heavy pages don't bloat the
@@ -114,6 +115,21 @@ function ProtectedRoute({
     }
   }
 
+  const role = (user as { role?: Role } | undefined)?.role ?? "viewer";
+
+  // Müşteri her zaman editöryel CustomerLayout içinde render edilir
+  // (sidebar + topbar). bareLayout flag'i sadece operatör tarafı için
+  // anlamlıdır.
+  if (role === "customer") {
+    return (
+      <CustomerLayout>
+        <Suspense fallback={<PageFallback />}>
+          <Component />
+        </Suspense>
+      </CustomerLayout>
+    );
+  }
+
   if (bareLayout) {
     return (
       <Suspense fallback={<PageFallback />}>
@@ -140,7 +156,7 @@ function RootRoute() {
   if (isLoading) return <PageFallback />;
   const role = (user as { role?: Role } | undefined)?.role ?? "viewer";
   if (role === "customer") {
-    return <ProtectedRoute component={CustomerPanel} bareLayout />;
+    return <ProtectedRoute component={CustomerPanel} />;
   }
   return <ProtectedRoute component={Dashboard} />;
 }
