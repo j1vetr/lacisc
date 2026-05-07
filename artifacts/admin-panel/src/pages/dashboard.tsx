@@ -21,6 +21,8 @@ import {
   getGetStarlinkTerminalsQueryKey,
   useGetStarlinkSettings,
   getGetStarlinkSettingsQueryKey,
+  useGetMe,
+  getGetMeQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -41,25 +43,53 @@ type MergedKitRow = {
 
 export default function Dashboard() {
   useDocumentTitle("Panel");
+  const { data: me } = useGetMe({
+    query: { queryKey: getGetMeQueryKey(), staleTime: 60_000 },
+  });
+  const isCustomer = (me as { role?: string } | undefined)?.role === "customer";
+
+  // Customer panelinde "Son Güncelleme" rozeti her 30 sn'de bir tazelenir
+  // (yöneticinin sync'inden sonra elle yenilemeden güncel kalsın). Operatör
+  // için varsayılan davranış (manuel/event-driven invalidation) korunur.
+  const customerRefetch = isCustomer ? 30_000 : false;
   const { data: summary, isLoading, isError, error } = useGetDashboardSummary({
-    query: { queryKey: getGetDashboardSummaryQueryKey() },
+    query: {
+      queryKey: getGetDashboardSummaryQueryKey(),
+      refetchInterval: customerRefetch,
+    },
   });
   const { data: satcomKits, isLoading: kitsLoading } = useGetKits(
     { sortBy: "totalGib" },
-    { query: { queryKey: getGetKitsQueryKey({ sortBy: "totalGib" }) } }
+    {
+      query: {
+        queryKey: getGetKitsQueryKey({ sortBy: "totalGib" }),
+        refetchInterval: customerRefetch,
+      },
+    }
   );
 
-  // Starlink data only fetched when integration is on.
+  // Starlink settings 403 dönecek customer için → enabled:false ile hiç
+  // çağırma. Müşteri terminal listesini /starlink/terminals üzerinden
+  // (atanmış scope ile) görüyor; entegrasyonun açık/kapalı olduğu bilgisine
+  // operasyonel olarak ihtiyacı yok — terminal listesi boşsa zaten "0".
   const { data: starlinkSettings } = useGetStarlinkSettings({
-    query: { queryKey: getGetStarlinkSettingsQueryKey(), staleTime: 60_000 },
+    query: {
+      queryKey: getGetStarlinkSettingsQueryKey(),
+      staleTime: 60_000,
+      enabled: !isCustomer,
+    },
   });
-  const starlinkActive =
-    !!starlinkSettings?.enabled && !!starlinkSettings?.hasToken;
+  // Customer için: backend zaten yalnız atanmış Starlink KIT'lerini döner;
+  // listenin var olması = entegrasyonun aktif olduğu anlamına gelir.
+  const starlinkActive = isCustomer
+    ? true
+    : !!starlinkSettings?.enabled && !!starlinkSettings?.hasToken;
   const { data: starlinkTerminals, isLoading: starlinkLoading } =
     useGetStarlinkTerminals({
       query: {
         queryKey: getGetStarlinkTerminalsQueryKey(),
         enabled: starlinkActive,
+        refetchInterval: customerRefetch,
       },
     });
 
@@ -267,7 +297,33 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Compact System Health - Span 4 */}
+        {/* Compact System Health - Span 4. Müşteri için sadece "son
+            güncelleme" rozeti gösterilir; sync sağlığı/sayıları/kayıtlar
+            butonu gizlenir. */}
+        {isCustomer ? (
+          <Card className="border border-border bg-card shadow-none md:col-span-4 rounded-xl flex flex-col">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-normal tracking-tight">Son Güncelleme</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-secondary/40">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-border text-muted-foreground">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[13px] font-medium text-foreground leading-tight">
+                    {summary?.lastSuccessSyncAt ? "Veriler güncel" : "Veri bekleniyor"}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate">
+                    {summary?.lastSuccessSyncAt
+                      ? formatDate(summary.lastSuccessSyncAt)
+                      : "—"}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
         <Card className="border border-border bg-card shadow-none md:col-span-4 rounded-xl flex flex-col">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
@@ -365,6 +421,7 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
+        )}
       </div>
     </div>
   );

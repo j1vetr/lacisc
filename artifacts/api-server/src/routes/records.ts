@@ -7,20 +7,39 @@ import {
   stationSyncLogs,
   stationCredentials,
 } from "@workspace/db";
-import { eq, desc, asc, and, sql, count, max } from "drizzle-orm";
-import { requireAuth } from "../middlewares/auth";
+import { eq, desc, asc, and, inArray, sql, count, max } from "drizzle-orm";
+import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
+import { getAssignedKits, isCustomer } from "../lib/customer-scope";
 
 const router: IRouter = Router();
 
+// Returns the Satcom KIT subset a customer can see, or `null` for operators
+// (no filtering). Empty array = customer with zero assignments → endpoints
+// must yield an empty list, never the full set.
+async function customerSatcomScope(req: AuthRequest): Promise<string[] | null> {
+  if (!isCustomer(req.userRole)) return null;
+  const scope = await getAssignedKits(req.userId!);
+  return scope.satcom;
+}
+
 // --- /station/kits — terminaller listesi (en güncel period totalleri) ---
-router.get("/station/kits", requireAuth, async (req, res): Promise<void> => {
+router.get("/station/kits", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const { sortBy = "totalGib" } = req.query as Record<string, string>;
   const allowed = new Set(["totalGib", "totalUsd", "lastSeen"]);
   const safeSort = allowed.has(sortBy) ? sortBy : "totalGib";
 
+  const scope = await customerSatcomScope(req);
+  if (scope !== null && scope.length === 0) {
+    res.json([]);
+    return;
+  }
+
   // For each (credential, kit), take the row from station_kit_period_total
   // whose period is the maximum (newest). Joining on (credential_id, kit_no)
-  // keeps multi-account data correctly partitioned.
+  // keeps multi-account data correctly partitioned. For customer accounts we
+  // append a WHERE on l.kit_no = ANY(...) so unassigned KITs are filtered
+  // out at the SQL layer (no over-fetch + leak).
+  const where = scope ? sql`WHERE l.kit_no = ANY(${scope}::text[])` : sql``;
   const rows = await db.execute(sql`
     WITH latest AS (
       SELECT DISTINCT ON (credential_id, kit_no)
@@ -43,6 +62,7 @@ router.get("/station/kits", requireAuth, async (req, res): Promise<void> => {
     LEFT JOIN station_kits k
       ON k.kit_no = l.kit_no AND k.credential_id = l.credential_id
     LEFT JOIN station_credentials c ON c.id = l.credential_id
+    ${where}
   `);
   const list = (
     rows as unknown as {
@@ -88,8 +108,13 @@ router.get("/station/kits", requireAuth, async (req, res): Promise<void> => {
 });
 
 // --- /station/kits/:kitNo — KIT detayı + aktif dönem özeti ---
-router.get("/station/kits/:kitNo", requireAuth, async (req, res): Promise<void> => {
+router.get("/station/kits/:kitNo", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const kitNo = String(req.params.kitNo);
+  const scope = await customerSatcomScope(req);
+  if (scope !== null && !scope.includes(kitNo)) {
+    res.status(404).json({ error: "KIT bulunamadı." });
+    return;
+  }
 
   const [kitMeta] = await db
     .select()
@@ -121,8 +146,13 @@ router.get("/station/kits/:kitNo", requireAuth, async (req, res): Promise<void> 
 });
 
 // --- /station/kits/:kitNo/daily?period=YYYYMM — günlük CDR satırları ---
-router.get("/station/kits/:kitNo/daily", requireAuth, async (req, res): Promise<void> => {
+router.get("/station/kits/:kitNo/daily", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const kitNo = String(req.params.kitNo);
+  const scope = await customerSatcomScope(req);
+  if (scope !== null && !scope.includes(kitNo)) {
+    res.status(404).json({ error: "KIT bulunamadı." });
+    return;
+  }
   let { period } = req.query as { period?: string };
 
   if (!period) {
@@ -156,8 +186,13 @@ router.get("/station/kits/:kitNo/daily", requireAuth, async (req, res): Promise<
 });
 
 // --- /station/kits/:kitNo/monthly — tüm dönem totalleri ---
-router.get("/station/kits/:kitNo/monthly", requireAuth, async (req, res): Promise<void> => {
+router.get("/station/kits/:kitNo/monthly", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const kitNo = String(req.params.kitNo);
+  const scope = await customerSatcomScope(req);
+  if (scope !== null && !scope.includes(kitNo)) {
+    res.status(404).json({ error: "KIT bulunamadı." });
+    return;
+  }
   const months = await db
     .select({
       period: stationKitPeriodTotal.period,
@@ -173,11 +208,17 @@ router.get("/station/kits/:kitNo/monthly", requireAuth, async (req, res): Promis
 });
 
 // --- /station/summary — dashboard KPI'ları (aktif period bazlı) ---
-router.get("/station/summary", requireAuth, async (_req, res): Promise<void> => {
-  // En güncel period: tüm KIT'ler arasında en büyük period.
-  const [activeRow] = await db
-    .select({ p: max(stationKitPeriodTotal.period) })
-    .from(stationKitPeriodTotal);
+router.get("/station/summary", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const scope = await customerSatcomScope(req);
+  // En güncel period: tüm KIT'ler arasında en büyük period — customer'da
+  // sadece atanmış KIT'lere bakar.
+  const activeQuery = scope
+    ? db
+        .select({ p: max(stationKitPeriodTotal.period) })
+        .from(stationKitPeriodTotal)
+        .where(scope.length > 0 ? inArray(stationKitPeriodTotal.kitNo, scope) : sql`false`)
+    : db.select({ p: max(stationKitPeriodTotal.period) }).from(stationKitPeriodTotal);
+  const [activeRow] = await activeQuery;
   const activePeriod = activeRow?.p ?? null;
 
   let totalKits = 0;
@@ -185,6 +226,12 @@ router.get("/station/summary", requireAuth, async (_req, res): Promise<void> => 
   let totalUsd = 0;
 
   if (activePeriod) {
+    const baseWhere = eq(stationKitPeriodTotal.period, activePeriod);
+    const where = scope
+      ? scope.length > 0
+        ? and(baseWhere, inArray(stationKitPeriodTotal.kitNo, scope))
+        : sql`false`
+      : baseWhere;
     const [agg] = await db
       .select({
         kitCount: count(),
@@ -192,40 +239,70 @@ router.get("/station/summary", requireAuth, async (_req, res): Promise<void> => 
         usd: sql<number>`COALESCE(SUM(${stationKitPeriodTotal.totalUsd}), 0)`.mapWith(Number),
       })
       .from(stationKitPeriodTotal)
-      .where(eq(stationKitPeriodTotal.period, activePeriod));
+      .where(where as never);
     totalKits = Number(agg?.kitCount ?? 0);
     totalGib = Number(agg?.gib ?? 0);
     totalUsd = Number(agg?.usd ?? 0);
   }
 
-  const [lastLog] = await db
-    .select()
-    .from(stationSyncLogs)
-    .orderBy(desc(stationSyncLogs.startedAt))
-    .limit(1);
+  // Operatör sync sağlığı sadece operatörlere gösterilir; customer'a yalnızca
+  // "son güncelleme" zamanı (atanmış KIT'lerinin en son scrapedAt'i) verilir.
+  let lastSuccessSyncAt: Date | string | null = null;
+  let lastSyncStatus: string | null = null;
+  let lastSyncError: string | null = null;
+  let lastSyncRecordsFound: number | null = null;
+  let lastSyncRecordsInserted: number | null = null;
+  let lastSyncRecordsUpdated: number | null = null;
 
-  const [settings] = await db
-    .select()
-    .from(stationCredentials)
-    .orderBy(desc(stationCredentials.createdAt))
-    .limit(1);
+  if (scope) {
+    if (scope.length > 0) {
+      const [row] = await db
+        .select({
+          scrapedAt: max(stationKitPeriodTotal.scrapedAt),
+        })
+        .from(stationKitPeriodTotal)
+        .where(inArray(stationKitPeriodTotal.kitNo, scope));
+      lastSuccessSyncAt = row?.scrapedAt ?? null;
+    }
+  } else {
+    const [lastLog] = await db
+      .select()
+      .from(stationSyncLogs)
+      .orderBy(desc(stationSyncLogs.startedAt))
+      .limit(1);
+
+    const [settings] = await db
+      .select()
+      .from(stationCredentials)
+      .orderBy(desc(stationCredentials.createdAt))
+      .limit(1);
+
+    lastSuccessSyncAt = settings?.lastSuccessSyncAt ?? null;
+    lastSyncStatus = lastLog?.status ?? null;
+    lastSyncError = lastLog?.status === "failed" ? lastLog.message : null;
+    lastSyncRecordsFound = lastLog?.recordsFound ?? null;
+    lastSyncRecordsInserted = lastLog?.recordsInserted ?? null;
+    lastSyncRecordsUpdated = lastLog?.recordsUpdated ?? null;
+  }
 
   res.json({
     totalKits,
     totalGib,
     totalUsd,
     activePeriod,
-    lastSuccessSyncAt: settings?.lastSuccessSyncAt ?? null,
-    lastSyncStatus: lastLog?.status ?? null,
-    lastSyncError: lastLog?.status === "failed" ? lastLog.message : null,
-    lastSyncRecordsFound: lastLog?.recordsFound ?? null,
-    lastSyncRecordsInserted: lastLog?.recordsInserted ?? null,
-    lastSyncRecordsUpdated: lastLog?.recordsUpdated ?? null,
+    lastSuccessSyncAt,
+    lastSyncStatus,
+    lastSyncError,
+    lastSyncRecordsFound,
+    lastSyncRecordsInserted,
+    lastSyncRecordsUpdated,
   });
 });
 
 // --- /station/sync-logs ---
-router.get("/station/sync-logs", requireAuth, async (req, res): Promise<void> => {
+// Operatör-only (viewer+). Customer 403 alır → /sync-logs sayfasını UI zaten
+// gizliyor ama defans amaçlı sunucu da kontrol ediyor.
+router.get("/station/sync-logs", requireAuth, requireRole("viewer"), async (req, res): Promise<void> => {
   const { page = "1", limit = "20" } = req.query as Record<string, string>;
   const pageNum = Math.max(1, parseInt(page, 10));
   const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));

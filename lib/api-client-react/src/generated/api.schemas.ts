@@ -18,7 +18,8 @@ export interface MessageResponse {
 }
 
 export interface LoginBody {
-  email: string;
+  email?: string;
+  usernameOrEmail?: string;
   password: string;
 }
 
@@ -28,12 +29,14 @@ export const AdminUserRole = {
   owner: "owner",
   admin: "admin",
   viewer: "viewer",
+  customer: "customer",
 } as const;
 
 export interface AdminUser {
   id: number;
   name: string;
-  email: string;
+  email?: string | null;
+  username?: string | null;
   role: AdminUserRole;
   lastLoginAt?: string | null;
   createdAt: string;
@@ -50,15 +53,18 @@ export const AdminUserDetailRole = {
   owner: "owner",
   admin: "admin",
   viewer: "viewer",
+  customer: "customer",
 } as const;
 
 export interface AdminUserDetail {
   id: number;
   name: string;
-  email: string;
+  email?: string | null;
+  username?: string | null;
   role: AdminUserDetailRole;
   lastLoginAt?: string | null;
   lockedUntil?: string | null;
+  assignedKitCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -70,11 +76,13 @@ export const CreateAdminUserBodyRole = {
   owner: "owner",
   admin: "admin",
   viewer: "viewer",
+  customer: "customer",
 } as const;
 
 export interface CreateAdminUserBody {
   name: string;
-  email: string;
+  email?: string | null;
+  username?: string | null;
   password: string;
   role?: CreateAdminUserBodyRole;
 }
@@ -86,12 +94,62 @@ export const UpdateAdminUserBodyRole = {
   owner: "owner",
   admin: "admin",
   viewer: "viewer",
+  customer: "customer",
 } as const;
 
 export interface UpdateAdminUserBody {
   name?: string;
+  username?: string | null;
   role?: UpdateAdminUserBodyRole;
   unlock?: boolean;
+}
+
+export type AssignableKitSource =
+  (typeof AssignableKitSource)[keyof typeof AssignableKitSource];
+
+export const AssignableKitSource = {
+  satcom: "satcom",
+  starlink: "starlink",
+} as const;
+
+export interface AssignableKit {
+  kitNo: string;
+  label?: string | null;
+  source: AssignableKitSource;
+  currentPeriodGib?: number | null;
+}
+
+export interface AssignableKitsResponse {
+  kits: AssignableKit[];
+}
+
+export type KitAssignmentSource =
+  (typeof KitAssignmentSource)[keyof typeof KitAssignmentSource];
+
+export const KitAssignmentSource = {
+  satcom: "satcom",
+  starlink: "starlink",
+} as const;
+
+export interface KitAssignment {
+  kitNo: string;
+  source: KitAssignmentSource;
+  assignedAt: string;
+  assignedByUserId?: number | null;
+}
+
+export interface AssignedKitsResponse {
+  assignments: KitAssignment[];
+}
+
+export interface UpdateAssignedKitsBody {
+  kitNos: string[];
+}
+
+export interface UpdateAssignedKitsResponse {
+  count: number;
+  added: string[];
+  removed: string[];
 }
 
 export interface ResetPasswordBody {

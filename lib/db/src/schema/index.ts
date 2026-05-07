@@ -10,6 +10,7 @@ import {
   uniqueIndex,
   jsonb,
   index,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -17,11 +18,19 @@ import { z } from "zod/v4";
 export const adminUsers = pgTable("admin_users", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  email: text("email").notNull().unique(),
+  // Email is optional now: customer (görüntüleyici) accounts may be created
+  // with only a username + password. Operator accounts (owner/admin/viewer)
+  // typically still have an email. Unique when present.
+  email: text("email").unique(),
+  // Short login handle. Required for customer accounts; backfilled from
+  // email's local-part for legacy operator rows. Unique when present.
+  username: text("username").unique(),
   passwordHash: text("password_hash").notNull(),
-  // 'owner' | 'admin' | 'viewer'. Owner is bootstrap super-admin (cannot be
-  // deleted/demoted while there is only one). Admin has full write access.
-  // Viewer is read-only — UI hides write actions and API blocks them.
+  // 'owner' | 'admin' | 'viewer' | 'customer'. Owner is bootstrap super-admin
+  // (cannot be deleted/demoted while there is only one). Admin has full write
+  // access. Viewer is read-only operator. Customer is a kısıtlanmış müşteri
+  // hesabı that only sees Panel + Terminaller for the KIT'ler explicitly
+  // atanmış via customer_kit_assignments.
   role: text("role").default("admin").notNull(),
   lastLoginAt: timestamp("last_login_at"),
   failedLoginCount: integer("failed_login_count").default(0).notNull(),
@@ -54,6 +63,33 @@ export const adminSessions = pgTable(
   (t) => [index("admin_sessions_user_idx").on(t.userId)]
 );
 export type AdminSession = typeof adminSessions.$inferSelect;
+
+// Customer (görüntüleyici müşteri) → KIT atamaları. Sadece `role='customer'`
+// hesapları için anlamlıdır; bu tablo doluyken kullanıcı sadece atanmış
+// terminalleri görebilir. `source` KIT'in hangi veri kaynağına ait olduğunu
+// belirtir (Satcom KITP* veya Starlink KIT+serial); raporlama/UI rozetleri
+// için kullanılır. KIT silindiğinde atama da otomatik düşer (CASCADE).
+export const customerKitAssignments = pgTable(
+  "customer_kit_assignments",
+  {
+    userId: integer("user_id")
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: "cascade" }),
+    kitNo: text("kit_no").notNull(),
+    source: text("source").notNull(), // 'satcom' | 'starlink'
+    assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+    assignedByUserId: integer("assigned_by_user_id").references(
+      () => adminUsers.id,
+      { onDelete: "set null" }
+    ),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.kitNo] }),
+    index("customer_kit_assignments_user_idx").on(t.userId),
+    index("customer_kit_assignments_kit_idx").on(t.kitNo),
+  ]
+);
+export type CustomerKitAssignment = typeof customerKitAssignments.$inferSelect;
 
 // Append-only audit trail of administrative actions. `actorUserId` is null
 // for unauthenticated events (failed logins, system actions). `meta` holds

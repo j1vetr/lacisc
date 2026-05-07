@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useLocation } from "wouter";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -17,11 +16,16 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
+// Tek alan: kullanıcı adı veya e-posta. Server her ikisini de OR'lar.
+// Eski operatör hesapları e-posta ile, müşteri hesapları kullanıcı adı ile
+// giriş yapar; UI bu ayrımı bilmez.
 const loginSchema = z.object({
-  email: z.string().email({ message: "Lütfen geçerli bir e-posta adresi girin." }),
+  identifier: z
+    .string()
+    .min(1, { message: "Kullanıcı adı veya e-posta zorunludur." }),
   password: z.string().min(1, { message: "Şifre zorunludur." }),
 });
 
@@ -37,18 +41,16 @@ export default function Login() {
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+    defaultValues: { identifier: "", password: "" },
   });
 
   const onSubmit = (data: LoginFormValues) => {
     loginMutation.mutate(
-      { data },
+      // LoginBody artık `usernameOrEmail`'i (string opsiyonel) doğrudan
+      // kabul ediyor — server her iki alanı OR'lar.
+      { data: { usernameOrEmail: data.identifier, password: data.password } },
       {
         onSuccess: () => {
-          // httpOnly cookie set by server — no localStorage handling here.
           setLocation("/");
         },
         onError: (err: Error) => {
@@ -73,7 +75,9 @@ export default function Login() {
             className="mx-auto max-h-24 w-auto object-contain"
           />
           <div className="space-y-1">
-            <CardTitle className="text-2xl font-normal tracking-[-0.02em] text-foreground">Yönetici Girişi</CardTitle>
+            <CardTitle className="text-2xl font-normal tracking-[-0.02em] text-foreground">
+              Giriş
+            </CardTitle>
           </div>
         </CardHeader>
         <CardContent className="px-10 pb-10">
@@ -82,15 +86,17 @@ export default function Login() {
               <div className="space-y-5">
                 <FormField
                   control={form.control}
-                  name="email"
+                  name="identifier"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">E-posta</FormLabel>
+                      <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
+                        Kullanıcı adı veya e-posta
+                      </FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="admin@stationsatcom.com" 
-                          {...field} 
-                          autoComplete="email"
+                        <Input
+                          placeholder="kullanici_adi veya admin@stationsatcom.com"
+                          {...field}
+                          autoComplete="username"
                           className="bg-background border-border h-11 rounded-lg text-sm focus-visible:ring-primary shadow-none"
                         />
                       </FormControl>
@@ -103,12 +109,14 @@ export default function Login() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">Şifre</FormLabel>
+                      <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
+                        Şifre
+                      </FormLabel>
                       <FormControl>
-                        <Input 
-                          type="password" 
-                          placeholder="••••••••" 
-                          {...field} 
+                        <Input
+                          type="password"
+                          placeholder="••••••••"
+                          {...field}
                           autoComplete="current-password"
                           className="bg-background border-border h-11 rounded-lg text-sm font-mono tracking-widest focus-visible:ring-primary shadow-none"
                         />
@@ -118,9 +126,9 @@ export default function Login() {
                   )}
                 />
               </div>
-              <Button 
-                type="submit" 
-                className="w-full h-11 rounded-lg font-medium text-sm bg-primary text-primary-foreground hover:bg-primary/90 shadow-none transition-colors" 
+              <Button
+                type="submit"
+                className="w-full h-11 rounded-lg font-medium text-sm bg-primary text-primary-foreground hover:bg-primary/90 shadow-none transition-colors"
                 disabled={loginMutation.isPending}
               >
                 {loginMutation.isPending ? "Yükleniyor..." : "Oturumu Başlat"}

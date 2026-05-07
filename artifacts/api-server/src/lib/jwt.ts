@@ -2,8 +2,9 @@ import jwt from "jsonwebtoken";
 
 export interface JwtPayload {
   userId: number;
+  /** May be empty string for customer accounts that have no email. */
   email: string;
-  role?: "owner" | "admin" | "viewer";
+  role?: "owner" | "admin" | "viewer" | "customer";
   /** Bumped server-side to revoke all outstanding tokens for the user. */
   tv?: number;
   /** Per-session id (admin_sessions.jti) — required for individual revoke. */

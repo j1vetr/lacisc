@@ -3,7 +3,7 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import rateLimit from "express-rate-limit";
 import { db, adminUsers, adminSessions } from "@workspace/db";
-import { and, eq, ne, sql, desc } from "drizzle-orm";
+import { and, eq, or, ne, sql, desc } from "drizzle-orm";
 import { signToken } from "../lib/jwt";
 import {
   requireAuth,
@@ -62,25 +62,35 @@ function clearAuthCookie(res: Response): void {
 }
 
 router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Promise<void> => {
-  const { email, password } = req.body as { email?: string; password?: string };
-  if (!email || !password) {
-    res.status(400).json({ error: "E-posta ve şifre zorunludur." });
+  // Customer hesapları yalnızca username + şifre ile giriş yapar; operatör
+  // hesapları (owner/admin/viewer) hâlâ e-posta + şifre kullanır. İki form
+  // alanı da `usernameOrEmail` ya da legacy `email` üzerinden bu endpoint'e
+  // düşer; lookup her iki kolonu OR'lar.
+  const body = req.body as {
+    email?: string;
+    password?: string;
+    usernameOrEmail?: string;
+  };
+  const identifier = (body.usernameOrEmail ?? body.email ?? "").trim();
+  const password = body.password;
+  if (!identifier || !password) {
+    res.status(400).json({ error: "Kullanıcı adı / e-posta ve şifre zorunludur." });
     return;
   }
 
   const [user] = await db
     .select()
     .from(adminUsers)
-    .where(eq(adminUsers.email, email));
+    .where(or(eq(adminUsers.email, identifier), eq(adminUsers.username, identifier)));
 
   if (!user) {
     await auditAnonymous(req, {
       action: "auth.login",
       success: false,
-      actorEmail: email,
+      actorEmail: identifier,
       meta: { reason: "user_not_found" },
     });
-    res.status(401).json({ error: "E-posta veya şifre hatalı." });
+    res.status(401).json({ error: "Kullanıcı adı / e-posta veya şifre hatalı." });
     return;
   }
 
@@ -89,7 +99,7 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
     await auditAnonymous(req, {
       action: "auth.login",
       success: false,
-      actorEmail: email,
+      actorEmail: user.email ?? identifier,
       meta: { reason: "locked", remainingMinutes: minutes },
     });
     res.status(423).json({
@@ -113,10 +123,10 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
     await auditAnonymous(req, {
       action: "auth.login",
       success: false,
-      actorEmail: email,
+      actorEmail: user.email ?? identifier,
       meta: { reason: "bad_password", failedCount: nextCount, locked: nextCount >= MAX_FAILED },
     });
-    res.status(401).json({ error: "E-posta veya şifre hatalı." });
+    res.status(401).json({ error: "Kullanıcı adı / e-posta veya şifre hatalı." });
     return;
   }
 
@@ -141,7 +151,10 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
 
   const token = signToken({
     userId: user.id,
-    email: user.email,
+    // Customer hesaplarında email null olabilir; payload'da boş string ile
+    // taşınır. JWT şemasını kırmamak için (eski clientlar) `email` zorunlu
+    // string olarak tutuluyor.
+    email: user.email ?? "",
     role: user.role as Role,
     tv: user.tokenVersion ?? 0,
     jti,
@@ -152,8 +165,8 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
   await auditAnonymous(req, {
     action: "auth.login",
     success: true,
-    actorEmail: user.email,
-    meta: { userId: user.id, role: user.role },
+    actorEmail: user.email ?? user.username ?? identifier,
+    meta: { userId: user.id, role: user.role, via: user.email === identifier ? "email" : "username" },
   });
 
   // NOTE: token is intentionally NOT returned in the body. The httpOnly cookie
@@ -164,6 +177,7 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
       id: user.id,
       name: user.name,
       email: user.email,
+      username: user.username,
       role: user.role,
       lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,
@@ -271,6 +285,7 @@ router.get("/auth/me", requireAuth, async (req: AuthRequest, res): Promise<void>
     id: user.id,
     name: user.name,
     email: user.email,
+    username: user.username,
     role: user.role,
     lastLoginAt: user.lastLoginAt,
     createdAt: user.createdAt,

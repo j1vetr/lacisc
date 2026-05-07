@@ -2,7 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { startScheduler } from "./lib/scheduler";
 import { db, adminUsers } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, isNull, and, isNotNull } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { validatePassword } from "./lib/password-policy";
 
@@ -75,6 +75,47 @@ async function seed(): Promise<void> {
     .from(adminUsers)
     .where(eq(adminUsers.role, "owner"))
     .limit(1);
+  // Username backfill: existing operatör hesaplarının `username` kolonu
+  // başta NULL — login'de username ile aramayı mümkün kılmak için (operatör
+  // dilerse e-posta yerine kısa ad ile girebilsin) e-posta lokal parçasından
+  // türetip persist edelim. Çakışma olursa sayı ekleyerek dene; başarısızsa
+  // NULL bırak (operatör admin ekranından el ile girer).
+  const missingUsername = await db
+    .select({ id: adminUsers.id, email: adminUsers.email })
+    .from(adminUsers)
+    .where(and(isNull(adminUsers.username), isNotNull(adminUsers.email)));
+  for (const row of missingUsername) {
+    if (!row.email) continue;
+    const local = row.email
+      .split("@")[0]
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[^a-z0-9_.-]+/g, "")
+      .slice(0, 32)
+      .replace(/^[._-]+/, "")
+      .replace(/[._-]+$/, "");
+    if (!local || local.length < 3) continue;
+    let assigned: string | null = null;
+    for (let i = 0; i < 50; i++) {
+      const candidate = i === 0 ? local : `${local}${i}`.slice(0, 32);
+      const dup = await db
+        .select({ id: adminUsers.id })
+        .from(adminUsers)
+        .where(eq(adminUsers.username, candidate));
+      if (dup.length === 0) {
+        assigned = candidate;
+        break;
+      }
+    }
+    if (assigned) {
+      await db
+        .update(adminUsers)
+        .set({ username: assigned, updatedAt: new Date() })
+        .where(eq(adminUsers.id, row.id));
+      logger.info({ userId: row.id, username: assigned }, "Backfilled username");
+    }
+  }
+
   if (owners.length === 0) {
     const [oldest] = await db
       .select({ id: adminUsers.id, email: adminUsers.email })

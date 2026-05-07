@@ -3,8 +3,16 @@ import { db, adminUsers, adminSessions } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { verifyToken } from "../lib/jwt";
 
-export type Role = "owner" | "admin" | "viewer";
-const ROLE_RANK: Record<Role, number> = { viewer: 0, admin: 1, owner: 2 };
+export type Role = "owner" | "admin" | "viewer" | "customer";
+// Customer is the lowest tier — only sees Panel + Terminaller for atanmış
+// KIT'ler. Viewer is the lowest *operator* tier. requireRole("viewer") still
+// blocks customers (its rank is below viewer).
+const ROLE_RANK: Record<Role, number> = {
+  customer: -1,
+  viewer: 0,
+  admin: 1,
+  owner: 2,
+};
 
 export interface AuthRequest extends Request {
   userId?: number;

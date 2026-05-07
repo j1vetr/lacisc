@@ -26,7 +26,8 @@ export const ReadinessCheckResponse = zod.object({
  * @summary Admin login
  */
 export const LoginBody = zod.object({
-  email: zod.string().email(),
+  email: zod.string().optional(),
+  usernameOrEmail: zod.string().optional(),
   password: zod.string(),
 });
 
@@ -34,8 +35,9 @@ export const LoginResponse = zod.object({
   user: zod.object({
     id: zod.number(),
     name: zod.string(),
-    email: zod.string(),
-    role: zod.enum(["owner", "admin", "viewer"]),
+    email: zod.string().nullish(),
+    username: zod.string().nullish(),
+    role: zod.enum(["owner", "admin", "viewer", "customer"]),
     lastLoginAt: zod.coerce.date().nullish(),
     createdAt: zod.coerce.date(),
   }),
@@ -79,8 +81,9 @@ export const TerminateAllSessionsResponse = zod.object({
 export const GetMeResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
-  email: zod.string(),
-  role: zod.enum(["owner", "admin", "viewer"]),
+  email: zod.string().nullish(),
+  username: zod.string().nullish(),
+  role: zod.enum(["owner", "admin", "viewer", "customer"]),
   lastLoginAt: zod.coerce.date().nullish(),
   createdAt: zod.coerce.date(),
 });
@@ -661,10 +664,12 @@ export const GetStarlinkTerminalMonthlyResponse = zod.array(
 export const ListAdminUsersResponseItem = zod.object({
   id: zod.number(),
   name: zod.string(),
-  email: zod.string(),
-  role: zod.enum(["owner", "admin", "viewer"]),
+  email: zod.string().nullish(),
+  username: zod.string().nullish(),
+  role: zod.enum(["owner", "admin", "viewer", "customer"]),
   lastLoginAt: zod.coerce.date().nullish(),
   lockedUntil: zod.coerce.date().nullish(),
+  assignedKitCount: zod.number().optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -672,18 +677,21 @@ export const ListAdminUsersResponse = zod.array(ListAdminUsersResponseItem);
 
 export const CreateAdminUserBody = zod.object({
   name: zod.string(),
-  email: zod.string().email(),
+  email: zod.string().nullish(),
+  username: zod.string().nullish(),
   password: zod.string(),
-  role: zod.enum(["owner", "admin", "viewer"]).optional(),
+  role: zod.enum(["owner", "admin", "viewer", "customer"]).optional(),
 });
 
 export const CreateAdminUserResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
-  email: zod.string(),
-  role: zod.enum(["owner", "admin", "viewer"]),
+  email: zod.string().nullish(),
+  username: zod.string().nullish(),
+  role: zod.enum(["owner", "admin", "viewer", "customer"]),
   lastLoginAt: zod.coerce.date().nullish(),
   lockedUntil: zod.coerce.date().nullish(),
+  assignedKitCount: zod.number().optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -694,17 +702,20 @@ export const UpdateAdminUserParams = zod.object({
 
 export const UpdateAdminUserBody = zod.object({
   name: zod.string().optional(),
-  role: zod.enum(["owner", "admin", "viewer"]).optional(),
+  username: zod.string().nullish(),
+  role: zod.enum(["owner", "admin", "viewer", "customer"]).optional(),
   unlock: zod.boolean().optional(),
 });
 
 export const UpdateAdminUserResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
-  email: zod.string(),
-  role: zod.enum(["owner", "admin", "viewer"]),
+  email: zod.string().nullish(),
+  username: zod.string().nullish(),
+  role: zod.enum(["owner", "admin", "viewer", "customer"]),
   lastLoginAt: zod.coerce.date().nullish(),
   lockedUntil: zod.coerce.date().nullish(),
+  assignedKitCount: zod.number().optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -715,6 +726,46 @@ export const DeleteAdminUserParams = zod.object({
 
 export const DeleteAdminUserResponse = zod.object({
   message: zod.string(),
+});
+
+export const ListAssignableKitsResponse = zod.object({
+  kits: zod.array(
+    zod.object({
+      kitNo: zod.string(),
+      label: zod.string().nullish(),
+      source: zod.enum(["satcom", "starlink"]),
+      currentPeriodGib: zod.number().nullish(),
+    }),
+  ),
+});
+
+export const GetAssignedKitsParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetAssignedKitsResponse = zod.object({
+  assignments: zod.array(
+    zod.object({
+      kitNo: zod.string(),
+      source: zod.enum(["satcom", "starlink"]),
+      assignedAt: zod.coerce.date(),
+      assignedByUserId: zod.number().nullish(),
+    }),
+  ),
+});
+
+export const UpdateAssignedKitsParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateAssignedKitsBody = zod.object({
+  kitNos: zod.array(zod.string()),
+});
+
+export const UpdateAssignedKitsResponse = zod.object({
+  count: zod.number(),
+  added: zod.array(zod.string()),
+  removed: zod.array(zod.string()),
 });
 
 export const ResetAdminUserPasswordParams = zod.object({

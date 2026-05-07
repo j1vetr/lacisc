@@ -21,6 +21,8 @@ import {
   getListStationAccountsQueryKey,
   useGetMe,
   getGetMeQueryKey,
+  useGetStarlinkTerminals,
+  getGetStarlinkTerminalsQueryKey,
 } from "@workspace/api-client-react";
 
 import {
@@ -34,8 +36,8 @@ import {
   CommandShortcut,
 } from "@/components/ui/command";
 
-type Role = "owner" | "admin" | "viewer";
-const ROLE_RANK: Record<Role, number> = { viewer: 0, admin: 1, owner: 2 };
+type Role = "owner" | "admin" | "viewer" | "customer";
+const ROLE_RANK: Record<Role, number> = { customer: -1, viewer: 0, admin: 1, owner: 2 };
 
 type NavItem = {
   label: string;
@@ -47,8 +49,8 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
-  { label: "Panel", href: "/", icon: LayoutDashboard, minRole: "viewer", shortcut: "G P", group: "Sayfalar" },
-  { label: "Terminaller", href: "/kits", icon: List, minRole: "viewer", shortcut: "G T", group: "Sayfalar" },
+  { label: "Panel", href: "/", icon: LayoutDashboard, minRole: "customer", shortcut: "G P", group: "Sayfalar" },
+  { label: "Terminaller", href: "/kits", icon: List, minRole: "customer", shortcut: "G T", group: "Sayfalar" },
   { label: "Senkronizasyon Kayıtları", href: "/sync-logs", icon: Activity, minRole: "viewer", shortcut: "G L", group: "Sayfalar" },
   { label: "Profilim", href: "/profile", icon: UserCircle2, minRole: "viewer", group: "Sayfalar" },
   { label: "Kullanıcılar", href: "/admin/users", icon: Users, minRole: "admin", group: "Sayfalar" },
@@ -76,6 +78,15 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
     { sortBy: "totalGib" },
     { query: { queryKey: getGetKitsQueryKey({ sortBy: "totalGib" }), enabled: open, staleTime: 30_000 } }
   );
+  // Starlink terminalleri palet aramasına dahil et — backend customer için
+  // zaten yalnız atanmış KIT'leri döner, operatör için tüm liste gelir.
+  const { data: starlinkTerminals } = useGetStarlinkTerminals({
+    query: {
+      queryKey: getGetStarlinkTerminalsQueryKey(),
+      enabled: open,
+      staleTime: 30_000,
+    },
+  });
   const { data: accounts } = useListStationAccounts({
     query: {
       queryKey: getListStationAccountsQueryKey(),
@@ -83,6 +94,22 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
       staleTime: 30_000,
     },
   });
+
+  type PaletteKit = { kitNo: string; shipName: string | null; source: "satcom" | "starlink" };
+  const mergedKits: PaletteKit[] = useMemo(() => {
+    const out: PaletteKit[] = [];
+    for (const k of kits ?? []) {
+      out.push({ kitNo: k.kitNo, shipName: k.shipName ?? null, source: "satcom" });
+    }
+    for (const t of starlinkTerminals ?? []) {
+      out.push({
+        kitNo: t.kitSerialNumber,
+        shipName: t.nickname ?? t.assetName ?? null,
+        source: "starlink",
+      });
+    }
+    return out;
+  }, [kits, starlinkTerminals]);
 
   // Reset query when closing.
   useEffect(() => {
@@ -150,14 +177,14 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
           </>
         )}
 
-        {kits && kits.length > 0 && (
+        {mergedKits.length > 0 && (
           <>
             <CommandSeparator />
-            <CommandGroup heading={`Terminaller (${kits.length})`}>
-              {kits.slice(0, 50).map((k) => (
+            <CommandGroup heading={`Terminaller (${mergedKits.length})`}>
+              {mergedKits.slice(0, 80).map((k) => (
                 <CommandItem
-                  key={k.kitNo}
-                  value={`${k.kitNo} ${k.shipName ?? ""}`}
+                  key={`${k.source}:${k.kitNo}`}
+                  value={`${k.kitNo} ${k.shipName ?? ""} ${k.source}`}
                   onSelect={() => go(`/kits/${encodeURIComponent(k.kitNo)}`)}
                 >
                   <Terminal className="text-muted-foreground" />
@@ -169,6 +196,16 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
                       </span>
                     )}
                   </div>
+                  <span
+                    className={
+                      "ml-auto text-[9px] uppercase tracking-widest font-semibold px-1.5 py-0.5 rounded " +
+                      (k.source === "starlink"
+                        ? "bg-[#dde9f7] text-[#2563a6]"
+                        : "bg-[#fde0d0] text-[#a4400a]")
+                    }
+                  >
+                    {k.source === "starlink" ? "Tototheo" : "Satcom"}
+                  </span>
                 </CommandItem>
               ))}
             </CommandGroup>

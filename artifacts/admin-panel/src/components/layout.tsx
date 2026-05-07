@@ -15,19 +15,24 @@ import { ShortcutsHelp } from "./shortcuts-help";
 import { SyncCompletionToast } from "./sync-completion-toast";
 import { ThemeToggle } from "./theme-toggle";
 
-type Role = "owner" | "admin" | "viewer";
+type Role = "owner" | "admin" | "viewer" | "customer";
 
 const baseNav = [
-  { title: "Panel", url: "/", icon: LayoutDashboard, minRole: "viewer" as Role },
-  { title: "Terminaller", url: "/kits", icon: List, minRole: "viewer" as Role },
+  { title: "Panel", url: "/", icon: LayoutDashboard, minRole: "customer" as Role },
+  { title: "Terminaller", url: "/kits", icon: List, minRole: "customer" as Role },
   { title: "Senkronizasyon Kayıtları", url: "/sync-logs", icon: Activity, minRole: "viewer" as Role },
   { title: "Ayarlar", url: "/settings", icon: Settings, minRole: "admin" as Role },
   { title: "Kullanıcılar", url: "/admin/users", icon: Users, minRole: "admin" as Role },
   { title: "Denetim Kayıtları", url: "/audit-logs", icon: ShieldCheck, minRole: "admin" as Role },
+  // Profilim sidebar'da sadece operatör (viewer+) için görünür. Customer
+  // profile sayfasına header'daki kullanıcı menüsünden / doğrudan URL'den
+  // erişebilir; sol nav iki maddeye sınırlı tutuluyor.
   { title: "Profilim", url: "/profile", icon: UserCircle2, minRole: "viewer" as Role },
 ];
 
-const ROLE_RANK: Record<Role, number> = { viewer: 0, admin: 1, owner: 2 };
+// Customer rank -1: yalnız Panel + Terminaller + Profilim'e (minRole='customer')
+// erişebilir. Sync-logs/Ayarlar/Admin/Audit hep filtre dışında kalır.
+const ROLE_RANK: Record<Role, number> = { customer: -1, viewer: 0, admin: 1, owner: 2 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
@@ -167,7 +172,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             ) : (
               <>
                 <span className="text-xs font-semibold truncate text-foreground">{user?.name || "Yönetici"}</span>
-                <span className="text-[11px] text-muted-foreground truncate">{user?.email || "admin@example.com"}</span>
+                <span className="text-[11px] text-muted-foreground truncate">{user?.email || user?.username || "—"}</span>
                 <span className="text-[10px] uppercase tracking-widest text-primary mt-0.5 font-mono">{role}</span>
               </>
             )}
@@ -255,7 +260,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           onShowShortcuts={() => setShortcutsOpen(true)}
         />
         <ShortcutsHelp open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
-        <SyncCompletionToast />
+        {role !== "customer" && <SyncCompletionToast />}
         <main className="flex-1 overflow-y-auto">
           <div className="py-6 px-4 sm:py-8 sm:px-6 lg:py-12 lg:px-10 max-w-[1200px] mx-auto w-full min-h-full">
             {children}

@@ -19,6 +19,8 @@ import type {
 import type {
   AdminUser,
   AdminUserDetail,
+  AssignableKitsResponse,
+  AssignedKitsResponse,
   AuditLogsResponse,
   AuthResponse,
   ChangePasswordBody,
@@ -61,6 +63,8 @@ import type {
   TestEmailSettingsBody,
   TestStarlinkConnectionBody,
   UpdateAdminUserBody,
+  UpdateAssignedKitsBody,
+  UpdateAssignedKitsResponse,
   UpdateStationAccountBody,
   WipeDataResponse,
   WipeStationDataParams,
@@ -3336,6 +3340,235 @@ export const useDeleteAdminUser = <
   TContext
 > => {
   return useMutation(getDeleteAdminUserMutationOptions(options));
+};
+
+export const getListAssignableKitsUrl = () => {
+  return `/api/admin/users/assignable-kits`;
+};
+
+export const listAssignableKits = async (
+  options?: RequestInit,
+): Promise<AssignableKitsResponse> => {
+  return customFetch<AssignableKitsResponse>(getListAssignableKitsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListAssignableKitsQueryKey = () => {
+  return [`/api/admin/users/assignable-kits`] as const;
+};
+
+export const getListAssignableKitsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listAssignableKits>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listAssignableKits>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListAssignableKitsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listAssignableKits>>
+  > = ({ signal }) => listAssignableKits({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listAssignableKits>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListAssignableKitsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAssignableKits>>
+>;
+export type ListAssignableKitsQueryError = ErrorType<unknown>;
+
+export function useListAssignableKits<
+  TData = Awaited<ReturnType<typeof listAssignableKits>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listAssignableKits>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListAssignableKitsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetAssignedKitsUrl = (id: number) => {
+  return `/api/admin/users/${id}/assigned-kits`;
+};
+
+export const getAssignedKits = async (
+  id: number,
+  options?: RequestInit,
+): Promise<AssignedKitsResponse> => {
+  return customFetch<AssignedKitsResponse>(getGetAssignedKitsUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAssignedKitsQueryKey = (id: number) => {
+  return [`/api/admin/users/${id}/assigned-kits`] as const;
+};
+
+export const getGetAssignedKitsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAssignedKits>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAssignedKits>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAssignedKitsQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAssignedKits>>> = ({
+    signal,
+  }) => getAssignedKits(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAssignedKits>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAssignedKitsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAssignedKits>>
+>;
+export type GetAssignedKitsQueryError = ErrorType<unknown>;
+
+export function useGetAssignedKits<
+  TData = Awaited<ReturnType<typeof getAssignedKits>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAssignedKits>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAssignedKitsQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getUpdateAssignedKitsUrl = (id: number) => {
+  return `/api/admin/users/${id}/assigned-kits`;
+};
+
+export const updateAssignedKits = async (
+  id: number,
+  updateAssignedKitsBody: UpdateAssignedKitsBody,
+  options?: RequestInit,
+): Promise<UpdateAssignedKitsResponse> => {
+  return customFetch<UpdateAssignedKitsResponse>(getUpdateAssignedKitsUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateAssignedKitsBody),
+  });
+};
+
+export const getUpdateAssignedKitsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAssignedKits>>,
+    TError,
+    { id: number; data: BodyType<UpdateAssignedKitsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateAssignedKits>>,
+  TError,
+  { id: number; data: BodyType<UpdateAssignedKitsBody> },
+  TContext
+> => {
+  const mutationKey = ["updateAssignedKits"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateAssignedKits>>,
+    { id: number; data: BodyType<UpdateAssignedKitsBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateAssignedKits(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateAssignedKitsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateAssignedKits>>
+>;
+export type UpdateAssignedKitsMutationBody = BodyType<UpdateAssignedKitsBody>;
+export type UpdateAssignedKitsMutationError = ErrorType<unknown>;
+
+export const useUpdateAssignedKits = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAssignedKits>>,
+    TError,
+    { id: number; data: BodyType<UpdateAssignedKitsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateAssignedKits>>,
+  TError,
+  { id: number; data: BodyType<UpdateAssignedKitsBody> },
+  TContext
+> => {
+  return useMutation(getUpdateAssignedKitsMutationOptions(options));
 };
 
 export const getResetAdminUserPasswordUrl = (id: number) => {

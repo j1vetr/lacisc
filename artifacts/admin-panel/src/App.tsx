@@ -53,7 +53,15 @@ const queryClient = new QueryClient({
   },
 });
 
-type Role = "owner" | "admin" | "viewer";
+type Role = "owner" | "admin" | "viewer" | "customer";
+
+function RoleRedirect() {
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    setLocation("/");
+  }, [setLocation]);
+  return null;
+}
 
 function PageFallback() {
   return (
@@ -93,19 +101,13 @@ function ProtectedRoute({
   if (!user) return null;
 
   if (minRole) {
-    const rank: Record<Role, number> = { viewer: 0, admin: 1, owner: 2 };
+    const rank: Record<Role, number> = { customer: -1, viewer: 0, admin: 1, owner: 2 };
     const role = (user.role as Role) ?? "viewer";
     if (rank[role] < rank[minRole]) {
-      return (
-        <Layout>
-          <div className="max-w-xl mx-auto mt-12 p-6 border border-border rounded-xl bg-card text-center space-y-2">
-            <h1 className="text-base font-semibold">Erişim engellendi</h1>
-            <p className="text-sm text-muted-foreground">
-              Bu sayfayı görüntülemek için yetkiniz yok.
-            </p>
-          </div>
-        </Layout>
-      );
+      // Yetersiz rol → Panel'e (kök) yönlendir. Customer doğrudan
+      // /admin/users veya /sync-logs gibi bir URL'e gitse "Erişim
+      // engellendi" boş paneli yerine olağan akışa geri döner.
+      return <RoleRedirect />;
     }
   }
 
@@ -125,7 +127,7 @@ function Router() {
       <Route path="/">{() => <ProtectedRoute component={Dashboard} />}</Route>
       <Route path="/kits">{() => <ProtectedRoute component={Kits} />}</Route>
       <Route path="/kits/:kitNo">{() => <ProtectedRoute component={KitDetail} />}</Route>
-      <Route path="/sync-logs">{() => <ProtectedRoute component={SyncLogs} />}</Route>
+      <Route path="/sync-logs">{() => <ProtectedRoute component={SyncLogs} minRole="viewer" />}</Route>
       <Route path="/settings">{() => <ProtectedRoute component={SettingsAccounts} minRole="admin" />}</Route>
       <Route path="/settings/starlink">{() => <ProtectedRoute component={SettingsStarlink} minRole="admin" />}</Route>
       <Route path="/settings/email">{() => <ProtectedRoute component={SettingsEmail} minRole="admin" />}</Route>

@@ -54,7 +54,7 @@ function accountSummary(
 // Multi-account CRUD
 // =============================================================================
 
-router.get("/station/accounts", requireAuth, async (_req, res): Promise<void> => {
+router.get("/station/accounts", requireAuth, requireRole("viewer"), async (_req, res): Promise<void> => {
   const accounts = await db
     .select()
     .from(stationCredentials)
@@ -254,7 +254,7 @@ async function firstAccount() {
   return c;
 }
 
-router.get("/station/settings", requireAuth, async (_req, res): Promise<void> => {
+router.get("/station/settings", requireAuth, requireRole("viewer"), async (_req, res): Promise<void> => {
   const settings = await firstAccount();
   if (!settings) {
     res.status(404).json({ error: "Henüz portal ayarı yapılandırılmadı." });
@@ -498,7 +498,7 @@ router.post("/station/sync-now", requireAuth, requireRole("admin"), async (req: 
   });
 });
 
-router.get("/station/sync-progress", requireAuth, async (_req, res): Promise<void> => {
+router.get("/station/sync-progress", requireAuth, requireRole("viewer"), async (_req, res): Promise<void> => {
   res.json(progress.getProgress());
 });
 
@@ -600,7 +600,7 @@ router.post("/station/wipe-data", requireAuth, requireRole("admin"), async (req:
 // E-posta uyarı ayarları
 // =============================================================================
 
-router.get("/station/email-settings", requireAuth, async (_req, res): Promise<void> => {
+router.get("/station/email-settings", requireAuth, requireRole("viewer"), async (_req, res): Promise<void> => {
   const settings = await getEmailSettings();
   res.json(settings);
 });

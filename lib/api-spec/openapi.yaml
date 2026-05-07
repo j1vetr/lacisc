@@ -844,6 +844,50 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/MessageResponse" }
 
+  /admin/users/assignable-kits:
+    get:
+      operationId: listAssignableKits
+      x-required-role: admin
+      tags: [admin]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200":
+          description: Atanabilir tüm KIT'ler (Satcom + Starlink)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssignableKitsResponse" }
+
+  /admin/users/{id}/assigned-kits:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      operationId: getAssignedKits
+      x-required-role: admin
+      tags: [admin]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200":
+          description: Bu müşteriye atanmış KIT listesi
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssignedKitsResponse" }
+    put:
+      operationId: updateAssignedKits
+      x-required-role: admin
+      tags: [admin]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateAssignedKitsBody" }
+      responses:
+        "200":
+          description: Güncellendi (replace-all)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UpdateAssignedKitsResponse" }
+
   /admin/users/{id}/reset-password:
     parameters:
       - { name: id, in: path, required: true, schema: { type: integer } }
@@ -949,9 +993,13 @@ components:
     LoginBody:
       type: object
       properties:
-        email: { type: string, format: email }
+        # `email` legacy alanı (eski clientlar) ve `usernameOrEmail` (yeni
+        # clientlar) — server her ikisini de kabul edip OR'lar. İkisi de
+        # opsiyonel; en az biri ZORUNLU (server-side enforce).
+        email: { type: string }
+        usernameOrEmail: { type: string }
         password: { type: string }
-      required: [email, password]
+      required: [password]
 
     AuthResponse:
       type: object
@@ -965,40 +1013,99 @@ components:
       properties:
         id: { type: integer }
         name: { type: string }
-        email: { type: string }
-        role: { type: string, enum: [owner, admin, viewer] }
+        email: { type: string, nullable: true }
+        username: { type: string, nullable: true }
+        role: { type: string, enum: [owner, admin, viewer, customer] }
         lastLoginAt: { type: string, format: date-time, nullable: true }
         createdAt: { type: string, format: date-time }
-      required: [id, name, email, role, createdAt]
+      required: [id, name, role, createdAt]
 
     AdminUserDetail:
       type: object
       properties:
         id: { type: integer }
         name: { type: string }
-        email: { type: string }
-        role: { type: string, enum: [owner, admin, viewer] }
+        email: { type: string, nullable: true }
+        username: { type: string, nullable: true }
+        role: { type: string, enum: [owner, admin, viewer, customer] }
         lastLoginAt: { type: string, format: date-time, nullable: true }
         lockedUntil: { type: string, format: date-time, nullable: true }
+        assignedKitCount: { type: integer }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-      required: [id, name, email, role, createdAt, updatedAt]
+      required: [id, name, role, createdAt, updatedAt]
 
     CreateAdminUserBody:
       type: object
       properties:
         name: { type: string }
-        email: { type: string, format: email }
+        email: { type: string, nullable: true }
+        username: { type: string, nullable: true }
         password: { type: string }
-        role: { type: string, enum: [owner, admin, viewer] }
-      required: [name, email, password]
+        role: { type: string, enum: [owner, admin, viewer, customer] }
+      required: [name, password]
 
     UpdateAdminUserBody:
       type: object
       properties:
         name: { type: string }
-        role: { type: string, enum: [owner, admin, viewer] }
+        username: { type: string, nullable: true }
+        role: { type: string, enum: [owner, admin, viewer, customer] }
         unlock: { type: boolean }
+
+    AssignableKit:
+      type: object
+      properties:
+        kitNo: { type: string }
+        label: { type: string, nullable: true }
+        source: { type: string, enum: [satcom, starlink] }
+        currentPeriodGib: { type: number, nullable: true }
+      required: [kitNo, source]
+
+    AssignableKitsResponse:
+      type: object
+      properties:
+        kits:
+          type: array
+          items: { $ref: "#/components/schemas/AssignableKit" }
+      required: [kits]
+
+    KitAssignment:
+      type: object
+      properties:
+        kitNo: { type: string }
+        source: { type: string, enum: [satcom, starlink] }
+        assignedAt: { type: string, format: date-time }
+        assignedByUserId: { type: integer, nullable: true }
+      required: [kitNo, source, assignedAt]
+
+    AssignedKitsResponse:
+      type: object
+      properties:
+        assignments:
+          type: array
+          items: { $ref: "#/components/schemas/KitAssignment" }
+      required: [assignments]
+
+    UpdateAssignedKitsBody:
+      type: object
+      properties:
+        kitNos:
+          type: array
+          items: { type: string }
+      required: [kitNos]
+
+    UpdateAssignedKitsResponse:
+      type: object
+      properties:
+        count: { type: integer }
+        added:
+          type: array
+          items: { type: string }
+        removed:
+          type: array
+          items: { type: string }
+      required: [count, added, removed]
 
     ResetPasswordBody:
       type: object

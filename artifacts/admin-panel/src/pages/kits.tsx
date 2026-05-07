@@ -63,6 +63,14 @@ export default function Kits() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  const { data: me } = useGetMe({ query: { queryKey: getGetMeQueryKey() } });
+  const role = ((me as { role?: string } | undefined)?.role ?? "viewer") as
+    | "owner"
+    | "admin"
+    | "viewer"
+    | "customer";
+  const isCustomer = role === "customer";
+
   // Satcom kits — server-side filter + sort.
   const { data: satcomKits, isLoading: satcomLoading } = useGetKits(
     { kitNo: debouncedSearch || undefined, sortBy },
@@ -73,13 +81,20 @@ export default function Kits() {
     }
   );
 
-  // Starlink terminals — fetched only when integration is enabled (cheap
-  // settings ping decides this so we don't waste the Tototheo rate budget
-  // on operators who only have Satcom).
+  // Customer rolü /starlink/settings'i çağıramaz (403). Onun için settings
+  // ping'ini sadece operatör (viewer+) çağırır; customer terminal listesini
+  // her zaman dener — backend zaten yalnız atanmış KIT'leri döner ve
+  // entegrasyon kapalıysa boş liste gelir.
   const { data: starlinkSettings } = useGetStarlinkSettings({
-    query: { queryKey: getGetStarlinkSettingsQueryKey(), staleTime: 60_000 },
+    query: {
+      queryKey: getGetStarlinkSettingsQueryKey(),
+      staleTime: 60_000,
+      enabled: !isCustomer,
+    },
   });
-  const starlinkActive = !!starlinkSettings?.enabled && !!starlinkSettings?.hasToken;
+  const starlinkActive = isCustomer
+    ? true
+    : !!starlinkSettings?.enabled && !!starlinkSettings?.hasToken;
   const { data: starlinkTerminals, isLoading: starlinkLoading } =
     useGetStarlinkTerminals({
       query: {
@@ -88,17 +103,18 @@ export default function Kits() {
       },
     });
 
-  // Used to differentiate "no accounts configured" from "no matching kits".
+  // /station/accounts customer için 403 → sadece operatör çağırsın. Customer
+  // hesap bilgisi görmüyor; "hesap yok" boş durum CTA'sı zaten gizleniyor.
   const { data: accounts } = useListStationAccounts({
-    query: { queryKey: getListStationAccountsQueryKey(), staleTime: 60_000 },
+    query: {
+      queryKey: getListStationAccountsQueryKey(),
+      staleTime: 60_000,
+      enabled: !isCustomer,
+    },
   });
-  const hasSatcomAccounts = (accounts?.length ?? 0) > 0;
-
-  const { data: me } = useGetMe({ query: { queryKey: getGetMeQueryKey() } });
-  const role = ((me as { role?: string } | undefined)?.role ?? "viewer") as
-    | "owner"
-    | "admin"
-    | "viewer";
+  const hasSatcomAccounts = isCustomer
+    ? (satcomKits?.length ?? 0) > 0
+    : (accounts?.length ?? 0) > 0;
   const canManageAccounts = role === "owner" || role === "admin";
 
   // Merge both sources into one list.
@@ -152,7 +168,19 @@ export default function Kits() {
   const isLoading =
     satcomLoading || (starlinkActive && starlinkLoading);
   const hasFilter = debouncedSearch.trim().length > 0;
-  const hasAnySource = hasSatcomAccounts || starlinkActive;
+  // Customer için "kaynak var mı" kavramı yok: backend zaten atanmış
+  // KIT'leri filtreliyor. "Hiç atama yok" boş durumunu ayrı ele alıyoruz
+  // (aşağıdaki customerHasNoAssignments). Operatör için kaynak yokluğu =
+  // hesap eklenmemiş + Starlink kapalı.
+  const hasAnySource = isCustomer
+    ? true
+    : hasSatcomAccounts || starlinkActive;
+  const customerHasNoAssignments =
+    isCustomer &&
+    !satcomLoading &&
+    !starlinkLoading &&
+    (satcomKits?.length ?? 0) === 0 &&
+    (starlinkTerminals?.length ?? 0) === 0;
 
   const toggleSort = (col: "totalGib" | "lastSeen") => setSortBy(col);
   const SortIcon = ({ col }: { col: string }) => {
@@ -263,7 +291,21 @@ export default function Kits() {
               ) : unified.length === 0 ? (
                 <Row className="hover:bg-transparent border-none">
                   <Cell colSpan={5} className="h-64 text-center align-middle">
-                    {!hasAnySource ? (
+                    {customerHasNoAssignments ? (
+                      <div className="flex flex-col items-center gap-3 py-6">
+                        <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
+                          <Terminal className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            Henüz size atanmış terminal yok
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
+                            Lütfen yöneticinizle iletişime geçin.
+                          </p>
+                        </div>
+                      </div>
+                    ) : !hasAnySource ? (
                       <div className="flex flex-col items-center gap-3 py-6">
                         <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
                           <Server className="w-5 h-5 text-muted-foreground" />
@@ -330,14 +372,16 @@ export default function Kits() {
                             İlk senkronizasyon turundan sonra terminaller burada listelenir.
                           </p>
                         </div>
-                        <Link href="/sync-logs">
-                          <Button
-                            variant="outline"
-                            className="rounded-lg shadow-none mt-1"
-                          >
-                            Senkronizasyon Sayfasına Git
-                          </Button>
-                        </Link>
+                        {!isCustomer && (
+                          <Link href="/sync-logs">
+                            <Button
+                              variant="outline"
+                              className="rounded-lg shadow-none mt-1"
+                            >
+                              Senkronizasyon Sayfasına Git
+                            </Button>
+                          </Link>
+                        )}
                       </div>
                     )}
                   </Cell>

@@ -17,14 +17,22 @@ import {
   isStarlinkSyncRunning,
 } from "../lib/starlink-sync";
 import * as progress from "../lib/sync-progress";
+import { getAssignedKits, isCustomer } from "../lib/customer-scope";
 
 const router: IRouter = Router();
 
+async function customerStarlinkScope(req: AuthRequest): Promise<string[] | null> {
+  if (!isCustomer(req.userRole)) return null;
+  const scope = await getAssignedKits(req.userId!);
+  return scope.starlink;
+}
+
 // ---------------------------------------------------------------------------
 // Settings (singleton id=1) — token AES-GCM encrypted, never returned in GET.
+// Customer rolü için 403 — settings ekranı UI'da zaten gizli.
 // ---------------------------------------------------------------------------
 
-router.get("/starlink/settings", requireAuth, async (_req, res): Promise<void> => {
+router.get("/starlink/settings", requireAuth, requireRole("viewer"), async (_req, res): Promise<void> => {
   res.json(await getStarlinkSettingsView());
 });
 
@@ -111,8 +119,14 @@ router.post(
 
 // All terminals — last known snapshot + current month's cumulative cycle GB
 // (read from starlink_terminal_period_total for the current YYYYMM).
-router.get("/starlink/terminals", requireAuth, async (_req, res): Promise<void> => {
+router.get("/starlink/terminals", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const period = activePeriod();
+  const scope = await customerStarlinkScope(req);
+  if (scope !== null && scope.length === 0) {
+    res.json([]);
+    return;
+  }
+  const where = scope ? sql`WHERE t.kit_serial_number = ANY(${scope}::text[])` : sql``;
   const rows = await db.execute(sql`
     SELECT
       t.kit_serial_number    AS "kitSerialNumber",
@@ -140,6 +154,7 @@ router.get("/starlink/terminals", requireAuth, async (_req, res): Promise<void> 
     LEFT JOIN starlink_terminal_period_total p
       ON p.kit_serial_number = t.kit_serial_number
      AND p.period = ${period}
+    ${where}
     ORDER BY COALESCE(p.total_gb, 0) DESC
   `);
   res.json(
@@ -157,8 +172,13 @@ router.get("/starlink/terminals", requireAuth, async (_req, res): Promise<void> 
 router.get(
   "/starlink/terminals/:kit",
   requireAuth,
-  async (req, res): Promise<void> => {
+  async (req: AuthRequest, res): Promise<void> => {
     const kit = String(req.params.kit);
+    const scope = await customerStarlinkScope(req);
+    if (scope !== null && !scope.includes(kit)) {
+      res.status(404).json({ error: "Starlink terminali bulunamadı." });
+      return;
+    }
     const [t] = await db
       .select()
       .from(starlinkTerminals)
@@ -220,8 +240,13 @@ router.get(
 router.get(
   "/starlink/terminals/:kit/daily",
   requireAuth,
-  async (req, res): Promise<void> => {
+  async (req: AuthRequest, res): Promise<void> => {
     const kit = String(req.params.kit);
+    const scope = await customerStarlinkScope(req);
+    if (scope !== null && !scope.includes(kit)) {
+      res.status(404).json({ error: "Starlink terminali bulunamadı." });
+      return;
+    }
     let { period } = req.query as { period?: string };
     if (!period) period = activePeriod();
     if (!/^\d{6}$/.test(period)) {
@@ -278,8 +303,13 @@ router.get(
 router.get(
   "/starlink/terminals/:kit/monthly",
   requireAuth,
-  async (req, res): Promise<void> => {
+  async (req: AuthRequest, res): Promise<void> => {
     const kit = String(req.params.kit);
+    const scope = await customerStarlinkScope(req);
+    if (scope !== null && !scope.includes(kit)) {
+      res.status(404).json({ error: "Starlink terminali bulunamadı." });
+      return;
+    }
     const months = await db
       .select({
         period: starlinkTerminalPeriodTotal.period,
