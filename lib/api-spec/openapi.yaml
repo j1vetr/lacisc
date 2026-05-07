@@ -90,7 +90,7 @@ paths:
     get:
       operationId: listSessions
       tags: [auth]
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200":
           description: Active sessions for current user
@@ -113,7 +113,7 @@ paths:
     delete:
       operationId: revokeSession
       tags: [auth]
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: integer } }
       responses:
@@ -129,6 +129,7 @@ paths:
       tags: [auth]
       summary: Tüm cihazlardaki oturumları sonlandır
       security:
+        - cookieAuth: []
         - bearerAuth: []
       responses:
         "200":
@@ -144,6 +145,7 @@ paths:
       tags: [auth]
       summary: Get current user
       security:
+        - cookieAuth: []
         - bearerAuth: []
       responses:
         "200":
@@ -165,6 +167,7 @@ paths:
       tags: [auth]
       summary: Change password
       security:
+        - cookieAuth: []
         - bearerAuth: []
       requestBody:
         required: true
@@ -192,6 +195,7 @@ paths:
       tags: [station]
       summary: Tüm portal hesaplarını listele
       security:
+        - cookieAuth: []
         - bearerAuth: []
       responses:
         "200":
@@ -208,6 +212,7 @@ paths:
       tags: [station]
       summary: Yeni portal hesabı ekle
       security:
+        - cookieAuth: []
         - bearerAuth: []
       requestBody:
         required: true
@@ -229,6 +234,7 @@ paths:
       x-required-role: admin
       tags: [station]
       security:
+        - cookieAuth: []
         - bearerAuth: []
       parameters:
         - name: id
@@ -253,6 +259,7 @@ paths:
       x-required-role: admin
       tags: [station]
       security:
+        - cookieAuth: []
         - bearerAuth: []
       parameters:
         - name: id
@@ -273,6 +280,7 @@ paths:
       x-required-role: admin
       tags: [station]
       security:
+        - cookieAuth: []
         - bearerAuth: []
       parameters:
         - name: id
@@ -293,6 +301,7 @@ paths:
       tags: [station]
       summary: (Legacy) İlk hesabı döner — geriye dönük uyumluluk için.
       security:
+        - cookieAuth: []
         - bearerAuth: []
       responses:
         "200":
@@ -313,6 +322,7 @@ paths:
       tags: [station]
       summary: (Legacy) İlk hesabı günceller.
       security:
+        - cookieAuth: []
         - bearerAuth: []
       requestBody:
         required: true
@@ -335,6 +345,7 @@ paths:
       tags: [station]
       summary: (Legacy) İlk hesabın bağlantısını test eder.
       security:
+        - cookieAuth: []
         - bearerAuth: []
       responses:
         "200":
@@ -351,6 +362,7 @@ paths:
       tags: [station]
       summary: Terminal verilerini siler. credentialId verilmezse TÜM hesapların verisi silinir.
       security:
+        - cookieAuth: []
         - bearerAuth: []
       parameters:
         - name: credentialId
@@ -372,6 +384,7 @@ paths:
       tags: [station]
       summary: Tüm aktif portal hesaplarını sırayla senkronize eder.
       security:
+        - cookieAuth: []
         - bearerAuth: []
       responses:
         "200":
@@ -393,6 +406,7 @@ paths:
       tags: [station]
       summary: Aktif (veya son) senkronizasyonun canlı ilerleme durumu.
       security:
+        - cookieAuth: []
         - bearerAuth: []
       responses:
         "200":
@@ -408,6 +422,7 @@ paths:
       tags: [station]
       summary: SMTP yapılandırması ve uyarı alıcılarını döner.
       security:
+        - cookieAuth: []
         - bearerAuth: []
       responses:
         "200":
@@ -422,6 +437,7 @@ paths:
       tags: [station]
       summary: SMTP / uyarı alıcılarını günceller.
       security:
+        - cookieAuth: []
         - bearerAuth: []
       requestBody:
         required: true
@@ -444,6 +460,7 @@ paths:
       tags: [station]
       summary: Yapılandırılmış SMTP üzerinden test maili gönderir.
       security:
+        - cookieAuth: []
         - bearerAuth: []
       requestBody:
         required: false
@@ -476,6 +493,7 @@ paths:
       tags: [records]
       summary: KIT summary list (active period totals)
       security:
+        - cookieAuth: []
         - bearerAuth: []
       parameters:
         - name: kitNo
@@ -501,6 +519,7 @@ paths:
       operationId: getKitDetail
       tags: [records]
       security:
+        - cookieAuth: []
         - bearerAuth: []
       parameters:
         - name: kitNo
@@ -527,6 +546,7 @@ paths:
       tags: [records]
       summary: Day-by-day CDR rows for a KIT in a period
       security:
+        - cookieAuth: []
         - bearerAuth: []
       parameters:
         - name: kitNo
@@ -552,6 +572,7 @@ paths:
       tags: [records]
       summary: Period totals for a KIT (all months)
       security:
+        - cookieAuth: []
         - bearerAuth: []
       parameters:
         - name: kitNo
@@ -573,6 +594,7 @@ paths:
       operationId: getDashboardSummary
       tags: [records]
       security:
+        - cookieAuth: []
         - bearerAuth: []
       responses:
         "200":
@@ -587,7 +609,7 @@ paths:
       operationId: listAdminUsers
       x-required-role: admin
       tags: [admin]
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200":
           description: List of admin users
@@ -600,7 +622,7 @@ paths:
       operationId: createAdminUser
       x-required-role: admin
       tags: [admin]
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       requestBody:
         required: true
         content:
@@ -620,7 +642,7 @@ paths:
       operationId: updateAdminUser
       x-required-role: admin
       tags: [admin]
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       requestBody:
         required: true
         content:
@@ -636,7 +658,7 @@ paths:
       operationId: deleteAdminUser
       x-required-role: admin
       tags: [admin]
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200":
           description: Deleted
@@ -651,7 +673,7 @@ paths:
       operationId: resetAdminUserPassword
       x-required-role: admin
       tags: [admin]
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       requestBody:
         required: true
         content:
@@ -669,7 +691,7 @@ paths:
       operationId: listAuditLogs
       x-required-role: admin
       tags: [audit]
-      security: [{ bearerAuth: [] }]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       parameters:
         - { name: page, in: query, schema: { type: integer, default: 1 } }
         - { name: limit, in: query, schema: { type: integer, default: 50 } }
@@ -690,6 +712,7 @@ paths:
       operationId: getSyncLogs
       tags: [records]
       security:
+        - cookieAuth: []
         - bearerAuth: []
       parameters:
         - name: page
