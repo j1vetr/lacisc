@@ -383,15 +383,24 @@ export async function fetchHourlyTelemetry(
 
 async function goToNextMeasurementsPage(page: Page): Promise<boolean> {
   const gridPrefix = "ctl00_ContentPlaceHolder1_gvStarlinkMeasurementsOneHour";
-  // İlk satırın id'sini snapshot al — sayfa değişince değişmeli.
-  const before = await page
-    .evaluate(
-      (gid) =>
-        (document.querySelector(`[id^='${gid}_DXDataRow']`) as HTMLElement | null)
-          ?.id || "",
-      gridPrefix
-    )
-    .catch(() => "");
+  // Sayfa değişimini içerik-imzası ile algıla. DevExpress satır id'leri
+  // (`...DXDataRow0`, `DXDataRow1`...) sayfalar arası SABİT kalır; sadece
+  // hücre metni (özellikle KIT no + saatlik timestamp) değişir. Bu yüzden
+  // snapshot olarak ilk birkaç satırın hücre içeriğini birleştirip kullan.
+  const sigFn = (gid: string) => {
+    const rows = Array.from(
+      document.querySelectorAll(`[id^='${gid}_DXDataRow']`)
+    ).slice(0, 3) as HTMLElement[];
+    return rows
+      .map((tr) =>
+        Array.from(tr.querySelectorAll("td"))
+          .slice(0, 2)
+          .map((td) => (td.textContent || "").trim())
+          .join("|")
+      )
+      .join("§");
+  };
+  const before = await page.evaluate(sigFn, gridPrefix).catch(() => "");
 
   // En güvenli yol: ASPx.GVPagerOnClick(gridId, 'PBN') = page button next.
   // SetValue/PerformCallback/__doPostBack silently fail (replit.md), bu
@@ -431,19 +440,12 @@ async function goToNextMeasurementsPage(page: Page): Promise<boolean> {
     await fallback.click({ timeout: 5000 }).catch(() => {});
   }
 
-  // Grid yenilenene kadar bekle — en üstteki satırın id'si değişmeli.
+  // Grid yenilenene kadar bekle — ilk satırların hücre içeriği değişmeli.
   const deadline = Date.now() + 10000;
   while (Date.now() < deadline) {
     await page.waitForTimeout(300);
-    const nowFirst = await page
-      .evaluate(
-        (gid) =>
-          (document.querySelector(`[id^='${gid}_DXDataRow']`) as HTMLElement | null)
-            ?.id || "",
-        gridPrefix
-      )
-      .catch(() => before);
-    if (nowFirst && nowFirst !== before) return true;
+    const nowSig = await page.evaluate(sigFn, gridPrefix).catch(() => before);
+    if (nowSig && nowSig !== before) return true;
   }
   return false;
 }
