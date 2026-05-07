@@ -98,6 +98,54 @@
   --radius: 12px; /* 12px for cards, buttons can override to 8px */
 }
 
+/* Karanlık tema — warm cream'in tersi: derin slate canvas + cream metin.
+   Cursor Orange birincil renk olarak korunur (sadece accent rolü), ancak
+   pure-white kart yerine yumuşak charcoal yüzeyler kullanılır. Tüm
+   shadcn/ui primitif'leri zaten bu CSS değişkenlerini okuduğu için ek
+   class'a gerek yok. */
+.dark {
+  --background: 50 8% 8%;        /* #16151236 deep ink */
+  --foreground: 50 12% 92%;      /* warm cream text */
+
+  --border: 50 6% 18%;           /* hairline */
+  --input: 50 6% 18%;
+  --ring: 20 100% 55%;
+
+  --card: 50 7% 11%;             /* surface */
+  --card-foreground: 50 12% 92%;
+  --card-border: 50 6% 18%;
+
+  --popover: 50 7% 11%;
+  --popover-foreground: 50 12% 92%;
+  --popover-border: 50 6% 18%;
+
+  --primary: 20 100% 55%;        /* Cursor Orange — biraz açıldı */
+  --primary-foreground: 50 8% 8%;
+
+  --secondary: 50 6% 14%;        /* hover surface */
+  --secondary-foreground: 50 12% 92%;
+
+  --muted: 50 6% 14%;
+  --muted-foreground: 45 6% 62%;
+
+  --accent: 50 6% 14%;
+  --accent-foreground: 50 12% 92%;
+
+  --destructive: 345 65% 58%;
+  --destructive-foreground: 0 0% 100%;
+
+  --timeline-thinking: 19 56% 62%;
+  --timeline-grep: 124 28% 60%;
+  --timeline-read: 214 49% 65%;
+  --timeline-edit: 267 43% 66%;
+  --timeline-done: 35 59% 57%;
+
+  --success: 159 53% 50%;
+  --success-foreground: 50 8% 8%;
+
+  color-scheme: dark;
+}
+
 @layer base {
   * {
     @apply border-border;

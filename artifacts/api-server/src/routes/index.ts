@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
+import metricsRouter from "./metrics";
 import authRouter from "./auth";
 import adminUsersRouter from "./admin-users";
 import auditLogsRouter from "./audit-logs";
@@ -10,6 +11,7 @@ import clientErrorsRouter from "./client-errors";
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(metricsRouter);
 router.use(authRouter);
 router.use(adminUsersRouter);
 router.use(auditLogsRouter);

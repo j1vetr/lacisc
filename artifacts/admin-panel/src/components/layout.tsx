@@ -13,6 +13,7 @@ import { Sheet, SheetContent, SheetTitle, SheetHeader } from "@/components/ui/sh
 import { CommandPalette } from "./command-palette";
 import { ShortcutsHelp } from "./shortcuts-help";
 import { SyncCompletionToast } from "./sync-completion-toast";
+import { ThemeToggle } from "./theme-toggle";
 
 type Role = "owner" | "admin" | "viewer";
 
@@ -240,6 +241,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           >
             <Search className="w-4 h-4" />
           </Button>
+          <ThemeToggle />
           <div className="flex items-center gap-2 lg:gap-3 text-[11px] lg:text-xs font-mono text-muted-foreground">
             <span className="hidden sm:inline">{new Date().toLocaleDateString('tr-TR')}</span>
             <span className="hidden sm:inline">•</span>

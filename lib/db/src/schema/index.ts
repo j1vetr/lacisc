@@ -136,6 +136,14 @@ export const stationKitDaily = pgTable(
       table.period,
       table.cdrId
     ),
+    // KIT detail page lookup: WHERE credential_id=? AND kit_no=? AND period=?
+    // ORDER BY day_date. Composite index covers the access path.
+    index("kit_daily_lookup_idx").on(
+      table.credentialId,
+      table.kitNo,
+      table.period,
+      table.dayDate
+    ),
   ]
 );
 
@@ -167,6 +175,10 @@ export const stationKitPeriodTotal = pgTable(
       table.kitNo,
       table.period
     ),
+    // Active-period sweep: dashboard + kits list filter on `period = activePeriod()`
+    // and aggregate per credential. Without this index every dashboard render
+    // does a sequential scan once the table has 10k+ rows.
+    index("kit_period_total_period_idx").on(table.period),
   ]
 );
 
@@ -189,24 +201,32 @@ export const emailSettings = pgTable("email_settings", {
 });
 export type EmailSettings = typeof emailSettings.$inferSelect;
 
-export const stationSyncLogs = pgTable("station_sync_logs", {
-  id: serial("id").primaryKey(),
-  // NULL == aggregate "all accounts" run; non-null == single account run.
-  credentialId: integer("credential_id").references(
-    () => stationCredentials.id,
-    { onDelete: "set null" }
-  ),
-  status: text("status").notNull(),
-  message: text("message"),
-  recordsFound: integer("records_found"),
-  recordsInserted: integer("records_inserted"),
-  recordsUpdated: integer("records_updated"),
-  screenshotPath: text("screenshot_path"),
-  htmlSnapshotPath: text("html_snapshot_path"),
-  startedAt: timestamp("started_at").defaultNow().notNull(),
-  finishedAt: timestamp("finished_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const stationSyncLogs = pgTable(
+  "station_sync_logs",
+  {
+    id: serial("id").primaryKey(),
+    // NULL == aggregate "all accounts" run; non-null == single account run.
+    credentialId: integer("credential_id").references(
+      () => stationCredentials.id,
+      { onDelete: "set null" }
+    ),
+    status: text("status").notNull(),
+    message: text("message"),
+    recordsFound: integer("records_found"),
+    recordsInserted: integer("records_inserted"),
+    recordsUpdated: integer("records_updated"),
+    screenshotPath: text("screenshot_path"),
+    htmlSnapshotPath: text("html_snapshot_path"),
+    startedAt: timestamp("started_at").defaultNow().notNull(),
+    finishedAt: timestamp("finished_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    // sync-logs page + readyz lookup both ORDER BY started_at DESC.
+    index("station_sync_logs_started_at_idx").on(t.startedAt),
+    index("station_sync_logs_credential_idx").on(t.credentialId),
+  ]
+);
 
 export const insertAdminUserSchema = createInsertSchema(adminUsers).omit({
   id: true,
