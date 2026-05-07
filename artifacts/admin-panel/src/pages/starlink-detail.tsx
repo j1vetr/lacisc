@@ -220,21 +220,19 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
             {kit}
           </span>
           <div className="ml-auto flex items-center gap-1.5 flex-wrap">
-            <Pill tone="info">Tototheo</Pill>
             {!detailLoading && (
               <Pill tone={detail?.isOnline ? "ok" : "warn"}>
                 {detail?.isOnline ? (
                   <>
-                    <Wifi className="w-2.5 h-2.5" /> Online
+                    <Wifi className="w-2.5 h-2.5" /> Aktif
                   </>
                 ) : (
                   <>
-                    <WifiOff className="w-2.5 h-2.5" /> Offline
+                    <WifiOff className="w-2.5 h-2.5" /> Pasif
                   </>
                 )}
               </Pill>
             )}
-            {optIn && <Pill>Opt-In</Pill>}
           </div>
         </div>
         <div className="px-4 sm:px-5 py-2 flex items-center gap-4 sm:gap-6 text-[11px] font-mono text-muted-foreground flex-wrap">
@@ -245,12 +243,13 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
           )}
           {ipv4 && (
             <span>
-              IPv4 <span className="text-foreground">{ipv4}</span>
+              <span className="text-muted-foreground">Direkt IP Adresi:</span>{" "}
+              <span className="text-foreground">{ipv4}</span>
             </span>
           )}
           {detail?.updatedAt && (
             <span className="ml-auto flex items-center gap-1.5">
-              <Clock className="w-3 h-3" /> Son sync {formatDate(detail.updatedAt)}
+              <Clock className="w-3 h-3" /> Son Bağlantı {formatDate(detail.updatedAt)}
             </span>
           )}
         </div>
@@ -264,9 +263,6 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
               <Radio className="w-4 h-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold tracking-tight">Canlı Telemetri</h2>
             </div>
-            <span className="text-[10px] font-mono text-muted-foreground">
-              Tototheo portalından
-            </span>
           </div>
           <div className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
             {detailLoading ? (
@@ -302,16 +298,6 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                   icon={<TrendingUp className="w-3 h-3" />}
                 />
                 <MetricTile
-                  label="Engellenme"
-                  value={
-                    detail?.obstruction != null
-                      ? formatNumber(detail.obstruction * 100, 2)
-                      : "—"
-                  }
-                  unit="%"
-                  icon={<Eye className="w-3 h-3" />}
-                />
-                <MetricTile
                   label="İndirme"
                   value={
                     detail?.downloadSpeed != null
@@ -330,12 +316,6 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                   }
                   unit="Mbps"
                   icon={<Upload className="w-3 h-3" />}
-                />
-                <MetricTile
-                  label="Aktif Uyarı"
-                  value={String(detail?.activeAlertsCount ?? 0)}
-                  icon={<ShieldAlert className="w-3 h-3" />}
-                  tone={(detail?.activeAlertsCount ?? 0) > 0 ? "warn" : "neutral"}
                 />
                 <MetricTile
                   label="Engel Yok"
@@ -373,7 +353,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                 <Suspense
                   fallback={<div className="absolute inset-0 bg-secondary" />}
                 >
-                  <TerminalMap lat={detail.lat} lng={detail.lng} />
+                  <TerminalMap lat={detail.lat} lng={detail.lng} zoom={3} />
                 </Suspense>
                 <div className="absolute bottom-0 left-0 right-0 px-3 py-2 bg-card/90 backdrop-blur-sm border-t border-border flex justify-between text-[11px] font-mono z-[400] pointer-events-none">
                   <span>
@@ -576,9 +556,6 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
           <div className="flex items-center gap-2">
             <CalendarClock className="w-4 h-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold tracking-tight">Aylık Geçmiş</h2>
-            <span className="text-[10px] text-muted-foreground font-mono">
-              poolPlanMonthlyUsage
-            </span>
           </div>
         </div>
         {monthlyLoading ? (
@@ -599,8 +576,6 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                     { label: "Toplam", align: "right" },
                     { label: "Paket", align: "right" },
                     { label: "Öncelik", align: "right" },
-                    { label: "Aşım", align: "right" },
-                    { label: "Doluluk", align: "left" },
                     { label: "Tarama", align: "right", pad: "pr-4" },
                   ].map((h) => (
                     <th
@@ -613,53 +588,27 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                 </tr>
               </thead>
               <tbody>
-                {monthly.map((r) => {
-                  const fill =
-                    planAllowance && planAllowance > 0 && r.totalGb != null
-                      ? Math.min((r.totalGb / planAllowance) * 100, 100)
-                      : null;
-                  return (
-                    <tr
-                      key={r.period}
-                      className="border-t border-border h-11 hover:bg-secondary/40 cursor-pointer"
-                      onClick={() => setSelectedPeriod(r.period)}
-                    >
-                      <td className="pl-4 font-mono">{formatPeriodLabel(r.period)}</td>
-                      <td className="text-right font-mono">
-                        {formatNumber(r.totalGb, 1)} GB
-                      </td>
-                      <td className="text-right font-mono text-[11px] text-muted-foreground">
-                        {formatNumber(r.packageUsageGb, 1)}
-                      </td>
-                      <td className="text-right font-mono text-[11px] text-muted-foreground">
-                        {formatNumber(r.priorityGb, 1)}
-                      </td>
-                      <td className="text-right font-mono text-[11px] text-muted-foreground">
-                        {formatNumber(r.overageGb, 1)}
-                      </td>
-                      <td>
-                        {fill != null ? (
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 h-1.5 bg-secondary rounded-sm overflow-hidden max-w-[140px]">
-                              <div
-                                className="h-full bg-foreground"
-                                style={{ width: `${fill}%` }}
-                              />
-                            </div>
-                            <span className="text-[10px] font-mono text-muted-foreground w-10 text-right">
-                              {formatNumber(fill, 0)}%
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-[10px] font-mono text-muted-foreground">—</span>
-                        )}
-                      </td>
-                      <td className="text-right pr-4 font-mono text-[11px] text-muted-foreground">
-                        {r.scrapedAt ? formatDate(r.scrapedAt) : "-"}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {monthly.map((r) => (
+                  <tr
+                    key={r.period}
+                    className="border-t border-border h-11 hover:bg-secondary/40 cursor-pointer"
+                    onClick={() => setSelectedPeriod(r.period)}
+                  >
+                    <td className="pl-4 font-mono">{formatPeriodLabel(r.period)}</td>
+                    <td className="text-right font-mono">
+                      {formatNumber(r.totalGb, 1)} GB
+                    </td>
+                    <td className="text-right font-mono text-[11px] text-muted-foreground">
+                      {formatNumber(r.packageUsageGb, 1)}
+                    </td>
+                    <td className="text-right font-mono text-[11px] text-muted-foreground">
+                      {formatNumber(r.priorityGb, 1)}
+                    </td>
+                    <td className="text-right pr-4 font-mono text-[11px] text-muted-foreground">
+                      {r.scrapedAt ? formatDate(r.scrapedAt) : "-"}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
