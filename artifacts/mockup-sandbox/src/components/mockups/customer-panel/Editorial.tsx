@@ -1,45 +1,104 @@
-import React from "react";
 import "./_editorial.css";
-import { customer, activePeriodLabel, kits, totals, sparkFor, fmtGib, fmtRel, CustomerKit } from "./_mock";
-import { ArrowRight, ChevronRight, Ship } from "lucide-react";
 import {
-  ResponsiveContainer, AreaChart, Area, XAxis, Tooltip
+  customer,
+  activePeriodLabel,
+  kits,
+  totals,
+  sparkFor,
+  fmtGib,
+  fmtRel,
+} from "./_mock";
+import { ArrowUpRight, ChevronRight, Search } from "lucide-react";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  Tooltip,
+  LineChart,
+  Line,
 } from "recharts";
+import brandLogo from "@/assets/brand-logo.png";
 
 export default function Editorial() {
-  const sortedKits = [...kits].sort((a, b) => b.currentPeriodGib - a.currentPeriodGib);
-  const topConsumer = sortedKits[0];
+  const sorted = [...kits].sort((a, b) => b.currentPeriodGib - a.currentPeriodGib);
+  const top = sorted[0];
+  const maxGib = sorted[0]?.currentPeriodGib ?? 1;
+
+  const today = new Date().toLocaleDateString("tr-TR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
   return (
     <div className="editorial-theme flex w-full">
-      
-      {/* Left Sidebar (Table of Contents) */}
-      <aside className="w-[340px] shrink-0 hairline-right min-h-screen sticky top-0 h-screen flex flex-col py-10 px-8">
-        <div className="mb-14">
-          <h2 className="font-serif text-3xl italic tracking-tight text-[var(--text-ink)] leading-none">Station</h2>
-          <div className="text-[10px] tracking-[0.2em] uppercase mt-2 text-[var(--text-ink-light)] font-medium">Satcom &bull; Denizcilik</div>
+      {/* ───────────── Sidebar ───────────── */}
+      <aside className="w-[320px] shrink-0 hl-r min-h-screen sticky top-0 h-screen flex flex-col">
+        {/* Brand */}
+        <div className="px-8 pt-9 pb-8">
+          <div className="brand-mark">
+            <img src={brandLogo} alt="Station Satcom" />
+          </div>
+          <div className="text-[10px] tracking-[0.22em] uppercase mt-3 text-[var(--ink-mute)] font-medium">
+            Denizcilik Operasyonları
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto pr-2 no-scrollbar">
-          <div className="text-[10px] tracking-widest uppercase mb-6 text-[var(--text-ink-lighter)] hairline-bottom pb-3 font-medium">İçindekiler / Filo</div>
-          
-          <ul className="space-y-1">
-            {sortedKits.map((kit, i) => (
-              <li key={kit.kitNo} className="group relative">
-                <button className="w-full text-left py-3 flex items-start justify-between transition-colors hover:bg-[var(--bg-cream-alt)] -mx-3 px-3 rounded-sm">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="font-serif text-lg text-[var(--text-ink)] group-hover:text-[var(--accent-rust)] transition-colors flex items-center gap-2">
-                      {kit.shipName}
-                      <span className={`w-1.5 h-1.5 rounded-full ${kit.online ? 'bg-[var(--text-ink)]' : 'bg-transparent border border-[var(--text-ink-light)]'}`} />
+        {/* Customer chip */}
+        <div className="px-8 pb-7 hl-b">
+          <div className="text-[10px] tracking-widest uppercase text-[var(--ink-mute)] mb-2">
+            Hesap
+          </div>
+          <div className="font-serif text-[22px] leading-tight text-[var(--ink)]">
+            {customer.name}
+          </div>
+          <div className="font-mono text-[11px] text-[var(--ink-mute)] mt-1">
+            @{customer.username}
+          </div>
+        </div>
+
+        {/* Filo list */}
+        <div className="flex-1 overflow-y-auto no-scrollbar pt-7 pb-6">
+          <div className="px-8 flex items-center justify-between mb-4">
+            <div className="text-[10px] tracking-widest uppercase text-[var(--ink-mute)] font-medium">
+              Filo · İçindekiler
+            </div>
+            <Search className="w-3.5 h-3.5 text-[var(--ink-faint)]" strokeWidth={1.5} />
+          </div>
+
+          <ul>
+            {sorted.map((kit, i) => (
+              <li key={kit.kitNo}>
+                <button className="row-link w-full text-left px-8 py-3.5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="font-serif text-[10px] text-[var(--ink-faint)] w-4 num-tabular">
+                      {String(i + 1).padStart(2, "0")}
                     </span>
-                    <span className="font-mono text-[10px] text-[var(--text-ink-lighter)] tracking-wider">
-                      {kit.kitNo} &middot; {kit.source === 'satcom' ? 'SATCOM' : 'STARLINK'}
-                    </span>
+                    <div className="min-w-0">
+                      <div className="ship-name font-serif text-[18px] leading-tight text-[var(--ink)] truncate flex items-center gap-2">
+                        {kit.shipName}
+                        <span
+                          className={`dot ${
+                            !kit.online
+                              ? "dot-offline"
+                              : kit.alerts && kit.alerts > 0
+                              ? "dot-alert"
+                              : "dot-online"
+                          }`}
+                        />
+                      </div>
+                      <div className="font-mono text-[10px] text-[var(--ink-faint)] mt-0.5">
+                        {kit.kitNo}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span className="font-mono text-[13px] text-[var(--text-ink-light)]">
+                  <div className="text-right shrink-0">
+                    <div className="font-mono text-[12px] text-[var(--ink-soft)] num-tabular">
                       {fmtGib(kit.currentPeriodGib)}
-                    </span>
+                    </div>
+                    <div className="text-[9px] tracking-widest uppercase text-[var(--ink-faint)] mt-0.5">
+                      GB
+                    </div>
                   </div>
                 </button>
               </li>
@@ -47,169 +106,318 @@ export default function Editorial() {
           </ul>
         </div>
 
-        <div className="mt-8 pt-6 hairline-top">
-          <div className="text-[11px] text-[var(--text-ink-lighter)] leading-relaxed">
-            {activePeriodLabel} &mdash; Toplam <span className="font-mono">{totals.totalKits}</span> gemi, <span className="font-mono">{totals.online}</span> çevrimiçi. Toplam tüketim: <span className="font-mono">{fmtGib(totals.totalGib)} GB</span>.
+        {/* Footer */}
+        <div className="px-8 py-6 hl-t">
+          <div className="text-[10px] tracking-widest uppercase text-[var(--ink-mute)]">
+            {activePeriodLabel} · Toplam
+          </div>
+          <div className="flex items-baseline gap-2 mt-1">
+            <span className="stat-num text-[26px] text-[var(--ink)]">
+              {fmtGib(totals.totalGib)}
+            </span>
+            <span className="font-mono text-[11px] text-[var(--ink-mute)]">GB</span>
+          </div>
+          <div className="text-[11px] text-[var(--ink-mute)] mt-1">
+            {totals.online} / {totals.totalKits} gemi çevrimiçi
           </div>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 py-12 px-16 max-w-[1000px]">
+      {/* ───────────── Main ───────────── */}
+      <main className="flex-1 min-w-0">
+        {/* Top bar */}
+        <div className="hl-b px-14 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-3 text-[11px] tracking-widest uppercase text-[var(--ink-mute)]">
+            <span className="rule-orange" />
+            <span>Aylık Filo Bülteni</span>
+            <span className="text-[var(--ink-faint)]">·</span>
+            <span className="font-mono text-[11px] tracking-normal lowercase">
+              {today}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button className="ghost-cta">
+              Rapor İndir
+              <ArrowUpRight className="w-3.5 h-3.5" strokeWidth={1.5} />
+            </button>
+          </div>
+        </div>
+
         {/* Header */}
-        <header className="mb-20">
-          <div className="flex justify-between items-end mb-6 hairline-bottom pb-6">
-            <div>
-              <div className="text-[11px] tracking-widest uppercase text-[var(--text-ink-lighter)] mb-4">Aylık Rapor &mdash; {activePeriodLabel}</div>
-              <h1 className="font-serif text-5xl md:text-6xl text-[var(--text-ink)] leading-[1.1] tracking-tight max-w-2xl">
-                Hoş geldiniz, {customer.name}.
-              </h1>
-            </div>
-            <div className="text-right pb-2">
-              <div className="font-serif italic text-2xl text-[var(--text-ink-light)] mb-1">
-                {activePeriodLabel} Aktif Dönem
-              </div>
-              <div className="font-mono text-xs text-[var(--text-ink-lighter)]">
-                Son Güncelleme: Bugün
-              </div>
-            </div>
+        <header className="px-14 pt-16 pb-12">
+          <div className="text-[11px] tracking-[0.22em] uppercase text-[var(--orange)] mb-5 font-medium">
+            {activePeriodLabel} · Aktif Dönem
           </div>
+          <h1 className="font-serif italic text-[64px] leading-[0.98] tracking-[-0.02em] text-[var(--ink)] max-w-[820px]">
+            Hoş geldiniz, {customer.name.split(" ")[0]}.
+          </h1>
+          <p className="font-serif text-[22px] leading-[1.45] text-[var(--ink-soft)] max-w-[680px] mt-7">
+            Filonuzdaki <span className="text-[var(--ink)] font-medium">{totals.totalKits} gemi</span> bu ay
+            toplam <span className="text-[var(--ink)] font-medium num-tabular">{fmtGib(totals.totalGib)} GB</span> veri
+            tüketti. Şu an{" "}
+            <span className="text-[var(--ink)] font-medium">{totals.online} gemi</span> kesintisiz bağlantıda.
+          </p>
 
-          {/* Abstract / Summary */}
-          <div className="grid grid-cols-3 gap-12 pt-4">
-            <div className="col-span-2">
-              <p className="text-[15px] leading-relaxed text-[var(--text-ink-light)] first-letter:float-left first-letter:font-serif first-letter:text-6xl first-letter:pr-3 first-letter:pt-1 first-letter:text-[var(--text-ink)]">
-                Bu ayki operasyonlarda toplam <strong className="font-medium text-[var(--text-ink)]">{totals.totalKits}</strong> terminal aktif olarak görev yaptı. Filo genelinde şu an <strong className="font-medium text-[var(--text-ink)]">{totals.online}</strong> gemi ile kesintisiz bağlantı sürdürülürken, toplam veri tüketimi <strong className="font-mono text-sm">{fmtGib(totals.totalGib)} GB</strong> seviyesine ulaştı. 
-              </p>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-widest text-[var(--text-ink-lighter)] mb-2">Ağ Dağılımı</div>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="font-serif text-lg" style={{ color: 'var(--accent-rust)' }}>Satcom</span>
-                  <span className="font-mono text-sm">{totals.satcomKits}</span>
+          {/* Inline stat strip */}
+          <div className="grid grid-cols-4 gap-0 mt-12 hl-t hl-b">
+            {[
+              { label: "Toplam Gemi", value: String(totals.totalKits), unit: "" },
+              { label: "Çevrimiçi", value: `${totals.online}`, unit: `/ ${totals.totalKits}` },
+              { label: "Dönem Tüketimi", value: fmtGib(totals.totalGib), unit: "GB" },
+              {
+                label: "Aktif Uyarı",
+                value: String(kits.reduce((s, k) => s + (k.alerts ?? 0), 0)),
+                unit: "",
+              },
+            ].map((s, i) => (
+              <div
+                key={i}
+                className={`py-7 ${i > 0 ? "hl-l pl-8" : ""} ${i < 3 ? "pr-8" : ""}`}
+              >
+                <div className="text-[10px] tracking-widest uppercase text-[var(--ink-mute)] mb-3">
+                  {s.label}
                 </div>
-                <div className="hairline-bottom" />
-                <div className="flex justify-between items-center">
-                  <span className="font-serif text-lg" style={{ color: 'var(--accent-blue)' }}>Starlink</span>
-                  <span className="font-mono text-sm">{totals.starlinkKits}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Highlight Section (Top Consumer) */}
-        {topConsumer && (
-          <section className="mb-24">
-             <div className="p-10 hairline-all bg-white/40 relative">
-               <div className="absolute top-0 left-0 w-full h-1 bg-[var(--text-ink)]" />
-               <div className="flex items-center gap-3 mb-6">
-                 <div className="w-2 h-2 rounded-full bg-[var(--accent-rust)]" />
-                 <span className="text-[10px] uppercase tracking-widest text-[var(--text-ink-light)]">Ayın Öne Çıkanı</span>
-               </div>
-               
-               <div className="grid grid-cols-2 gap-12 items-center">
-                 <div>
-                   <h3 className="font-serif text-4xl mb-2">{topConsumer.shipName}</h3>
-                   <div className="font-mono text-xs text-[var(--text-ink-lighter)] mb-6">
-                     {topConsumer.kitNo}
-                   </div>
-                   <p className="text-[14px] leading-relaxed text-[var(--text-ink-light)] mb-8">
-                     Bu dönem en yüksek veri tüketimine sahip olan gemimiz, toplam <strong className="font-mono text-xs text-[var(--text-ink)]">{fmtGib(topConsumer.currentPeriodGib)} GB</strong> ile operasyonlarını sürdürüyor.
-                   </p>
-                   <button className="group flex items-center gap-3 text-[11px] uppercase tracking-widest font-medium hover:text-[var(--accent-rust)] transition-colors">
-                     Detayları İncele
-                     <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                   </button>
-                 </div>
-                 
-                 <div className="h-48 hairline-left pl-12 flex flex-col justify-center">
-                   <div className="text-[10px] uppercase tracking-widest text-[var(--text-ink-lighter)] mb-4">Son 14 Gün Tüketim Trendi</div>
-                   <div className="flex-1 w-full relative">
-                     <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={sparkFor(topConsumer).map((val, i) => ({ day: i, val }))}>
-                          <defs>
-                            <linearGradient id="colorValTop" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="var(--accent-rust)" stopOpacity={0.2}/>
-                              <stop offset="95%" stopColor="var(--accent-rust)" stopOpacity={0}/>
-                            </linearGradient>
-                          </defs>
-                          <Tooltip 
-                            contentStyle={{ background: '#fff', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 0, padding: '8px 12px' }}
-                            itemStyle={{ color: 'var(--text-ink)', fontFamily: 'var(--font-mono)', fontSize: '12px' }}
-                            labelStyle={{ display: 'none' }}
-                            formatter={(value: number) => [`${fmtGib(value)} GB`, 'Tüketim']}
-                          />
-                          <Area type="monotone" dataKey="val" stroke="var(--accent-rust)" strokeWidth={1.5} fill="url(#colorValTop)" />
-                        </AreaChart>
-                     </ResponsiveContainer>
-                   </div>
-                 </div>
-               </div>
-             </div>
-          </section>
-        )}
-
-        {/* Fleet Grid */}
-        <section>
-          <div className="flex items-center justify-between mb-8 hairline-bottom pb-4">
-            <h2 className="font-serif text-3xl">Tüm Gemiler</h2>
-            <span className="text-[11px] uppercase tracking-widest text-[var(--text-ink-lighter)]">Sıralama: Tüketim</span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-x-12 gap-y-12">
-            {sortedKits.map((kit) => (
-              <div key={kit.kitNo} className="group cursor-pointer">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="font-serif text-2xl group-hover:text-[var(--accent-rust)] transition-colors flex items-center gap-3">
-                      {kit.shipName}
-                      {!kit.online && <span className="text-[10px] font-sans tracking-widest uppercase text-[var(--accent-rust)] font-semibold border border-[var(--accent-rust)] px-1.5 py-0.5 rounded-sm">Çevrimdışı</span>}
-                      {kit.alerts && kit.alerts > 0 ? (
-                         <span className="text-[10px] font-sans tracking-widest uppercase bg-[var(--text-ink)] text-[var(--bg-cream)] px-1.5 py-0.5 rounded-sm">
-                           {kit.alerts} Uyarı
-                         </span>
-                      ) : null}
-                    </h3>
-                    <div className="font-mono text-xs text-[var(--text-ink-lighter)] mt-1 flex items-center gap-3">
-                      <span>{kit.kitNo}</span>
-                      <span className="w-px h-3 bg-[var(--text-ink-lighter)] opacity-30" />
-                      <span style={{ color: kit.source === 'satcom' ? 'var(--accent-rust)' : 'var(--accent-blue)' }}>
-                        {kit.source.toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-mono text-lg">{fmtGib(kit.currentPeriodGib)}</div>
-                    <div className="text-[10px] uppercase tracking-widest text-[var(--text-ink-lighter)] mt-1">GB</div>
-                  </div>
-                </div>
-
-                <div className="h-12 w-full mt-4">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={sparkFor(kit).map((val, i) => ({ day: i, val }))}>
-                      <Area 
-                        type="step" 
-                        dataKey="val" 
-                        stroke={kit.source === 'satcom' ? 'var(--accent-rust)' : 'var(--accent-blue)'} 
-                        strokeWidth={1} 
-                        fill="none" 
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="mt-3 text-[10px] text-[var(--text-ink-lighter)] flex justify-between">
-                  <span>Son iletişim: {fmtRel(kit.lastUpdate)}</span>
-                  <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 font-medium text-[var(--text-ink)] uppercase tracking-widest">
-                    İncele <ChevronRight className="w-3 h-3" />
+                <div className="flex items-baseline gap-2">
+                  <span className="stat-num text-[40px] text-[var(--ink)]">
+                    {s.value}
                   </span>
+                  {s.unit && (
+                    <span className="font-mono text-[12px] text-[var(--ink-mute)]">
+                      {s.unit}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
           </div>
-        </section>
+        </header>
 
+        {/* Featured */}
+        {top && (
+          <section className="px-14 pb-14">
+            <div className="featured-card p-10">
+              <div className="grid grid-cols-[1.1fr_1fr] gap-12 items-center">
+                <div>
+                  <div className="flex items-center gap-3 mb-5">
+                    <span className="text-[10px] tracking-widest uppercase text-[var(--orange)] font-medium">
+                      Ayın Öne Çıkanı
+                    </span>
+                  </div>
+                  <h2 className="font-serif text-[44px] leading-[1] tracking-[-0.015em] text-[var(--ink)]">
+                    {top.shipName}
+                  </h2>
+                  <div className="font-mono text-[11px] text-[var(--ink-mute)] mt-2">
+                    {top.kitNo}
+                  </div>
+                  <p className="font-serif text-[18px] leading-[1.5] text-[var(--ink-soft)] mt-6 max-w-[420px]">
+                    Bu dönem en yüksek veri tüketimi sizin filonuzda{" "}
+                    <span className="text-[var(--ink)] font-medium">{top.shipName}</span>
+                    'a ait. Toplam{" "}
+                    <span className="num-tabular text-[var(--ink)] font-medium">
+                      {fmtGib(top.currentPeriodGib)} GB
+                    </span>{" "}
+                    ile dönem ortalamasının{" "}
+                    <span className="text-[var(--ink)] font-medium">
+                      {Math.round((top.currentPeriodGib / (totals.totalGib / totals.totalKits)) * 100 - 100)}%
+                    </span>{" "}
+                    üzerinde seyrediyor.
+                  </p>
+                  <div className="mt-8 flex items-center gap-6">
+                    <button className="cta">
+                      Gemi Detayını Aç
+                      <ArrowUpRight className="w-3.5 h-3.5" strokeWidth={1.5} />
+                    </button>
+                    <span className="font-mono text-[11px] text-[var(--ink-mute)]">
+                      Son güncelleme · {fmtRel(top.lastUpdate)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="hl-l pl-12">
+                  <div className="text-[10px] tracking-widest uppercase text-[var(--ink-mute)] mb-2">
+                    Son 14 Gün
+                  </div>
+                  <div className="h-[180px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart
+                        data={sparkFor(top).map((v, i) => ({ d: i, v }))}
+                        margin={{ top: 8, right: 4, left: 0, bottom: 0 }}
+                      >
+                        <defs>
+                          <linearGradient id="ed-top-grad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#f54e00" stopOpacity={0.18} />
+                            <stop offset="100%" stopColor="#f54e00" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <Tooltip
+                          cursor={{ stroke: "#26251e", strokeWidth: 0.5, strokeDasharray: "2 3" }}
+                          contentStyle={{
+                            background: "#fcfbf8",
+                            border: "1px solid #d8d6cf",
+                            borderRadius: 2,
+                            padding: "6px 10px",
+                            boxShadow: "none",
+                          }}
+                          labelStyle={{ display: "none" }}
+                          itemStyle={{
+                            color: "#26251e",
+                            fontFamily: "JetBrains Mono, monospace",
+                            fontSize: 11,
+                          }}
+                          formatter={(v: number) => [`${fmtGib(v)} GB`, "Tüketim"]}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="v"
+                          stroke="#f54e00"
+                          strokeWidth={1.4}
+                          fill="url(#ed-top-grad)"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex justify-between mt-3 text-[10px] tracking-widest uppercase text-[var(--ink-faint)]">
+                    <span>14 gün önce</span>
+                    <span>bugün</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Fleet — editorial table */}
+        <section className="px-14 pb-24">
+          <div className="flex items-end justify-between mb-1 hl-b-strong pb-5">
+            <div>
+              <div className="text-[10px] tracking-widest uppercase text-[var(--ink-mute)] mb-2">
+                Bölüm II
+              </div>
+              <h2 className="font-serif italic text-[40px] leading-none tracking-[-0.015em] text-[var(--ink)]">
+                Tüm Gemiler
+              </h2>
+            </div>
+            <div className="text-[10px] tracking-widest uppercase text-[var(--ink-mute)]">
+              Sıralama · Aylık Tüketim
+            </div>
+          </div>
+
+          {/* Header row */}
+          <div className="grid grid-cols-[40px_1.6fr_1fr_140px_120px_24px] gap-6 px-1 py-3 hl-b text-[10px] tracking-widest uppercase text-[var(--ink-mute)]">
+            <div className="text-right">№</div>
+            <div>Gemi</div>
+            <div>Trend · Son 14 Gün</div>
+            <div className="text-right">Aylık Tüketim</div>
+            <div className="text-right">Son İletişim</div>
+            <div />
+          </div>
+
+          <ul>
+            {sorted.map((kit, i) => {
+              const pct = Math.max(4, (kit.currentPeriodGib / maxGib) * 100);
+              return (
+                <li key={kit.kitNo} className="ship-row hl-b cursor-pointer">
+                  <div className="grid grid-cols-[40px_1.6fr_1fr_140px_120px_24px] gap-6 items-center px-1 py-6">
+                    <div className="text-right">
+                      <span className="font-serif text-[20px] text-[var(--ink-faint)] num-tabular">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="ship-headline font-serif text-[26px] leading-tight text-[var(--ink)] tracking-[-0.01em]">
+                          {kit.shipName}
+                        </span>
+                        {!kit.online && <span className="pill-offline">Çevrimdışı</span>}
+                        {kit.alerts && kit.alerts > 0 ? (
+                          <span className="pill-alert">{kit.alerts} Uyarı</span>
+                        ) : null}
+                      </div>
+                      <div className="font-mono text-[11px] text-[var(--ink-mute)] mt-1.5">
+                        {kit.kitNo}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="h-[36px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart
+                            data={sparkFor(kit).map((v, j) => ({ d: j, v }))}
+                            margin={{ top: 4, right: 0, left: 0, bottom: 4 }}
+                          >
+                            <Line
+                              type="monotone"
+                              dataKey="v"
+                              stroke="#26251e"
+                              strokeWidth={1}
+                              dot={false}
+                              isAnimationActive={false}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="mt-1 h-[2px] w-full bg-[var(--hairline)] rounded-full overflow-hidden">
+                        <div
+                          className="h-full"
+                          style={{
+                            width: `${pct}%`,
+                            background:
+                              kit.alerts && kit.alerts > 0
+                                ? "var(--orange)"
+                                : "var(--ink)",
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <div className="flex items-baseline justify-end gap-1.5">
+                        <span className="stat-num text-[28px] leading-none text-[var(--ink)]">
+                          {fmtGib(kit.currentPeriodGib)}
+                        </span>
+                        <span className="font-mono text-[10px] text-[var(--ink-mute)]">GB</span>
+                      </div>
+                    </div>
+
+                    <div className="text-right font-mono text-[11px] text-[var(--ink-mute)]">
+                      {fmtRel(kit.lastUpdate)}
+                    </div>
+
+                    <div className="ship-arrow text-[var(--ink)]">
+                      <ChevronRight className="w-4 h-4" strokeWidth={1.5} />
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Colophon */}
+          <div className="mt-12 grid grid-cols-2 gap-12">
+            <div>
+              <div className="text-[10px] tracking-widest uppercase text-[var(--ink-mute)] mb-3">
+                Bültende
+              </div>
+              <p className="font-serif italic text-[16px] leading-[1.6] text-[var(--ink-soft)] max-w-[460px]">
+                Bu sayfa, atanmış gemilerinizin {activePeriodLabel} dönemine ait
+                tüketim, durum ve uyarı özetini sunar. Bir gemiye tıklayarak
+                günlük dökümlere ve geçmiş dönem raporlarına ulaşabilirsiniz.
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="text-[10px] tracking-widest uppercase text-[var(--ink-mute)] mb-3">
+                Sonraki Senkronizasyon
+              </div>
+              <div className="font-serif text-[28px] text-[var(--ink)]">
+                ≈ 22 dakika
+              </div>
+              <div className="font-mono text-[11px] text-[var(--ink-mute)] mt-1">
+                30 dk · otomatik
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   );
