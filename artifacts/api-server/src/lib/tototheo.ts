@@ -153,29 +153,35 @@ export class TototheoClient {
 // Loose object shape returned from Tototheo before normalization.
 export type RawTototheoDetail = Record<string, unknown>;
 
-const DETAIL_MARKER_KEYS = new Set([
-  "kitSerialNumber",
-  "kit_serial_number",
-  "userTerminalId",
-  "user_terminal_id",
-  "serviceLineNumber",
-  "service_line_number",
+// Marker keys that uniquely identify a terminal *leaf* object (not the
+// outer wrapper). The wrapper also echoes `kitSerialNumber` from the query,
+// so we deliberately exclude identifier-only keys and require at least one
+// telemetry/billing field that only exists on the actual detail.
+const DETAIL_LEAF_MARKERS = new Set([
   "signalQuality",
   "signal_quality",
-  "isOnline",
-  "is_online",
+  "standardTrafficSpent",
+  "standard_traffic_spent",
   "poolPlanMonthlyUsage",
   "pool_plan_monthly_usage",
+  "isOnline",
+  "is_online",
+  "h3Coordinates",
+  "h3_coordinates",
+  "userTerminalId",
+  "user_terminal_id",
 ]);
 
-// DFS through the response until we hit an object with a marker key. This
-// handles arbitrary wrapper depths (data → imo → "0" → "<id>" → leaf, or
-// shallower variants) without false-matching empty containers.
+// DFS through the response until we hit a true detail leaf (an object that
+// carries telemetry, not just identifier echoes). Tototheo wraps the payload
+// as `{ imo: { "<imo>": { "<userTerminalId>": {...leaf...} } }, mmsi: {...},
+// kitSerialNumber: "..." }` — naively matching `kitSerialNumber` at the top
+// level returned the wrapper and produced all-null persists.
 function findTerminalDetailLeaf(node: unknown): RawTototheoDetail | null {
-  if (!node || typeof node !== "object") return null;
+  if (!node || typeof node !== "object" || Array.isArray(node)) return null;
   const obj = node as Record<string, unknown>;
   for (const k of Object.keys(obj)) {
-    if (DETAIL_MARKER_KEYS.has(k)) return obj;
+    if (DETAIL_LEAF_MARKERS.has(k)) return obj;
   }
   for (const v of Object.values(obj)) {
     const found = findTerminalDetailLeaf(v);

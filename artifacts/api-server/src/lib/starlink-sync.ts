@@ -218,19 +218,17 @@ async function runInner(): Promise<StarlinkSyncResult> {
             {
               kitSerialNumber: item.kitSerialNumber,
               detailKeys: Object.keys(detail),
-              monthlySample: pickField(detail, "poolPlanMonthlyUsage", "pool_plan_monthly_usage"),
             },
             "Tototheo detail shape (first terminal of run)"
           );
         }
         await persistTerminal(detail, item.kitSerialNumber, today);
-        const months =
-          (pickField<TototheoMonthlyUsage[]>(
-            detail,
-            "poolPlanMonthlyUsage",
-            "pool_plan_monthly_usage"
-          ) as TototheoMonthlyUsage[] | undefined) ?? [];
-        await persistMonthlyTotals(item.kitSerialNumber, months);
+        const monthsRaw = pickField<unknown>(
+          detail,
+          "poolPlanMonthlyUsage",
+          "pool_plan_monthly_usage"
+        );
+        await persistMonthlyTotals(item.kitSerialNumber, flattenMonths(monthsRaw));
         const standard =
           pickField<number>(detail, "standardTrafficSpent", "standard_traffic_spent") ?? 0;
         const priority =
@@ -368,23 +366,42 @@ async function persistTerminal(
     });
 }
 
+// Tototheo returns `poolPlanMonthlyUsage` as a year-keyed object:
+//   { "2026": [{ month, year, usage: {...} }, ...] }
+// (Earlier draft assumed a flat array.) Accept both shapes — flatten any
+// object-of-arrays into one array, preserve direct arrays as-is.
+function flattenMonths(node: unknown): RawTototheoDetail[] {
+  if (!node) return [];
+  if (Array.isArray(node)) return node as RawTototheoDetail[];
+  if (typeof node === "object") {
+    const out: RawTototheoDetail[] = [];
+    for (const v of Object.values(node as Record<string, unknown>)) {
+      if (Array.isArray(v)) out.push(...(v as RawTototheoDetail[]));
+    }
+    return out;
+  }
+  return [];
+}
+
 async function persistMonthlyTotals(
   kitSerialNumber: string,
-  months: TototheoMonthlyUsage[]
+  months: RawTototheoDetail[]
 ): Promise<void> {
-  for (const raw of months) {
-    const m = raw as unknown as RawTototheoDetail;
+  for (const m of months) {
     const usage = pickField<RawTototheoDetail>(m, "usage");
     if (!usage) continue;
     const year = pickField<number>(m, "year");
     const month = pickField<number>(m, "month");
     if (year === undefined || month === undefined) continue;
     const period = `${year}${String(month).padStart(2, "0")}`;
+    // `package_usage_gb` is the authoritative monthly total per Tototheo's
+    // schema — priority/overage are sub-buckets that are already included in
+    // the package total. Summing them here would ~2× the dashboard figures.
     const pkg =
       pickField<number>(usage, "package_usage_gb", "packageUsageGb") ?? 0;
     const pri = pickField<number>(usage, "priority_gb", "priorityGb") ?? 0;
     const ovg = pickField<number>(usage, "overage_gb", "overageGb") ?? 0;
-    const total = pkg + pri + ovg;
+    const total = pkg;
     await db
       .insert(starlinkTerminalPeriodTotal)
       .values({

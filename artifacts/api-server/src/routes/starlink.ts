@@ -16,6 +16,7 @@ import {
   runStarlinkSync,
   isStarlinkSyncRunning,
 } from "../lib/starlink-sync";
+import * as progress from "../lib/sync-progress";
 
 const router: IRouter = Router();
 
@@ -82,9 +83,23 @@ router.post(
       res.status(409).json({ error: "Starlink sync zaten devam ediyor." });
       return;
     }
+    // Manual Starlink-only sync: wrap with combined run lifecycle so the live
+    // progress UI flips back to idle when we're done. (The scheduler tick
+    // handles this itself when running both phases — but a manual click only
+    // hits this route, so we own the start/finish here.)
+    progress.startCombinedRun();
     void runStarlinkSync()
-      .then((r) => logger.info({ ...r }, "Manual Starlink sync finished"))
-      .catch((err) => logger.error({ err }, "Manual Starlink sync crashed"));
+      .then((r) => {
+        logger.info({ ...r }, "Manual Starlink sync finished");
+        progress.finishCombinedRun(r.message, r.success);
+      })
+      .catch((err) => {
+        logger.error({ err }, "Manual Starlink sync crashed");
+        progress.finishCombinedRun(
+          `Starlink sync hata: ${(err as Error).message}`,
+          false
+        );
+      });
     await audit(req, { action: "starlink.sync_now" });
     res.json({ success: true, message: "Starlink senkronizasyonu başlatıldı." });
   }
