@@ -1,0 +1,305 @@
+import { Router, type IRouter } from "express";
+import {
+  db,
+  starlinkTerminals,
+  starlinkTerminalDaily,
+  starlinkTerminalPeriodTotal,
+} from "@workspace/db";
+import { eq, asc, desc, sql } from "drizzle-orm";
+import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
+import { audit } from "../lib/audit";
+import { logger } from "../lib/logger";
+import {
+  getStarlinkSettingsView,
+  saveStarlinkSettings,
+  testStarlinkConnection,
+  runStarlinkSync,
+  isStarlinkSyncRunning,
+} from "../lib/starlink-sync";
+
+const router: IRouter = Router();
+
+// ---------------------------------------------------------------------------
+// Settings (singleton id=1) — token AES-GCM encrypted, never returned in GET.
+// ---------------------------------------------------------------------------
+
+router.get("/starlink/settings", requireAuth, async (_req, res): Promise<void> => {
+  res.json(await getStarlinkSettingsView());
+});
+
+router.put(
+  "/starlink/settings",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const body = (req.body ?? {}) as {
+      enabled?: boolean;
+      apiBaseUrl?: string;
+      // undefined = keep, null/'' = clear, string = set new
+      token?: string | null;
+    };
+    const updated = await saveStarlinkSettings({
+      enabled: body.enabled,
+      apiBaseUrl: body.apiBaseUrl,
+      token: body.token,
+    });
+    await audit(req, {
+      action: "starlink.settings.update",
+      meta: {
+        enabled: updated.enabled,
+        apiBaseUrl: updated.apiBaseUrl,
+        tokenChanged: body.token !== undefined,
+      },
+    });
+    res.json(updated);
+  }
+);
+
+router.post(
+  "/starlink/test-connection",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const body = (req.body ?? {}) as { apiBaseUrl?: string; token?: string | null };
+    const view = await getStarlinkSettingsView();
+    const baseUrl = body.apiBaseUrl?.trim() || view.apiBaseUrl;
+    const result = await testStarlinkConnection(baseUrl, body.token ?? null);
+    await audit(req, {
+      action: "starlink.test_connection",
+      success: result.success,
+      meta: { message: result.message, terminalCount: result.terminalCount ?? null },
+    });
+    res.json(result);
+  }
+);
+
+router.post(
+  "/starlink/sync-now",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    if (isStarlinkSyncRunning()) {
+      res.status(409).json({ error: "Starlink sync zaten devam ediyor." });
+      return;
+    }
+    void runStarlinkSync()
+      .then((r) => logger.info({ ...r }, "Manual Starlink sync finished"))
+      .catch((err) => logger.error({ err }, "Manual Starlink sync crashed"));
+    await audit(req, { action: "starlink.sync_now" });
+    res.json({ success: true, message: "Starlink senkronizasyonu başlatıldı." });
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Read endpoints (used by Terminaller list + KIT detay)
+// ---------------------------------------------------------------------------
+
+// All terminals — last known snapshot + current month's cumulative cycle GB
+// (read from starlink_terminal_period_total for the current YYYYMM).
+router.get("/starlink/terminals", requireAuth, async (_req, res): Promise<void> => {
+  const period = activePeriod();
+  const rows = await db.execute(sql`
+    SELECT
+      t.kit_serial_number    AS "kitSerialNumber",
+      t.nickname             AS "nickname",
+      t.asset_name           AS "assetName",
+      t.is_online            AS "isOnline",
+      t.activated            AS "activated",
+      t.blocked              AS "blocked",
+      t.signal_quality       AS "signalQuality",
+      t.latency              AS "latency",
+      t.obstruction          AS "obstruction",
+      t.download_speed       AS "downloadSpeed",
+      t.upload_speed         AS "uploadSpeed",
+      t.lat                  AS "lat",
+      t.lng                  AS "lng",
+      t.last_fix_at          AS "lastFixAt",
+      t.active_alerts_count  AS "activeAlertsCount",
+      t.last_seen_at         AS "lastSeenAt",
+      t.updated_at           AS "updatedAt",
+      p.total_gb             AS "currentPeriodTotalGb",
+      p.package_usage_gb     AS "currentPeriodPackageGb",
+      p.priority_gb          AS "currentPeriodPriorityGb",
+      p.overage_gb           AS "currentPeriodOverageGb"
+    FROM starlink_terminals t
+    LEFT JOIN starlink_terminal_period_total p
+      ON p.kit_serial_number = t.kit_serial_number
+     AND p.period = ${period}
+    ORDER BY COALESCE(p.total_gb, 0) DESC
+  `);
+  res.json(
+    (rows as unknown as { rows: Array<Record<string, unknown>> }).rows.map(
+      (r) => ({
+        ...r,
+        lastFixAt: toIso(r.lastFixAt),
+        lastSeenAt: toIso(r.lastSeenAt),
+        updatedAt: toIso(r.updatedAt),
+      })
+    )
+  );
+});
+
+router.get(
+  "/starlink/terminals/:kit",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const kit = String(req.params.kit);
+    const [t] = await db
+      .select()
+      .from(starlinkTerminals)
+      .where(eq(starlinkTerminals.kitSerialNumber, kit))
+      .limit(1);
+    if (!t) {
+      res.status(404).json({ error: "Starlink terminali bulunamadı." });
+      return;
+    }
+    const period = activePeriod();
+    const [pt] = await db
+      .select()
+      .from(starlinkTerminalPeriodTotal)
+      .where(eq(starlinkTerminalPeriodTotal.kitSerialNumber, kit))
+      .orderBy(desc(starlinkTerminalPeriodTotal.period))
+      .limit(1);
+    const [currentPt] = await db
+      .select()
+      .from(starlinkTerminalPeriodTotal)
+      .where(eq(starlinkTerminalPeriodTotal.kitSerialNumber, kit))
+      .orderBy(desc(starlinkTerminalPeriodTotal.period))
+      .limit(1);
+    void pt;
+    res.json({
+      kitSerialNumber: t.kitSerialNumber,
+      nickname: t.nickname,
+      assetName: t.assetName,
+      isOnline: t.isOnline,
+      activated: t.activated,
+      blocked: t.blocked,
+      signalQuality: t.signalQuality,
+      latency: t.latency,
+      obstruction: t.obstruction,
+      downloadSpeed: t.downloadSpeed,
+      uploadSpeed: t.uploadSpeed,
+      lat: t.lat,
+      lng: t.lng,
+      lastFixAt: t.lastFixAt ? t.lastFixAt.toISOString() : null,
+      activeAlertsCount: t.activeAlertsCount,
+      lastSeenAt: t.lastSeenAt ? t.lastSeenAt.toISOString() : null,
+      updatedAt: t.updatedAt.toISOString(),
+      currentPeriod: currentPt?.period ?? period,
+      currentPeriodTotalGb: currentPt?.totalGb ?? null,
+      currentPeriodPackageGb: currentPt?.packageUsageGb ?? null,
+      currentPeriodPriorityGb: currentPt?.priorityGb ?? null,
+      currentPeriodOverageGb: currentPt?.overageGb ?? null,
+    });
+  }
+);
+
+// Daily breakdown — returns per-day deltas (today.cumulative - yesterday.cumulative)
+// for the requested period. Cycle resets on the 1st of each month, so the
+// first day's delta = its cumulative reading.
+router.get(
+  "/starlink/terminals/:kit/daily",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const kit = String(req.params.kit);
+    let { period } = req.query as { period?: string };
+    if (!period) period = activePeriod();
+    if (!/^\d{6}$/.test(period)) {
+      res.status(400).json({ error: "Geçersiz period." });
+      return;
+    }
+    const year = period.slice(0, 4);
+    const month = period.slice(4, 6);
+    const startStr = `${year}-${month}-01`;
+    // Compute next-month boundary to filter rows.
+    const startDate = new Date(`${startStr}T00:00:00Z`);
+    const next = new Date(startDate);
+    next.setUTCMonth(next.getUTCMonth() + 1);
+    const endStr = next.toISOString().slice(0, 10);
+
+    const rows = await db
+      .select()
+      .from(starlinkTerminalDaily)
+      .where(
+        sql`${starlinkTerminalDaily.kitSerialNumber} = ${kit}
+            AND ${starlinkTerminalDaily.dayDate} >= ${startStr}
+            AND ${starlinkTerminalDaily.dayDate} < ${endStr}`
+      )
+      .orderBy(asc(starlinkTerminalDaily.dayDate));
+
+    // Build delta series. previous = 0 at month start (cycle reset).
+    let prevPkg = 0;
+    let prevPri = 0;
+    let prevOvg = 0;
+    const out = rows.map((r) => {
+      const pkg = r.packageUsageGb ?? prevPkg;
+      const pri = r.priorityGb ?? prevPri;
+      const ovg = r.overageGb ?? prevOvg;
+      // Guard against negative deltas if upstream resets mid-month: floor at 0.
+      const dPkg = Math.max(0, pkg - prevPkg);
+      const dPri = Math.max(0, pri - prevPri);
+      const dOvg = Math.max(0, ovg - prevOvg);
+      prevPkg = pkg;
+      prevPri = pri;
+      prevOvg = ovg;
+      return {
+        dayDate: r.dayDate,
+        cumulativePackageGb: pkg,
+        deltaPackageGb: dPkg,
+        deltaPriorityGb: dPri,
+        deltaOverageGb: dOvg,
+        lastReadingAt: r.lastReadingAt ? r.lastReadingAt.toISOString() : null,
+      };
+    });
+    res.json(out);
+  }
+);
+
+router.get(
+  "/starlink/terminals/:kit/monthly",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const kit = String(req.params.kit);
+    const months = await db
+      .select({
+        period: starlinkTerminalPeriodTotal.period,
+        totalGb: starlinkTerminalPeriodTotal.totalGb,
+        packageUsageGb: starlinkTerminalPeriodTotal.packageUsageGb,
+        priorityGb: starlinkTerminalPeriodTotal.priorityGb,
+        overageGb: starlinkTerminalPeriodTotal.overageGb,
+        scrapedAt: starlinkTerminalPeriodTotal.scrapedAt,
+      })
+      .from(starlinkTerminalPeriodTotal)
+      .where(eq(starlinkTerminalPeriodTotal.kitSerialNumber, kit))
+      .orderBy(desc(starlinkTerminalPeriodTotal.period));
+    res.json(
+      months.map((m) => ({
+        ...m,
+        scrapedAt: m.scrapedAt ? m.scrapedAt.toISOString() : null,
+      }))
+    );
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function activePeriod(): string {
+  const now = new Date();
+  return `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function toIso(v: unknown): string | null {
+  if (v == null) return null;
+  if (v instanceof Date) return v.toISOString();
+  if (typeof v === "string") {
+    // raw SQL returns timestamp without TZ as space-separated strings.
+    return new Date(
+      /[zZ]|[+-]\d{2}:?\d{2}$/.test(v) ? v : v.replace(" ", "T") + "Z"
+    ).toISOString();
+  }
+  return null;
+}
+
+export default router;

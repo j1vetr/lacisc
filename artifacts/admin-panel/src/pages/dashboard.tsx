@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Link } from "wouter";
 import {
   Database,
@@ -10,30 +10,100 @@ import {
   Clock,
   ArrowRight,
   Terminal,
+  Satellite,
 } from "lucide-react";
 import {
   useGetDashboardSummary,
   getGetDashboardSummaryQueryKey,
   useGetKits,
   getGetKitsQueryKey,
+  useGetStarlinkTerminals,
+  getGetStarlinkTerminalsQueryKey,
+  useGetStarlinkSettings,
+  getGetStarlinkSettingsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { formatNumber, formatDate } from "@/lib/format";
 
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
+type MergedKitRow = {
+  source: "satcom" | "starlink";
+  kitNo: string;
+  shipName: string | null;
+  totalGib: number;
+};
+
 export default function Dashboard() {
   useDocumentTitle("Panel");
-  const { data: summary, isLoading, isError, error } = useGetDashboardSummary({ query: { queryKey: getGetDashboardSummaryQueryKey() } });
-  const { data: kits, isLoading: kitsLoading } = useGetKits(
+  const { data: summary, isLoading, isError, error } = useGetDashboardSummary({
+    query: { queryKey: getGetDashboardSummaryQueryKey() },
+  });
+  const { data: satcomKits, isLoading: kitsLoading } = useGetKits(
     { sortBy: "totalGib" },
     { query: { queryKey: getGetKitsQueryKey({ sortBy: "totalGib" }) } }
   );
+
+  // Starlink data only fetched when integration is on.
+  const { data: starlinkSettings } = useGetStarlinkSettings({
+    query: { queryKey: getGetStarlinkSettingsQueryKey(), staleTime: 60_000 },
+  });
+  const starlinkActive =
+    !!starlinkSettings?.enabled && !!starlinkSettings?.hasToken;
+  const { data: starlinkTerminals, isLoading: starlinkLoading } =
+    useGetStarlinkTerminals({
+      query: {
+        queryKey: getGetStarlinkTerminalsQueryKey(),
+        enabled: starlinkActive,
+      },
+    });
+
   const queryClient = useQueryClient();
+
+  // Merge top terminals from both sources for the headline list.
+  const mergedTop: MergedKitRow[] = useMemo(() => {
+    const out: MergedKitRow[] = [];
+    for (const k of satcomKits ?? []) {
+      out.push({
+        source: "satcom",
+        kitNo: k.kitNo,
+        shipName: k.shipName ?? null,
+        totalGib: k.totalGib ?? 0,
+      });
+    }
+    for (const t of starlinkTerminals ?? []) {
+      out.push({
+        source: "starlink",
+        kitNo: t.kitSerialNumber,
+        shipName: t.nickname || t.assetName || null,
+        totalGib: t.currentPeriodTotalGb ?? 0,
+      });
+    }
+    out.sort((a, b) => b.totalGib - a.totalGib);
+    return out;
+  }, [satcomKits, starlinkTerminals]);
+
+  // Combined KPIs — Satcom totals come from the summary endpoint (already
+  // index-backed); Starlink totals are summed client-side from the terminal
+  // snapshot we just fetched, so the dashboard reflects both sources.
+  const starlinkKitCount = starlinkTerminals?.length ?? 0;
+  const starlinkTotalGib = useMemo(
+    () =>
+      (starlinkTerminals ?? []).reduce(
+        (s, t) => s + (t.currentPeriodTotalGb ?? 0),
+        0
+      ),
+    [starlinkTerminals]
+  );
+  const totalKitsCombined =
+    (summary?.totalKits ?? 0) + (starlinkActive ? starlinkKitCount : 0);
+  const totalGibCombined =
+    (summary?.totalGib ?? 0) + (starlinkActive ? starlinkTotalGib : 0);
 
   if (isError) {
     return (
@@ -63,28 +133,43 @@ export default function Dashboard() {
             {isLoading ? (
               <Skeleton className="h-10 w-24 rounded" />
             ) : (
-              <div className="text-3xl font-normal tracking-tight text-foreground font-mono">
-                {formatNumber(summary?.totalKits, 0)}
-              </div>
+              <>
+                <div className="text-3xl font-normal tracking-tight text-foreground font-mono">
+                  {formatNumber(totalKitsCombined, 0)}
+                </div>
+                {starlinkActive && (
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1 font-mono">
+                    {summary?.totalKits ?? 0} satcom · {starlinkKitCount} starlink
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
-        
+
         <Card className="border border-border bg-card shadow-none rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
-            <CardTitle className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Toplam GiB</CardTitle>
+            <CardTitle className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Toplam GB (Aktif Dönem)</CardTitle>
             <HardDrive className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <Skeleton className="h-10 w-32 rounded" />
             ) : (
-              <div className="flex items-baseline gap-2">
-                <div className="text-3xl font-normal tracking-tight text-foreground font-mono">
-                  {formatNumber(summary?.totalGib, 2)}
+              <>
+                <div className="flex items-baseline gap-2">
+                  <div className="text-3xl font-normal tracking-tight text-foreground font-mono">
+                    {formatNumber(totalGibCombined, 2)}
+                  </div>
+                  <span className="text-sm font-medium text-muted-foreground">GB</span>
                 </div>
-                <span className="text-sm font-medium text-muted-foreground">GB</span>
-              </div>
+                {starlinkActive && (
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1 font-mono">
+                    {formatNumber(summary?.totalGib ?? 0, 1)} satcom ·{" "}
+                    {formatNumber(starlinkTotalGib, 1)} starlink
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -123,39 +208,60 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent className="flex-1">
-            {kitsLoading ? (
+            {kitsLoading || (starlinkActive && starlinkLoading) ? (
               <div className="space-y-2">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Skeleton key={i} className="h-12 w-full rounded-lg" />
                 ))}
               </div>
-            ) : !kits || kits.length === 0 ? (
+            ) : mergedTop.length === 0 ? (
               <div className="text-center py-12 text-sm text-muted-foreground">Henüz KIT verisi yok.</div>
             ) : (
               <div className="divide-y divide-border">
-                {kits.map((row) => (
-                  <Link key={row.kitNo} href={`/kits/${encodeURIComponent(row.kitNo)}`}>
-                    <div className="flex items-center justify-between py-3 hover:bg-secondary/50 -mx-2 px-2 rounded-md cursor-pointer transition-colors group">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="p-1.5 rounded-md bg-secondary text-muted-foreground shrink-0">
-                          <Terminal className="w-4 h-4" />
+                {mergedTop.map((row) => {
+                  const isStar = row.source === "starlink";
+                  return (
+                    <Link
+                      key={`${row.source}:${row.kitNo}`}
+                      href={`/kits/${encodeURIComponent(row.kitNo)}`}
+                    >
+                      <div className="flex items-center justify-between py-3 hover:bg-secondary/50 -mx-2 px-2 rounded-md cursor-pointer transition-colors group">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="p-1.5 rounded-md bg-secondary text-muted-foreground shrink-0">
+                            {isStar ? (
+                              <Satellite className="w-4 h-4" />
+                            ) : (
+                              <Terminal className="w-4 h-4" />
+                            )}
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-mono text-[13px] text-foreground truncate">{row.kitNo}</span>
+                              {isStar ? (
+                                <Badge className="bg-[#dde9f7] text-[#2563a6] border-[#9fbbe0] hover:bg-[#dde9f7] uppercase tracking-widest text-[9px] font-semibold shrink-0">
+                                  Tototheo
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-[#fde0d0] text-[#a4400a] border-[#f4b896] hover:bg-[#fde0d0] uppercase tracking-widest text-[9px] font-semibold shrink-0">
+                                  Satcom
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-[11px] text-muted-foreground truncate" title={row.shipName || undefined}>
+                              {row.shipName || "—"}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="font-mono text-[13px] text-foreground truncate">{row.kitNo}</span>
-                          <span className="text-[11px] text-muted-foreground truncate" title={row.shipName || undefined}>
-                            {row.shipName || "—"}
-                          </span>
+                        <div className="flex items-center gap-3 sm:gap-6 shrink-0">
+                          <div className="text-right min-w-[80px]">
+                            <div className="font-mono text-[12px] sm:text-[13px] text-foreground">{formatNumber(row.totalGib, 2)}</div>
+                            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">GB</div>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 sm:gap-6 shrink-0">
-                        <div className="text-right min-w-[80px]">
-                          <div className="font-mono text-[12px] sm:text-[13px] text-foreground">{formatNumber(row.totalGib, 2)}</div>
-                          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">GB</div>
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -197,10 +303,28 @@ export default function Dashboard() {
                        summary?.lastSyncStatus === 'running' ? 'Çalışıyor' : 'Bekliyor'}
                     </div>
                     <div className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate">
-                      {summary?.lastSuccessSyncAt ? formatDate(summary.lastSuccessSyncAt) : "İlk sync bekleniyor"}
+                      Satcom: {summary?.lastSuccessSyncAt ? formatDate(summary.lastSuccessSyncAt) : "İlk sync bekleniyor"}
                     </div>
                   </div>
                 </div>
+
+                {starlinkActive && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg border border-[#9fbbe0]/60 bg-[#dde9f7]/40">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-[#9fbbe0] text-foreground">
+                      <Satellite className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-medium text-foreground leading-tight">
+                        Tototheo
+                      </div>
+                      <div className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate">
+                        {starlinkSettings?.lastSyncAt
+                          ? formatDate(starlinkSettings.lastSyncAt)
+                          : "İlk sync bekleniyor"}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {summary?.lastSyncError && (
                   <div className="p-3 rounded-lg border border-[#dfa88f] bg-[#dfa88f]/10">

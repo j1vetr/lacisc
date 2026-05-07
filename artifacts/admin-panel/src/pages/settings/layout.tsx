@@ -1,10 +1,11 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
-import { Server, Mail, AlertTriangle } from "lucide-react";
+import { Server, Mail, AlertTriangle, Satellite } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
 const TABS = [
   { href: "/settings", label: "Hesaplar", icon: Server },
+  { href: "/settings/starlink", label: "Starlink API", icon: Satellite },
   { href: "/settings/email", label: "E-posta & Alarmlar", icon: Mail },
   { href: "/settings/danger", label: "Tehlike Bölgesi", icon: AlertTriangle },
 ];

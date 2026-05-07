@@ -277,6 +277,11 @@ export const SyncNowResponse = zod.object({
  */
 export const GetSyncProgressResponse = zod.object({
   running: zod.boolean(),
+  phase: zod
+    .enum(["idle", "starlink", "satcom"])
+    .describe(
+      "Mevcut faz — birleşik turda Starlink önce, Satcom sonra çalışır.",
+    ),
   startedAt: zod.number().nullish(),
   finishedAt: zod.number().nullish(),
   totalAccounts: zod.number(),
@@ -293,6 +298,12 @@ export const GetSyncProgressResponse = zod.object({
   rowsUpdated: zod.number(),
   rowsFound: zod.number(),
   failures: zod.number(),
+  starlinkTotalTerminals: zod.number(),
+  starlinkProcessedTerminals: zod.number(),
+  starlinkSuccessTerminals: zod.number(),
+  starlinkFailures: zod.number(),
+  currentTerminalKit: zod.string().nullish(),
+  currentTerminalLabel: zod.string().nullish(),
   events: zod.array(
     zod.object({
       ts: zod.number().describe("Unix epoch ms"),
@@ -486,6 +497,161 @@ export const GetDashboardSummaryResponse = zod.object({
   lastSyncRecordsInserted: zod.number().nullish(),
   lastSyncRecordsUpdated: zod.number().nullish(),
 });
+
+/**
+ * @summary Tototheo TM Starlink API ayarlarını döner (token gizli).
+ */
+export const GetStarlinkSettingsResponse = zod.object({
+  enabled: zod.boolean(),
+  apiBaseUrl: zod.string(),
+  hasToken: zod
+    .boolean()
+    .describe("true → kayıtlı token var (gerçek değer dönmez)"),
+  lastSyncAt: zod.coerce.date().nullish(),
+  lastErrorMessage: zod.string().nullish(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Tototheo API token / endpoint / aktif durumunu günceller.
+ */
+export const UpdateStarlinkSettingsBody = zod.object({
+  enabled: zod.boolean().optional(),
+  apiBaseUrl: zod.string().optional(),
+  token: zod
+    .string()
+    .nullish()
+    .describe(
+      "undefined → değişmez, '' veya null → token temizlenir, dolu → yeni token.",
+    ),
+});
+
+export const UpdateStarlinkSettingsResponse = zod.object({
+  enabled: zod.boolean(),
+  apiBaseUrl: zod.string(),
+  hasToken: zod
+    .boolean()
+    .describe("true → kayıtlı token var (gerçek değer dönmez)"),
+  lastSyncAt: zod.coerce.date().nullish(),
+  lastErrorMessage: zod.string().nullish(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Tototheo API bağlantısını test eder.
+ */
+export const TestStarlinkConnectionBody = zod.object({
+  apiBaseUrl: zod.string().optional(),
+  token: zod.string().nullish(),
+});
+
+export const TestStarlinkConnectionResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string(),
+  terminalCount: zod.number().optional(),
+});
+
+/**
+ * @summary Starlink senkronizasyonunu manuel başlatır (fire-and-forget).
+ */
+export const SyncStarlinkNowResponse = zod.object({
+  message: zod.string(),
+});
+
+/**
+ * @summary Starlink terminalleri (aktif dönem GB'a göre sıralı).
+ */
+export const GetStarlinkTerminalsResponseItem = zod.object({
+  kitSerialNumber: zod.string(),
+  nickname: zod.string().nullish(),
+  assetName: zod.string().nullish(),
+  isOnline: zod.boolean().nullish(),
+  activated: zod.boolean().nullish(),
+  blocked: zod.boolean().nullish(),
+  signalQuality: zod.number().nullish(),
+  latency: zod.number().nullish(),
+  obstruction: zod.number().nullish(),
+  downloadSpeed: zod.number().nullish(),
+  uploadSpeed: zod.number().nullish(),
+  lat: zod.number().nullish(),
+  lng: zod.number().nullish(),
+  lastFixAt: zod.coerce.date().nullish(),
+  activeAlertsCount: zod.number(),
+  lastSeenAt: zod.coerce.date().nullish(),
+  updatedAt: zod.coerce.date().nullish(),
+  currentPeriodTotalGb: zod.number().nullish(),
+  currentPeriodPackageGb: zod.number().nullish(),
+  currentPeriodPriorityGb: zod.number().nullish(),
+  currentPeriodOverageGb: zod.number().nullish(),
+});
+export const GetStarlinkTerminalsResponse = zod.array(
+  GetStarlinkTerminalsResponseItem,
+);
+
+export const GetStarlinkTerminalDetailParams = zod.object({
+  kit: zod.coerce.string(),
+});
+
+export const GetStarlinkTerminalDetailResponse = zod.object({
+  kitSerialNumber: zod.string(),
+  nickname: zod.string().nullish(),
+  assetName: zod.string().nullish(),
+  isOnline: zod.boolean().nullish(),
+  activated: zod.boolean().nullish(),
+  blocked: zod.boolean().nullish(),
+  signalQuality: zod.number().nullish(),
+  latency: zod.number().nullish(),
+  obstruction: zod.number().nullish(),
+  downloadSpeed: zod.number().nullish(),
+  uploadSpeed: zod.number().nullish(),
+  lat: zod.number().nullish(),
+  lng: zod.number().nullish(),
+  lastFixAt: zod.coerce.date().nullish(),
+  activeAlertsCount: zod.number(),
+  lastSeenAt: zod.coerce.date().nullish(),
+  updatedAt: zod.coerce.date().nullish(),
+  currentPeriod: zod.string().nullish(),
+  currentPeriodTotalGb: zod.number().nullish(),
+  currentPeriodPackageGb: zod.number().nullish(),
+  currentPeriodPriorityGb: zod.number().nullish(),
+  currentPeriodOverageGb: zod.number().nullish(),
+});
+
+export const GetStarlinkTerminalDailyParams = zod.object({
+  kit: zod.coerce.string(),
+});
+
+export const GetStarlinkTerminalDailyQueryParams = zod.object({
+  period: zod.coerce.string().optional(),
+});
+
+export const GetStarlinkTerminalDailyResponseItem = zod.object({
+  dayDate: zod.string().describe("YYYY-MM-DD"),
+  cumulativePackageGb: zod.number().nullish(),
+  deltaPackageGb: zod.number().nullish(),
+  deltaPriorityGb: zod.number().nullish(),
+  deltaOverageGb: zod.number().nullish(),
+  lastReadingAt: zod.coerce.date().nullish(),
+});
+export const GetStarlinkTerminalDailyResponse = zod.array(
+  GetStarlinkTerminalDailyResponseItem,
+);
+
+export const GetStarlinkTerminalMonthlyParams = zod.object({
+  kit: zod.coerce.string(),
+});
+
+export const GetStarlinkTerminalMonthlyResponseItem = zod.object({
+  period: zod.string(),
+  totalGb: zod.number().nullish(),
+  packageUsageGb: zod.number().nullish(),
+  priorityGb: zod.number().nullish(),
+  overageGb: zod.number().nullish(),
+  scrapedAt: zod.coerce.date().nullish(),
+});
+export const GetStarlinkTerminalMonthlyResponse = zod.array(
+  GetStarlinkTerminalMonthlyResponseItem,
+);
 
 export const ListAdminUsersResponseItem = zod.object({
   id: zod.number(),

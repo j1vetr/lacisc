@@ -243,8 +243,22 @@ export interface AccountResult {
   recordsUpdated: number;
 }
 
+/**
+ * Mevcut faz — birleşik turda Starlink önce, Satcom sonra çalışır.
+ */
+export type SyncProgressPhase =
+  (typeof SyncProgressPhase)[keyof typeof SyncProgressPhase];
+
+export const SyncProgressPhase = {
+  idle: "idle",
+  starlink: "starlink",
+  satcom: "satcom",
+} as const;
+
 export interface SyncProgress {
   running: boolean;
+  /** Mevcut faz — birleşik turda Starlink önce, Satcom sonra çalışır. */
+  phase: SyncProgressPhase;
   startedAt?: number | null;
   finishedAt?: number | null;
   totalAccounts: number;
@@ -261,9 +275,106 @@ export interface SyncProgress {
   rowsUpdated: number;
   rowsFound: number;
   failures: number;
+  starlinkTotalTerminals: number;
+  starlinkProcessedTerminals: number;
+  starlinkSuccessTerminals: number;
+  starlinkFailures: number;
+  currentTerminalKit?: string | null;
+  currentTerminalLabel?: string | null;
   events: SyncEvent[];
   accountResults: AccountResult[];
   lastMessage?: string | null;
+}
+
+export interface StarlinkSettings {
+  enabled: boolean;
+  apiBaseUrl: string;
+  /** true → kayıtlı token var (gerçek değer dönmez) */
+  hasToken: boolean;
+  lastSyncAt?: string | null;
+  lastErrorMessage?: string | null;
+  updatedAt: string;
+}
+
+export interface StarlinkSettingsUpdate {
+  enabled?: boolean;
+  apiBaseUrl?: string;
+  /** undefined → değişmez, '' veya null → token temizlenir, dolu → yeni token. */
+  token?: string | null;
+}
+
+export interface StarlinkTestResult {
+  success: boolean;
+  message: string;
+  terminalCount?: number;
+}
+
+export interface StarlinkTerminalSummary {
+  kitSerialNumber: string;
+  nickname?: string | null;
+  assetName?: string | null;
+  isOnline?: boolean | null;
+  activated?: boolean | null;
+  blocked?: boolean | null;
+  signalQuality?: number | null;
+  latency?: number | null;
+  obstruction?: number | null;
+  downloadSpeed?: number | null;
+  uploadSpeed?: number | null;
+  lat?: number | null;
+  lng?: number | null;
+  lastFixAt?: string | null;
+  activeAlertsCount: number;
+  lastSeenAt?: string | null;
+  updatedAt?: string | null;
+  currentPeriodTotalGb?: number | null;
+  currentPeriodPackageGb?: number | null;
+  currentPeriodPriorityGb?: number | null;
+  currentPeriodOverageGb?: number | null;
+}
+
+export interface StarlinkTerminalDetail {
+  kitSerialNumber: string;
+  nickname?: string | null;
+  assetName?: string | null;
+  isOnline?: boolean | null;
+  activated?: boolean | null;
+  blocked?: boolean | null;
+  signalQuality?: number | null;
+  latency?: number | null;
+  obstruction?: number | null;
+  downloadSpeed?: number | null;
+  uploadSpeed?: number | null;
+  lat?: number | null;
+  lng?: number | null;
+  lastFixAt?: string | null;
+  activeAlertsCount: number;
+  lastSeenAt?: string | null;
+  updatedAt?: string | null;
+  currentPeriod?: string | null;
+  currentPeriodTotalGb?: number | null;
+  currentPeriodPackageGb?: number | null;
+  currentPeriodPriorityGb?: number | null;
+  currentPeriodOverageGb?: number | null;
+}
+
+export interface StarlinkDailyPoint {
+  /** YYYY-MM-DD */
+  dayDate: string;
+  cumulativePackageGb?: number | null;
+  deltaPackageGb?: number | null;
+  deltaPriorityGb?: number | null;
+  deltaOverageGb?: number | null;
+  lastReadingAt?: string | null;
+}
+
+export interface StarlinkMonthlyPoint {
+  period: string;
+  totalGb?: number | null;
+  packageUsageGb?: number | null;
+  priorityGb?: number | null;
+  overageGb?: number | null;
+  scrapedAt?: string | null;
 }
 
 export interface EmailSettings {
@@ -414,6 +525,15 @@ export const GetKitsSortBy = {
 } as const;
 
 export type GetKitDailyParams = {
+  period?: string;
+};
+
+export type TestStarlinkConnectionBody = {
+  apiBaseUrl?: string;
+  token?: string | null;
+};
+
+export type GetStarlinkTerminalDailyParams = {
   period?: string;
 };
 

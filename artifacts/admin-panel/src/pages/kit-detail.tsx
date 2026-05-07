@@ -45,6 +45,13 @@ import {
 } from "@/components/ui/select";
 import { formatNumber, formatDate } from "@/lib/format";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import StarlinkDetail from "./starlink-detail";
+
+// Satcom KIT IDs follow the "KITPxxxx" pattern (KITP + digits). Anything else
+// (e.g. Tototheo's "KITxxxxxxxxxx") is routed to the Starlink detail view.
+function isStarlinkKit(kitNo: string): boolean {
+  return !/^KITP\d/i.test(kitNo);
+}
 
 function formatPeriodLabel(period?: string | null) {
   if (!period) return "-";
@@ -61,12 +68,21 @@ function formatDay(dayDate: string) {
   return dayDate;
 }
 
+// Wrapper picks the correct view based on KIT prefix. Done at the top of the
+// component tree (before any hooks) so the per-source children own their own
+// hook order — avoids react-hooks/rules-of-hooks violations across branches.
 export default function KitDetail() {
   const [, params] = useRoute("/kits/:kitNo");
   const rawKitNo = params?.kitNo ?? "";
   const kitNo = decodeURIComponent(rawKitNo);
-  useDocumentTitle(kitNo);
+  if (kitNo && isStarlinkKit(kitNo)) {
+    return <StarlinkDetail kit={kitNo} />;
+  }
+  return <SatcomKitDetail kitNo={kitNo} />;
+}
 
+function SatcomKitDetail({ kitNo }: { kitNo: string }) {
+  useDocumentTitle(kitNo);
   const [selectedPeriod, setSelectedPeriod] = useState<string | undefined>(undefined);
 
   const { data: detail, isLoading: detailLoading } = useGetKitDetail(kitNo, {

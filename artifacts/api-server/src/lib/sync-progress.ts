@@ -1,9 +1,13 @@
 // In-memory live progress state for the active (or last) sync run. Polled by
-// the admin panel every ~1.5s while a sync is running so the UI can show:
-//   "Hesap 2/3 · Dönem 4/5 · KIT 15/40  →  yilmazlarBalik · 202604 · KITP00409812"
-// plus a scrolling event feed.
+// the admin panel every ~1.5s while a sync is running. A full tick now has
+// two phases: Starlink (Tototheo API) → Satcom (Playwright scraper).
+//
+// `phase` reflects which one is currently active. The Satcom-specific fields
+// (totalAccounts, currentKit, etc.) are kept for backward compat; the new
+// starlink* fields are populated during the Starlink phase.
 
 export type SyncEventLevel = "info" | "warn" | "error" | "success";
+export type SyncPhase = "idle" | "starlink" | "satcom";
 
 export interface SyncEvent {
   ts: number;
@@ -23,26 +27,36 @@ export interface AccountResult {
 
 export interface SyncProgress {
   running: boolean;
+  phase: SyncPhase;
   startedAt: number | null;
   finishedAt: number | null;
 
+  // Satcom phase counters
   totalAccounts: number;
-  currentAccountIndex: number; // 1-based for display
+  currentAccountIndex: number;
   currentAccountId: number | null;
   currentAccountLabel: string | null;
 
   totalPeriods: number;
-  currentPeriodIndex: number; // 1-based
+  currentPeriodIndex: number;
   currentPeriod: string | null;
 
   totalKits: number;
-  currentKitIndex: number; // 1-based
+  currentKitIndex: number;
   currentKit: string | null;
 
   rowsInserted: number;
   rowsUpdated: number;
   rowsFound: number;
   failures: number;
+
+  // Starlink phase counters
+  starlinkTotalTerminals: number;
+  starlinkProcessedTerminals: number;
+  starlinkSuccessTerminals: number;
+  starlinkFailures: number;
+  currentTerminalKit: string | null;
+  currentTerminalLabel: string | null;
 
   events: SyncEvent[];
   accountResults: AccountResult[];
@@ -56,6 +70,7 @@ let state: SyncProgress = freshState();
 function freshState(): SyncProgress {
   return {
     running: false,
+    phase: "idle",
     startedAt: null,
     finishedAt: null,
     totalAccounts: 0,
@@ -72,6 +87,12 @@ function freshState(): SyncProgress {
     rowsUpdated: 0,
     rowsFound: 0,
     failures: 0,
+    starlinkTotalTerminals: 0,
+    starlinkProcessedTerminals: 0,
+    starlinkSuccessTerminals: 0,
+    starlinkFailures: 0,
+    currentTerminalKit: null,
+    currentTerminalLabel: null,
     events: [],
     accountResults: [],
     lastMessage: null,
@@ -86,14 +107,126 @@ export function isRunning(): boolean {
   return state.running;
 }
 
-export function startRun(totalAccounts: number): void {
+// ---------------------------------------------------------------------------
+// Multi-phase orchestration helpers
+// ---------------------------------------------------------------------------
+
+// Start a fresh combined run (Starlink + Satcom). Resets all counters.
+// Caller follows up with startStarlinkPhase() and/or startRun() (Satcom).
+export function startCombinedRun(): void {
   state = {
     ...freshState(),
     running: true,
     startedAt: Date.now(),
-    totalAccounts,
   };
-  pushEvent("info", `Senkronizasyon başladı — ${totalAccounts} hesap kuyruğa alındı.`);
+  pushEvent("info", "Senkronizasyon turu başladı.");
+}
+
+export function finishCombinedRun(message: string, success: boolean): void {
+  state.running = false;
+  state.phase = "idle";
+  state.finishedAt = Date.now();
+  state.lastMessage = message;
+  state.currentKit = null;
+  state.currentPeriod = null;
+  state.currentAccountLabel = null;
+  state.currentTerminalKit = null;
+  state.currentTerminalLabel = null;
+  pushEvent(success ? "success" : "error", message);
+}
+
+// ---------------------------------------------------------------------------
+// Starlink phase
+// ---------------------------------------------------------------------------
+
+export function startStarlinkPhase(): void {
+  // If no combined run is active (caller hit Starlink-only sync directly),
+  // bootstrap the run state ourselves.
+  if (!state.running) {
+    state = { ...freshState(), running: true, startedAt: Date.now() };
+  }
+  state.phase = "starlink";
+  state.starlinkTotalTerminals = 0;
+  state.starlinkProcessedTerminals = 0;
+  state.starlinkSuccessTerminals = 0;
+  state.starlinkFailures = 0;
+  state.currentTerminalKit = null;
+  state.currentTerminalLabel = null;
+  pushEvent("info", "Starlink (Tototheo) fazı başladı.");
+}
+
+export function setStarlinkPlan(totalTerminals: number): void {
+  state.starlinkTotalTerminals = totalTerminals;
+  pushEvent("info", `Starlink: ${totalTerminals} terminal kuyruğa alındı.`);
+}
+
+export function startStarlinkTerminal(
+  kitSerialNumber: string,
+  label: string,
+  index: number
+): void {
+  state.currentTerminalKit = kitSerialNumber;
+  state.currentTerminalLabel = label;
+  state.starlinkProcessedTerminals = index;
+}
+
+export function reportStarlinkDone(
+  kitSerialNumber: string,
+  totalGb: number | null
+): void {
+  state.starlinkSuccessTerminals += 1;
+  pushEvent(
+    "success",
+    `${kitSerialNumber}${
+      totalGb != null ? ` → ${totalGb.toFixed(2)} GB` : ""
+    }`
+  );
+}
+
+export function reportStarlinkFailure(
+  kitSerialNumber: string,
+  reason: string
+): void {
+  state.starlinkFailures += 1;
+  pushEvent("warn", `${kitSerialNumber} atlandı: ${reason}`);
+}
+
+export function finishStarlinkPhase(message: string, success: boolean): void {
+  pushEvent(success ? "success" : "error", message);
+  state.currentTerminalKit = null;
+  state.currentTerminalLabel = null;
+  // Don't flip running=false here — Satcom may follow.
+}
+
+// ---------------------------------------------------------------------------
+// Satcom phase (existing API, used by the Playwright scraper orchestrator)
+// ---------------------------------------------------------------------------
+
+export function startRun(totalAccounts: number): void {
+  // Bootstrap if no combined run is active (caller invoked Satcom directly).
+  if (!state.running) {
+    state = { ...freshState(), running: true, startedAt: Date.now() };
+  }
+  state.phase = "satcom";
+  state.totalAccounts = totalAccounts;
+  state.currentAccountIndex = 0;
+  state.currentAccountId = null;
+  state.currentAccountLabel = null;
+  state.totalPeriods = 0;
+  state.currentPeriodIndex = 0;
+  state.currentPeriod = null;
+  state.totalKits = 0;
+  state.currentKitIndex = 0;
+  state.currentKit = null;
+  state.rowsInserted = 0;
+  state.rowsUpdated = 0;
+  state.rowsFound = 0;
+  state.failures = 0;
+  state.accountResults = [];
+  pushEvent(
+    "info",
+    `Satcom fazı başladı — ${totalAccounts} hesap kuyruğa alındı.`
+  );
 }
 
 export function startAccount(
@@ -104,7 +237,6 @@ export function startAccount(
   state.currentAccountId = credentialId;
   state.currentAccountLabel = label;
   state.currentAccountIndex = index;
-  // Reset per-account scoped fields.
   state.totalPeriods = 0;
   state.currentPeriodIndex = 0;
   state.currentPeriod = null;
@@ -120,10 +252,7 @@ export function startAccount(
 export function setAccountPlan(totalPeriods: number, totalKits: number): void {
   state.totalPeriods = totalPeriods;
   state.totalKits = totalKits;
-  pushEvent(
-    "info",
-    `Plan: ${totalKits} KIT × ${totalPeriods} dönem`
-  );
+  pushEvent("info", `Plan: ${totalKits} KIT × ${totalPeriods} dönem`);
 }
 
 export function startPeriod(period: string, index: number): void {
@@ -176,13 +305,20 @@ export function finishAccount(result: AccountResult): void {
 }
 
 export function finishRun(message: string, success: boolean): void {
-  state.running = false;
-  state.finishedAt = Date.now();
+  // Legacy Satcom-only finish — used when Satcom is the only phase. If a
+  // combined run is in flight, the caller (scheduler / sync-now route) will
+  // call finishCombinedRun() afterward to flip running=false. Otherwise
+  // handle it here so single-phase callers still work.
   state.lastMessage = message;
   state.currentKit = null;
   state.currentPeriod = null;
   state.currentAccountLabel = null;
   pushEvent(success ? "success" : "error", message);
+  if (state.phase !== "starlink") {
+    state.running = false;
+    state.phase = "idle";
+    state.finishedAt = Date.now();
+  }
 }
 
 export function pushEvent(level: SyncEventLevel, message: string): void {

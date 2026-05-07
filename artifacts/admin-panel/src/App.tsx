@@ -19,6 +19,7 @@ const Kits = lazy(() => import("./pages/kits"));
 const KitDetail = lazy(() => import("./pages/kit-detail"));
 const SyncLogs = lazy(() => import("./pages/sync-logs"));
 const SettingsAccounts = lazy(() => import("./pages/settings/accounts"));
+const SettingsStarlink = lazy(() => import("./pages/settings/starlink"));
 const SettingsEmail = lazy(() => import("./pages/settings/email"));
 const SettingsDanger = lazy(() => import("./pages/settings/danger"));
 const Profile = lazy(() => import("./pages/profile"));
@@ -126,6 +127,7 @@ function Router() {
       <Route path="/kits/:kitNo">{() => <ProtectedRoute component={KitDetail} />}</Route>
       <Route path="/sync-logs">{() => <ProtectedRoute component={SyncLogs} />}</Route>
       <Route path="/settings">{() => <ProtectedRoute component={SettingsAccounts} minRole="admin" />}</Route>
+      <Route path="/settings/starlink">{() => <ProtectedRoute component={SettingsStarlink} minRole="admin" />}</Route>
       <Route path="/settings/email">{() => <ProtectedRoute component={SettingsEmail} minRole="admin" />}</Route>
       <Route path="/settings/danger">{() => <ProtectedRoute component={SettingsDanger} minRole="admin" />}</Route>
       <Route path="/profile">{() => <ProtectedRoute component={Profile} />}</Route>

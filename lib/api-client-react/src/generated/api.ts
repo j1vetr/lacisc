@@ -30,6 +30,7 @@ import type {
   ErrorResponse,
   GetKitDailyParams,
   GetKitsParams,
+  GetStarlinkTerminalDailyParams,
   GetSyncLogsParams,
   HealthStatus,
   KitDailyPoint,
@@ -43,6 +44,13 @@ import type {
   ReadinessStatus,
   ResetPasswordBody,
   SaveStationSettingsBody,
+  StarlinkDailyPoint,
+  StarlinkMonthlyPoint,
+  StarlinkSettings,
+  StarlinkSettingsUpdate,
+  StarlinkTerminalDetail,
+  StarlinkTerminalSummary,
+  StarlinkTestResult,
   StationAccount,
   StationSettings,
   SyncLogsResponse,
@@ -51,6 +59,7 @@ import type {
   TestConnectionResponse,
   TestEmailSettings200,
   TestEmailSettingsBody,
+  TestStarlinkConnectionBody,
   UpdateAdminUserBody,
   UpdateStationAccountBody,
   WipeDataResponse,
@@ -2326,6 +2335,694 @@ export function useGetDashboardSummary<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetDashboardSummaryQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Tototheo TM Starlink API ayarlarını döner (token gizli).
+ */
+export const getGetStarlinkSettingsUrl = () => {
+  return `/api/starlink/settings`;
+};
+
+export const getStarlinkSettings = async (
+  options?: RequestInit,
+): Promise<StarlinkSettings> => {
+  return customFetch<StarlinkSettings>(getGetStarlinkSettingsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetStarlinkSettingsQueryKey = () => {
+  return [`/api/starlink/settings`] as const;
+};
+
+export const getGetStarlinkSettingsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStarlinkSettings>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getStarlinkSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetStarlinkSettingsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getStarlinkSettings>>
+  > = ({ signal }) => getStarlinkSettings({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getStarlinkSettings>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetStarlinkSettingsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStarlinkSettings>>
+>;
+export type GetStarlinkSettingsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Tototheo TM Starlink API ayarlarını döner (token gizli).
+ */
+
+export function useGetStarlinkSettings<
+  TData = Awaited<ReturnType<typeof getStarlinkSettings>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getStarlinkSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStarlinkSettingsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Tototheo API token / endpoint / aktif durumunu günceller.
+ */
+export const getUpdateStarlinkSettingsUrl = () => {
+  return `/api/starlink/settings`;
+};
+
+export const updateStarlinkSettings = async (
+  starlinkSettingsUpdate: StarlinkSettingsUpdate,
+  options?: RequestInit,
+): Promise<StarlinkSettings> => {
+  return customFetch<StarlinkSettings>(getUpdateStarlinkSettingsUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(starlinkSettingsUpdate),
+  });
+};
+
+export const getUpdateStarlinkSettingsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStarlinkSettings>>,
+    TError,
+    { data: BodyType<StarlinkSettingsUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateStarlinkSettings>>,
+  TError,
+  { data: BodyType<StarlinkSettingsUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateStarlinkSettings"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateStarlinkSettings>>,
+    { data: BodyType<StarlinkSettingsUpdate> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateStarlinkSettings(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateStarlinkSettingsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateStarlinkSettings>>
+>;
+export type UpdateStarlinkSettingsMutationBody =
+  BodyType<StarlinkSettingsUpdate>;
+export type UpdateStarlinkSettingsMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Tototheo API token / endpoint / aktif durumunu günceller.
+ */
+export const useUpdateStarlinkSettings = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStarlinkSettings>>,
+    TError,
+    { data: BodyType<StarlinkSettingsUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateStarlinkSettings>>,
+  TError,
+  { data: BodyType<StarlinkSettingsUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateStarlinkSettingsMutationOptions(options));
+};
+
+/**
+ * @summary Tototheo API bağlantısını test eder.
+ */
+export const getTestStarlinkConnectionUrl = () => {
+  return `/api/starlink/test-connection`;
+};
+
+export const testStarlinkConnection = async (
+  testStarlinkConnectionBody?: TestStarlinkConnectionBody,
+  options?: RequestInit,
+): Promise<StarlinkTestResult> => {
+  return customFetch<StarlinkTestResult>(getTestStarlinkConnectionUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(testStarlinkConnectionBody),
+  });
+};
+
+export const getTestStarlinkConnectionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testStarlinkConnection>>,
+    TError,
+    { data: BodyType<TestStarlinkConnectionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof testStarlinkConnection>>,
+  TError,
+  { data: BodyType<TestStarlinkConnectionBody> },
+  TContext
+> => {
+  const mutationKey = ["testStarlinkConnection"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof testStarlinkConnection>>,
+    { data: BodyType<TestStarlinkConnectionBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return testStarlinkConnection(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TestStarlinkConnectionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof testStarlinkConnection>>
+>;
+export type TestStarlinkConnectionMutationBody =
+  BodyType<TestStarlinkConnectionBody>;
+export type TestStarlinkConnectionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Tototheo API bağlantısını test eder.
+ */
+export const useTestStarlinkConnection = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testStarlinkConnection>>,
+    TError,
+    { data: BodyType<TestStarlinkConnectionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof testStarlinkConnection>>,
+  TError,
+  { data: BodyType<TestStarlinkConnectionBody> },
+  TContext
+> => {
+  return useMutation(getTestStarlinkConnectionMutationOptions(options));
+};
+
+/**
+ * @summary Starlink senkronizasyonunu manuel başlatır (fire-and-forget).
+ */
+export const getSyncStarlinkNowUrl = () => {
+  return `/api/starlink/sync-now`;
+};
+
+export const syncStarlinkNow = async (
+  options?: RequestInit,
+): Promise<MessageResponse> => {
+  return customFetch<MessageResponse>(getSyncStarlinkNowUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSyncStarlinkNowMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncStarlinkNow>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof syncStarlinkNow>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["syncStarlinkNow"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof syncStarlinkNow>>,
+    void
+  > = () => {
+    return syncStarlinkNow(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SyncStarlinkNowMutationResult = NonNullable<
+  Awaited<ReturnType<typeof syncStarlinkNow>>
+>;
+
+export type SyncStarlinkNowMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Starlink senkronizasyonunu manuel başlatır (fire-and-forget).
+ */
+export const useSyncStarlinkNow = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncStarlinkNow>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof syncStarlinkNow>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getSyncStarlinkNowMutationOptions(options));
+};
+
+/**
+ * @summary Starlink terminalleri (aktif dönem GB'a göre sıralı).
+ */
+export const getGetStarlinkTerminalsUrl = () => {
+  return `/api/starlink/terminals`;
+};
+
+export const getStarlinkTerminals = async (
+  options?: RequestInit,
+): Promise<StarlinkTerminalSummary[]> => {
+  return customFetch<StarlinkTerminalSummary[]>(getGetStarlinkTerminalsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetStarlinkTerminalsQueryKey = () => {
+  return [`/api/starlink/terminals`] as const;
+};
+
+export const getGetStarlinkTerminalsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStarlinkTerminals>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getStarlinkTerminals>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetStarlinkTerminalsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getStarlinkTerminals>>
+  > = ({ signal }) => getStarlinkTerminals({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getStarlinkTerminals>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetStarlinkTerminalsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStarlinkTerminals>>
+>;
+export type GetStarlinkTerminalsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Starlink terminalleri (aktif dönem GB'a göre sıralı).
+ */
+
+export function useGetStarlinkTerminals<
+  TData = Awaited<ReturnType<typeof getStarlinkTerminals>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getStarlinkTerminals>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStarlinkTerminalsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetStarlinkTerminalDetailUrl = (kit: string) => {
+  return `/api/starlink/terminals/${kit}`;
+};
+
+export const getStarlinkTerminalDetail = async (
+  kit: string,
+  options?: RequestInit,
+): Promise<StarlinkTerminalDetail> => {
+  return customFetch<StarlinkTerminalDetail>(
+    getGetStarlinkTerminalDetailUrl(kit),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetStarlinkTerminalDetailQueryKey = (kit: string) => {
+  return [`/api/starlink/terminals/${kit}`] as const;
+};
+
+export const getGetStarlinkTerminalDetailQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStarlinkTerminalDetail>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  kit: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getStarlinkTerminalDetail>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetStarlinkTerminalDetailQueryKey(kit);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getStarlinkTerminalDetail>>
+  > = ({ signal }) =>
+    getStarlinkTerminalDetail(kit, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!kit,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getStarlinkTerminalDetail>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetStarlinkTerminalDetailQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStarlinkTerminalDetail>>
+>;
+export type GetStarlinkTerminalDetailQueryError = ErrorType<ErrorResponse>;
+
+export function useGetStarlinkTerminalDetail<
+  TData = Awaited<ReturnType<typeof getStarlinkTerminalDetail>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  kit: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getStarlinkTerminalDetail>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStarlinkTerminalDetailQueryOptions(kit, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetStarlinkTerminalDailyUrl = (
+  kit: string,
+  params?: GetStarlinkTerminalDailyParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/starlink/terminals/${kit}/daily?${stringifiedParams}`
+    : `/api/starlink/terminals/${kit}/daily`;
+};
+
+export const getStarlinkTerminalDaily = async (
+  kit: string,
+  params?: GetStarlinkTerminalDailyParams,
+  options?: RequestInit,
+): Promise<StarlinkDailyPoint[]> => {
+  return customFetch<StarlinkDailyPoint[]>(
+    getGetStarlinkTerminalDailyUrl(kit, params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetStarlinkTerminalDailyQueryKey = (
+  kit: string,
+  params?: GetStarlinkTerminalDailyParams,
+) => {
+  return [
+    `/api/starlink/terminals/${kit}/daily`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetStarlinkTerminalDailyQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStarlinkTerminalDaily>>,
+  TError = ErrorType<unknown>,
+>(
+  kit: string,
+  params?: GetStarlinkTerminalDailyParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getStarlinkTerminalDaily>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetStarlinkTerminalDailyQueryKey(kit, params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getStarlinkTerminalDaily>>
+  > = ({ signal }) =>
+    getStarlinkTerminalDaily(kit, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!kit,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getStarlinkTerminalDaily>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetStarlinkTerminalDailyQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStarlinkTerminalDaily>>
+>;
+export type GetStarlinkTerminalDailyQueryError = ErrorType<unknown>;
+
+export function useGetStarlinkTerminalDaily<
+  TData = Awaited<ReturnType<typeof getStarlinkTerminalDaily>>,
+  TError = ErrorType<unknown>,
+>(
+  kit: string,
+  params?: GetStarlinkTerminalDailyParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getStarlinkTerminalDaily>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStarlinkTerminalDailyQueryOptions(
+    kit,
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetStarlinkTerminalMonthlyUrl = (kit: string) => {
+  return `/api/starlink/terminals/${kit}/monthly`;
+};
+
+export const getStarlinkTerminalMonthly = async (
+  kit: string,
+  options?: RequestInit,
+): Promise<StarlinkMonthlyPoint[]> => {
+  return customFetch<StarlinkMonthlyPoint[]>(
+    getGetStarlinkTerminalMonthlyUrl(kit),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetStarlinkTerminalMonthlyQueryKey = (kit: string) => {
+  return [`/api/starlink/terminals/${kit}/monthly`] as const;
+};
+
+export const getGetStarlinkTerminalMonthlyQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStarlinkTerminalMonthly>>,
+  TError = ErrorType<unknown>,
+>(
+  kit: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getStarlinkTerminalMonthly>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetStarlinkTerminalMonthlyQueryKey(kit);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getStarlinkTerminalMonthly>>
+  > = ({ signal }) =>
+    getStarlinkTerminalMonthly(kit, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!kit,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getStarlinkTerminalMonthly>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetStarlinkTerminalMonthlyQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStarlinkTerminalMonthly>>
+>;
+export type GetStarlinkTerminalMonthlyQueryError = ErrorType<unknown>;
+
+export function useGetStarlinkTerminalMonthly<
+  TData = Awaited<ReturnType<typeof getStarlinkTerminalMonthly>>,
+  TError = ErrorType<unknown>,
+>(
+  kit: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getStarlinkTerminalMonthly>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStarlinkTerminalMonthlyQueryOptions(kit, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

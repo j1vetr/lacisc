@@ -263,3 +263,100 @@ export const insertSyncLogSchema = createInsertSchema(stationSyncLogs).omit({
 });
 export type InsertSyncLog = z.infer<typeof insertSyncLogSchema>;
 export type SyncLog = typeof stationSyncLogs.$inferSelect;
+
+// ===========================================================================
+// Tototheo TM Starlink integration
+// ===========================================================================
+
+// Singleton (id=1) holding the Tototheo API token (AES-256-GCM encrypted)
+// + sync state. Mirrors the email_settings pattern; UI never returns the
+// token, only a `hasToken` flag.
+export const starlinkSettings = pgTable("starlink_settings", {
+  id: integer("id").primaryKey(),
+  enabled: boolean("enabled").default(false).notNull(),
+  apiBaseUrl: text("api_base_url")
+    .default("https://starlink.tototheo.com")
+    .notNull(),
+  tokenEncrypted: text("token_encrypted"),
+  lastSyncAt: timestamp("last_sync_at"),
+  lastErrorMessage: text("last_error_message"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export type StarlinkSettingsRow = typeof starlinkSettings.$inferSelect;
+
+// One row per terminal (kitSerialNumber is globally unique in Tototheo).
+// Snapshot only — every sync overwrites with the latest values; we don't
+// keep historical telemetry rows here. Daily + monthly history live in the
+// dedicated tables below.
+export const starlinkTerminals = pgTable("starlink_terminals", {
+  kitSerialNumber: text("kit_serial_number").primaryKey(),
+  nickname: text("nickname"),
+  assetName: text("asset_name"),
+  isOnline: boolean("is_online"),
+  activated: boolean("activated"),
+  blocked: boolean("blocked"),
+  signalQuality: integer("signal_quality"),
+  latency: integer("latency"),
+  obstruction: doublePrecision("obstruction"),
+  downloadSpeed: doublePrecision("download_speed"),
+  uploadSpeed: doublePrecision("upload_speed"),
+  lat: doublePrecision("lat"),
+  lng: doublePrecision("lng"),
+  lastFixAt: timestamp("last_fix_at"),
+  activeAlertsCount: integer("active_alerts_count").default(0).notNull(),
+  // Tototheo `lastUpdated` (when the terminal last reported home).
+  lastSeenAt: timestamp("last_seen_at"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export type StarlinkTerminal = typeof starlinkTerminals.$inferSelect;
+
+// Per-day cumulative cycle usage. Each ~30-min sync UPSERTS the row for
+// today with the latest cumulative `package_usage_gb` (= standard + priority
+// + overage) reading. The last UPSERT of the day naturally captures that
+// day's end-of-day value. Day-over-day delta is computed at read time:
+// `today.cumulative - yesterday.cumulative`. On cycle reset (1st of month)
+// the counter goes back to 0, so the delta for the 1st = today.cumulative
+// (vs implicit 0). The compound PK enforces idempotent upserts.
+export const starlinkTerminalDaily = pgTable(
+  "starlink_terminal_daily",
+  {
+    kitSerialNumber: text("kit_serial_number")
+      .notNull()
+      .references(() => starlinkTerminals.kitSerialNumber, {
+        onDelete: "cascade",
+      }),
+    dayDate: date("day_date").notNull(), // YYYY-MM-DD UTC
+    packageUsageGb: doublePrecision("package_usage_gb"),
+    priorityGb: doublePrecision("priority_gb"),
+    overageGb: doublePrecision("overage_gb"),
+    lastReadingAt: timestamp("last_reading_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("uq_starlink_daily").on(t.kitSerialNumber, t.dayDate),
+    index("starlink_daily_lookup_idx").on(t.kitSerialNumber, t.dayDate),
+  ]
+);
+
+// Authoritative monthly totals — from Tototheo's `poolPlanMonthlyUsage` array
+// (returned when `consumptionYear=YYYY` is passed). Source of truth for
+// per-month totals; avoids drift from summing daily snapshots.
+export const starlinkTerminalPeriodTotal = pgTable(
+  "starlink_terminal_period_total",
+  {
+    kitSerialNumber: text("kit_serial_number")
+      .notNull()
+      .references(() => starlinkTerminals.kitSerialNumber, {
+        onDelete: "cascade",
+      }),
+    period: text("period").notNull(), // YYYYMM
+    packageUsageGb: doublePrecision("package_usage_gb"),
+    priorityGb: doublePrecision("priority_gb"),
+    overageGb: doublePrecision("overage_gb"),
+    totalGb: doublePrecision("total_gb"),
+    scrapedAt: timestamp("scraped_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("uq_starlink_period_total").on(t.kitSerialNumber, t.period),
+    index("starlink_period_total_period_idx").on(t.period),
+  ]
+);

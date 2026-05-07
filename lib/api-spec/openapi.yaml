@@ -14,6 +14,7 @@ tags:
   - name: records
   - name: admin
   - name: audit
+  - name: starlink
 
 paths:
   /healthz:
@@ -604,6 +605,183 @@ paths:
               schema:
                 $ref: "#/components/schemas/DashboardSummary"
 
+  /starlink/settings:
+    get:
+      operationId: getStarlinkSettings
+      tags: [starlink]
+      summary: Tototheo TM Starlink API ayarlarını döner (token gizli).
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Starlink settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StarlinkSettings"
+    put:
+      operationId: updateStarlinkSettings
+      x-required-role: admin
+      tags: [starlink]
+      summary: Tototheo API token / endpoint / aktif durumunu günceller.
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StarlinkSettingsUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StarlinkSettings"
+
+  /starlink/test-connection:
+    post:
+      operationId: testStarlinkConnection
+      x-required-role: admin
+      tags: [starlink]
+      summary: Tototheo API bağlantısını test eder.
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                apiBaseUrl: { type: string }
+                token: { type: string, nullable: true }
+      responses:
+        "200":
+          description: Test result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StarlinkTestResult"
+
+  /starlink/sync-now:
+    post:
+      operationId: syncStarlinkNow
+      x-required-role: admin
+      tags: [starlink]
+      summary: Starlink senkronizasyonunu manuel başlatır (fire-and-forget).
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "409":
+          description: Already running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /starlink/terminals:
+    get:
+      operationId: getStarlinkTerminals
+      tags: [starlink]
+      summary: Starlink terminalleri (aktif dönem GB'a göre sıralı).
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Terminal list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StarlinkTerminalSummary"
+
+  /starlink/terminals/{kit}:
+    get:
+      operationId: getStarlinkTerminalDetail
+      tags: [starlink]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: kit
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Terminal detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StarlinkTerminalDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /starlink/terminals/{kit}/daily:
+    get:
+      operationId: getStarlinkTerminalDaily
+      tags: [starlink]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: kit
+          in: path
+          required: true
+          schema: { type: string }
+        - name: period
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Daily breakdown (deltas)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StarlinkDailyPoint"
+
+  /starlink/terminals/{kit}/monthly:
+    get:
+      operationId: getStarlinkTerminalMonthly
+      tags: [starlink]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: kit
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Monthly totals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StarlinkMonthlyPoint"
+
   /admin/users:
     get:
       operationId: listAdminUsers
@@ -1013,6 +1191,10 @@ components:
       type: object
       properties:
         running: { type: boolean }
+        phase:
+          type: string
+          enum: [idle, starlink, satcom]
+          description: "Mevcut faz — birleşik turda Starlink önce, Satcom sonra çalışır."
         startedAt: { type: integer, nullable: true }
         finishedAt: { type: integer, nullable: true }
         totalAccounts: { type: integer }
@@ -1029,6 +1211,12 @@ components:
         rowsUpdated: { type: integer }
         rowsFound: { type: integer }
         failures: { type: integer }
+        starlinkTotalTerminals: { type: integer }
+        starlinkProcessedTerminals: { type: integer }
+        starlinkSuccessTerminals: { type: integer }
+        starlinkFailures: { type: integer }
+        currentTerminalKit: { type: string, nullable: true }
+        currentTerminalLabel: { type: string, nullable: true }
         events:
           type: array
           items:
@@ -1040,6 +1228,7 @@ components:
         lastMessage: { type: string, nullable: true }
       required:
         - running
+        - phase
         - totalAccounts
         - currentAccountIndex
         - totalPeriods
@@ -1050,8 +1239,116 @@ components:
         - rowsUpdated
         - rowsFound
         - failures
+        - starlinkTotalTerminals
+        - starlinkProcessedTerminals
+        - starlinkSuccessTerminals
+        - starlinkFailures
         - events
         - accountResults
+
+    StarlinkSettings:
+      type: object
+      required: [enabled, apiBaseUrl, hasToken, updatedAt]
+      properties:
+        enabled: { type: boolean }
+        apiBaseUrl: { type: string }
+        hasToken: { type: boolean, description: "true → kayıtlı token var (gerçek değer dönmez)" }
+        lastSyncAt: { type: string, format: date-time, nullable: true }
+        lastErrorMessage: { type: string, nullable: true }
+        updatedAt: { type: string, format: date-time }
+
+    StarlinkSettingsUpdate:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        apiBaseUrl: { type: string }
+        token:
+          type: string
+          nullable: true
+          description: "undefined → değişmez, '' veya null → token temizlenir, dolu → yeni token."
+
+    StarlinkTestResult:
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        terminalCount: { type: integer }
+
+    StarlinkTerminalSummary:
+      type: object
+      required: [kitSerialNumber, activeAlertsCount]
+      properties:
+        kitSerialNumber: { type: string }
+        nickname: { type: string, nullable: true }
+        assetName: { type: string, nullable: true }
+        isOnline: { type: boolean, nullable: true }
+        activated: { type: boolean, nullable: true }
+        blocked: { type: boolean, nullable: true }
+        signalQuality: { type: integer, nullable: true }
+        latency: { type: integer, nullable: true }
+        obstruction: { type: number, nullable: true }
+        downloadSpeed: { type: number, nullable: true }
+        uploadSpeed: { type: number, nullable: true }
+        lat: { type: number, nullable: true }
+        lng: { type: number, nullable: true }
+        lastFixAt: { type: string, format: date-time, nullable: true }
+        activeAlertsCount: { type: integer }
+        lastSeenAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+        currentPeriodTotalGb: { type: number, nullable: true }
+        currentPeriodPackageGb: { type: number, nullable: true }
+        currentPeriodPriorityGb: { type: number, nullable: true }
+        currentPeriodOverageGb: { type: number, nullable: true }
+
+    StarlinkTerminalDetail:
+      type: object
+      required: [kitSerialNumber, activeAlertsCount]
+      properties:
+        kitSerialNumber: { type: string }
+        nickname: { type: string, nullable: true }
+        assetName: { type: string, nullable: true }
+        isOnline: { type: boolean, nullable: true }
+        activated: { type: boolean, nullable: true }
+        blocked: { type: boolean, nullable: true }
+        signalQuality: { type: integer, nullable: true }
+        latency: { type: integer, nullable: true }
+        obstruction: { type: number, nullable: true }
+        downloadSpeed: { type: number, nullable: true }
+        uploadSpeed: { type: number, nullable: true }
+        lat: { type: number, nullable: true }
+        lng: { type: number, nullable: true }
+        lastFixAt: { type: string, format: date-time, nullable: true }
+        activeAlertsCount: { type: integer }
+        lastSeenAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+        currentPeriod: { type: string, nullable: true }
+        currentPeriodTotalGb: { type: number, nullable: true }
+        currentPeriodPackageGb: { type: number, nullable: true }
+        currentPeriodPriorityGb: { type: number, nullable: true }
+        currentPeriodOverageGb: { type: number, nullable: true }
+
+    StarlinkDailyPoint:
+      type: object
+      required: [dayDate]
+      properties:
+        dayDate: { type: string, description: "YYYY-MM-DD" }
+        cumulativePackageGb: { type: number, nullable: true }
+        deltaPackageGb: { type: number, nullable: true }
+        deltaPriorityGb: { type: number, nullable: true }
+        deltaOverageGb: { type: number, nullable: true }
+        lastReadingAt: { type: string, format: date-time, nullable: true }
+
+    StarlinkMonthlyPoint:
+      type: object
+      required: [period]
+      properties:
+        period: { type: string }
+        totalGb: { type: number, nullable: true }
+        packageUsageGb: { type: number, nullable: true }
+        priorityGb: { type: number, nullable: true }
+        overageGb: { type: number, nullable: true }
+        scrapedAt: { type: string, format: date-time, nullable: true }
 
     EmailSettings:
       type: object
