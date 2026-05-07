@@ -10,6 +10,11 @@ import { logger } from "./logger";
 import { checkAndSendUsageAlert } from "./alerts";
 import type { Page, Browser } from "playwright";
 import * as progress from "./sync-progress";
+import {
+  fetchKitLocations,
+  fetchHourlyTelemetry,
+  enrichCardDetails,
+} from "./scraper-enrichment";
 
 export interface SyncResult {
   success: boolean;
@@ -1145,6 +1150,36 @@ export async function runSync(opts: RunSyncOptions): Promise<SyncResult> {
     await enrichShipNames(page, credentialId, kits).catch((e) =>
       logger.warn({ err: (e as Error).message }, "Ship-name enrichment failed (non-fatal)")
     );
+
+    // Task #20 — Map + Measurements + CardDetails enrichment.
+    // Hepsi best-effort; CDR scraping akışını bloklamaz. Map ve Measurements
+    // tek hesap-genelidir (KIT döngüsünden bağımsız çalışır); CardDetails
+    // KIT başınadır.
+    await fetchKitLocations(page, baseUrl, credentialId).catch((e) =>
+      logger.warn({ err: (e as Error).message }, "Map enrichment failed (non-fatal)")
+    );
+    await fetchHourlyTelemetry(page, baseUrl, credentialId, forceFull).catch(
+      (e) =>
+        logger.warn(
+          { err: (e as Error).message },
+          "Telemetry enrichment failed (non-fatal)"
+        )
+    );
+    await enrichCardDetails(page, baseUrl, credentialId, kits).catch((e) =>
+      logger.warn({ err: (e as Error).message }, "CardDetails enrichment failed (non-fatal)")
+    );
+
+    // Sonraki adım ratedCdrs grid'inde olmamızı bekliyor — enrich bizi başka
+    // sayfalara götürdü, geri dön.
+    const cdrLinkBack = page
+      .locator("a[href*='ratedCdrs.aspx' i], a[href*='RatedCdrs.aspx' i]")
+      .first();
+    if ((await cdrLinkBack.count()) > 0) {
+      await Promise.all([
+        page.waitForNavigation({ waitUntil: "networkidle", timeout: 20000 }).catch(() => {}),
+        cdrLinkBack.click().catch(() => {}),
+      ]);
+    }
 
     // 2) Period listesi belirle + full vs incremental karar ver.
     // ratedCdrs sayfasında olduğumuzdan emin ol (enrich navigate etmiş olabilir).

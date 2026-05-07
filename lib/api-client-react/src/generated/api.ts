@@ -31,15 +31,19 @@ import type {
   EmailSettingsUpdate,
   ErrorResponse,
   GetKitDailyParams,
+  GetKitTelemetryHourlyParams,
   GetKitsParams,
   GetStarlinkTerminalDailyParams,
   GetSyncLogsParams,
   HealthStatus,
   KitDailyPoint,
   KitDetail,
+  KitLocation,
   KitMonthlyPoint,
   KitSourceResponse,
+  KitSubscription,
   KitSummary,
+  KitTelemetryHourlyPoint,
   ListAuditLogsParams,
   ListSessions200Item,
   LoginBody,
@@ -2364,6 +2368,376 @@ export function useGetKitMonthly<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetKitMonthlyQueryOptions(kitNo, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Satcom KIT'in son bilinen konumu (Map sayfası snapshot'ı)
+ */
+export const getGetKitLocationUrl = (kitNo: string) => {
+  return `/api/station/kits/${kitNo}/location`;
+};
+
+export const getKitLocation = async (
+  kitNo: string,
+  options?: RequestInit,
+): Promise<KitLocation> => {
+  return customFetch<KitLocation>(getGetKitLocationUrl(kitNo), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetKitLocationQueryKey = (kitNo: string) => {
+  return [`/api/station/kits/${kitNo}/location`] as const;
+};
+
+export const getGetKitLocationQueryOptions = <
+  TData = Awaited<ReturnType<typeof getKitLocation>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  kitNo: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getKitLocation>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetKitLocationQueryKey(kitNo);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getKitLocation>>> = ({
+    signal,
+  }) => getKitLocation(kitNo, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!kitNo,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getKitLocation>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetKitLocationQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getKitLocation>>
+>;
+export type GetKitLocationQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Satcom KIT'in son bilinen konumu (Map sayfası snapshot'ı)
+ */
+
+export function useGetKitLocation<
+  TData = Awaited<ReturnType<typeof getKitLocation>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  kitNo: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getKitLocation>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetKitLocationQueryOptions(kitNo, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Tüm Satcom KIT'lerinin son konumları (Map için)
+ */
+export const getGetKitLocationsUrl = () => {
+  return `/api/station/locations`;
+};
+
+export const getKitLocations = async (
+  options?: RequestInit,
+): Promise<KitLocation[]> => {
+  return customFetch<KitLocation[]>(getGetKitLocationsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetKitLocationsQueryKey = () => {
+  return [`/api/station/locations`] as const;
+};
+
+export const getGetKitLocationsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getKitLocations>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getKitLocations>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetKitLocationsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getKitLocations>>> = ({
+    signal,
+  }) => getKitLocations({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getKitLocations>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetKitLocationsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getKitLocations>>
+>;
+export type GetKitLocationsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Tüm Satcom KIT'lerinin son konumları (Map için)
+ */
+
+export function useGetKitLocations<
+  TData = Awaited<ReturnType<typeof getKitLocations>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getKitLocations>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetKitLocationsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Satcom KIT için saatlik telemetri (DL/UL/Latency/PingDrop/Obstruction/Signal)
+ */
+export const getGetKitTelemetryHourlyUrl = (
+  kitNo: string,
+  params?: GetKitTelemetryHourlyParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/station/kits/${kitNo}/telemetry/hourly?${stringifiedParams}`
+    : `/api/station/kits/${kitNo}/telemetry/hourly`;
+};
+
+export const getKitTelemetryHourly = async (
+  kitNo: string,
+  params?: GetKitTelemetryHourlyParams,
+  options?: RequestInit,
+): Promise<KitTelemetryHourlyPoint[]> => {
+  return customFetch<KitTelemetryHourlyPoint[]>(
+    getGetKitTelemetryHourlyUrl(kitNo, params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetKitTelemetryHourlyQueryKey = (
+  kitNo: string,
+  params?: GetKitTelemetryHourlyParams,
+) => {
+  return [
+    `/api/station/kits/${kitNo}/telemetry/hourly`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetKitTelemetryHourlyQueryOptions = <
+  TData = Awaited<ReturnType<typeof getKitTelemetryHourly>>,
+  TError = ErrorType<unknown>,
+>(
+  kitNo: string,
+  params?: GetKitTelemetryHourlyParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getKitTelemetryHourly>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetKitTelemetryHourlyQueryKey(kitNo, params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getKitTelemetryHourly>>
+  > = ({ signal }) =>
+    getKitTelemetryHourly(kitNo, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!kitNo,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getKitTelemetryHourly>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetKitTelemetryHourlyQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getKitTelemetryHourly>>
+>;
+export type GetKitTelemetryHourlyQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Satcom KIT için saatlik telemetri (DL/UL/Latency/PingDrop/Obstruction/Signal)
+ */
+
+export function useGetKitTelemetryHourly<
+  TData = Awaited<ReturnType<typeof getKitTelemetryHourly>>,
+  TError = ErrorType<unknown>,
+>(
+  kitNo: string,
+  params?: GetKitTelemetryHourlyParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getKitTelemetryHourly>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetKitTelemetryHourlyQueryOptions(
+    kitNo,
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Satcom KIT abonelik geçmişi (CardDetails grid'i)
+ */
+export const getGetKitSubscriptionsUrl = (kitNo: string) => {
+  return `/api/station/kits/${kitNo}/subscriptions`;
+};
+
+export const getKitSubscriptions = async (
+  kitNo: string,
+  options?: RequestInit,
+): Promise<KitSubscription[]> => {
+  return customFetch<KitSubscription[]>(getGetKitSubscriptionsUrl(kitNo), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetKitSubscriptionsQueryKey = (kitNo: string) => {
+  return [`/api/station/kits/${kitNo}/subscriptions`] as const;
+};
+
+export const getGetKitSubscriptionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getKitSubscriptions>>,
+  TError = ErrorType<unknown>,
+>(
+  kitNo: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getKitSubscriptions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetKitSubscriptionsQueryKey(kitNo);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getKitSubscriptions>>
+  > = ({ signal }) => getKitSubscriptions(kitNo, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!kitNo,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getKitSubscriptions>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetKitSubscriptionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getKitSubscriptions>>
+>;
+export type GetKitSubscriptionsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Satcom KIT abonelik geçmişi (CardDetails grid'i)
+ */
+
+export function useGetKitSubscriptions<
+  TData = Awaited<ReturnType<typeof getKitSubscriptions>>,
+  TError = ErrorType<unknown>,
+>(
+  kitNo: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getKitSubscriptions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetKitSubscriptionsQueryOptions(kitNo, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

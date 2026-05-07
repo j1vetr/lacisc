@@ -467,6 +467,21 @@ export const GetKitDetailResponse = zod.object({
   totalUsd: zod.number().nullish(),
   rowCount: zod.number(),
   lastSyncedAt: zod.coerce.date().nullish(),
+  imsi: zod.string().nullish(),
+  imei: zod.string().nullish(),
+  mobileNumber: zod.string().nullish(),
+  costCenter: zod.string().nullish(),
+  activationDate: zod.string().nullish().describe("YYYY-MM-DD"),
+  activePlanName: zod.string().nullish(),
+  activePlanStartedAt: zod.string().nullish().describe("YYYY-MM-DD"),
+  activeSubscriptionId: zod.string().nullish(),
+  optOutGib: zod.number().nullish(),
+  stepAlertGib: zod.number().nullish(),
+  lastSessionStart: zod.coerce.date().nullish(),
+  lastSessionEnd: zod.coerce.date().nullish(),
+  lastSessionActive: zod.boolean().nullish(),
+  lastSessionType: zod.string().nullish(),
+  cardDetailsSyncedAt: zod.coerce.date().nullish(),
 });
 
 /**
@@ -504,6 +519,104 @@ export const GetKitMonthlyResponseItem = zod.object({
   scrapedAt: zod.coerce.date().nullish(),
 });
 export const GetKitMonthlyResponse = zod.array(GetKitMonthlyResponseItem);
+
+/**
+ * @summary Satcom KIT'in son bilinen konumu (Map sayfası snapshot'ı)
+ */
+export const GetKitLocationParams = zod.object({
+  kitNo: zod.coerce.string(),
+});
+
+export const GetKitLocationResponse = zod.object({
+  kitNo: zod.string(),
+  lat: zod.number(),
+  lng: zod.number(),
+  active: zod.boolean(),
+  offline: zod.boolean(),
+  icon: zod.number().nullish(),
+  customerId: zod.number().nullish(),
+  shipName: zod.string().nullish(),
+  lastSeenAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Tüm Satcom KIT'lerinin son konumları (Map için)
+ */
+export const GetKitLocationsResponseItem = zod.object({
+  kitNo: zod.string(),
+  lat: zod.number(),
+  lng: zod.number(),
+  active: zod.boolean(),
+  offline: zod.boolean(),
+  icon: zod.number().nullish(),
+  customerId: zod.number().nullish(),
+  shipName: zod.string().nullish(),
+  lastSeenAt: zod.coerce.date(),
+});
+export const GetKitLocationsResponse = zod.array(GetKitLocationsResponseItem);
+
+/**
+ * @summary Satcom KIT için saatlik telemetri (DL/UL/Latency/PingDrop/Obstruction/Signal)
+ */
+export const GetKitTelemetryHourlyParams = zod.object({
+  kitNo: zod.coerce.string(),
+});
+
+export const getKitTelemetryHourlyQueryDaysMax = 30;
+
+export const GetKitTelemetryHourlyQueryParams = zod.object({
+  days: zod.coerce
+    .number()
+    .min(1)
+    .max(getKitTelemetryHourlyQueryDaysMax)
+    .optional()
+    .describe("Geriye dönük kaç günü döndüreceğiz (varsayılan 7, max 30)."),
+});
+
+export const GetKitTelemetryHourlyResponseItem = zod.object({
+  intervalStart: zod.coerce.date(),
+  downloadMinMbps: zod.number().nullish(),
+  downloadAvgMbps: zod.number().nullish(),
+  downloadMaxMbps: zod.number().nullish(),
+  uploadMinMbps: zod.number().nullish(),
+  uploadAvgMbps: zod.number().nullish(),
+  uploadMaxMbps: zod.number().nullish(),
+  latencyMinMs: zod.number().nullish(),
+  latencyAvgMs: zod.number().nullish(),
+  latencyMaxMs: zod.number().nullish(),
+  pingDropMinPct: zod.number().nullish(),
+  pingDropAvgPct: zod.number().nullish(),
+  pingDropMaxPct: zod.number().nullish(),
+  obstructionMinPct: zod.number().nullish(),
+  obstructionAvgPct: zod.number().nullish(),
+  obstructionMaxPct: zod.number().nullish(),
+  signalQualityMinPct: zod.number().nullish(),
+  signalQualityAvgPct: zod.number().nullish(),
+  signalQualityMaxPct: zod.number().nullish(),
+});
+export const GetKitTelemetryHourlyResponse = zod.array(
+  GetKitTelemetryHourlyResponseItem,
+);
+
+/**
+ * @summary Satcom KIT abonelik geçmişi (CardDetails grid'i)
+ */
+export const GetKitSubscriptionsParams = zod.object({
+  kitNo: zod.coerce.string(),
+});
+
+export const GetKitSubscriptionsResponseItem = zod.object({
+  subscriptionId: zod.string(),
+  startDate: zod.string().nullish().describe("YYYY-MM-DD"),
+  endDate: zod.string().nullish().describe("YYYY-MM-DD"),
+  customerId: zod.string().nullish(),
+  customerName: zod.string().nullish(),
+  pricePlanName: zod.string().nullish(),
+  scrapedAt: zod.coerce.date(),
+});
+export const GetKitSubscriptionsResponse = zod.array(
+  GetKitSubscriptionsResponseItem,
+);
 
 export const GetDashboardSummaryResponse = zod.object({
   totalKits: zod.number(),

@@ -616,6 +616,101 @@ paths:
                 items:
                   $ref: "#/components/schemas/KitMonthlyPoint"
 
+  /station/kits/{kitNo}/location:
+    get:
+      operationId: getKitLocation
+      tags: [records]
+      summary: Satcom KIT'in son bilinen konumu (Map sayfası snapshot'ı)
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: kitNo
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Konum
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KitLocation"
+        "404":
+          description: KIT konum verisi yok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /station/locations:
+    get:
+      operationId: getKitLocations
+      tags: [records]
+      summary: Tüm Satcom KIT'lerinin son konumları (Map için)
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Konum listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/KitLocation"
+
+  /station/kits/{kitNo}/telemetry/hourly:
+    get:
+      operationId: getKitTelemetryHourly
+      tags: [records]
+      summary: Satcom KIT için saatlik telemetri (DL/UL/Latency/PingDrop/Obstruction/Signal)
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: kitNo
+          in: path
+          required: true
+          schema: { type: string }
+        - name: days
+          in: query
+          description: "Geriye dönük kaç günü döndüreceğiz (varsayılan 7, max 30)."
+          schema: { type: integer, minimum: 1, maximum: 30 }
+      responses:
+        "200":
+          description: Saatlik telemetri noktaları
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/KitTelemetryHourlyPoint"
+
+  /station/kits/{kitNo}/subscriptions:
+    get:
+      operationId: getKitSubscriptions
+      tags: [records]
+      summary: Satcom KIT abonelik geçmişi (CardDetails grid'i)
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: kitNo
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Abonelik geçmişi (en yeni en üstte)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/KitSubscription"
+
   /station/summary:
     get:
       operationId: getDashboardSummary
@@ -1559,7 +1654,74 @@ components:
         totalUsd: { type: number, nullable: true }
         rowCount: { type: integer }
         lastSyncedAt: { type: string, format: date-time, nullable: true }
+        # CardDetails.aspx zenginleştirmesi (Task #20). Tümü opsiyonel —
+        # ilk sync tamamlanmadan önce null olabilir.
+        imsi: { type: string, nullable: true }
+        imei: { type: string, nullable: true }
+        mobileNumber: { type: string, nullable: true }
+        costCenter: { type: string, nullable: true }
+        activationDate: { type: string, nullable: true, description: "YYYY-MM-DD" }
+        activePlanName: { type: string, nullable: true }
+        activePlanStartedAt: { type: string, nullable: true, description: "YYYY-MM-DD" }
+        activeSubscriptionId: { type: string, nullable: true }
+        optOutGib: { type: number, nullable: true }
+        stepAlertGib: { type: number, nullable: true }
+        lastSessionStart: { type: string, format: date-time, nullable: true }
+        lastSessionEnd: { type: string, format: date-time, nullable: true }
+        lastSessionActive: { type: boolean, nullable: true }
+        lastSessionType: { type: string, nullable: true }
+        cardDetailsSyncedAt: { type: string, format: date-time, nullable: true }
       required: [kitNo, rowCount]
+
+    KitLocation:
+      type: object
+      properties:
+        kitNo: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+        active: { type: boolean }
+        offline: { type: boolean }
+        icon: { type: integer, nullable: true }
+        customerId: { type: integer, nullable: true }
+        shipName: { type: string, nullable: true }
+        lastSeenAt: { type: string, format: date-time }
+      required: [kitNo, lat, lng, active, offline, lastSeenAt]
+
+    KitTelemetryHourlyPoint:
+      type: object
+      properties:
+        intervalStart: { type: string, format: date-time }
+        downloadMinMbps: { type: number, nullable: true }
+        downloadAvgMbps: { type: number, nullable: true }
+        downloadMaxMbps: { type: number, nullable: true }
+        uploadMinMbps: { type: number, nullable: true }
+        uploadAvgMbps: { type: number, nullable: true }
+        uploadMaxMbps: { type: number, nullable: true }
+        latencyMinMs: { type: number, nullable: true }
+        latencyAvgMs: { type: number, nullable: true }
+        latencyMaxMs: { type: number, nullable: true }
+        pingDropMinPct: { type: number, nullable: true }
+        pingDropAvgPct: { type: number, nullable: true }
+        pingDropMaxPct: { type: number, nullable: true }
+        obstructionMinPct: { type: number, nullable: true }
+        obstructionAvgPct: { type: number, nullable: true }
+        obstructionMaxPct: { type: number, nullable: true }
+        signalQualityMinPct: { type: number, nullable: true }
+        signalQualityAvgPct: { type: number, nullable: true }
+        signalQualityMaxPct: { type: number, nullable: true }
+      required: [intervalStart]
+
+    KitSubscription:
+      type: object
+      properties:
+        subscriptionId: { type: string }
+        startDate: { type: string, nullable: true, description: "YYYY-MM-DD" }
+        endDate: { type: string, nullable: true, description: "YYYY-MM-DD" }
+        customerId: { type: string, nullable: true }
+        customerName: { type: string, nullable: true }
+        pricePlanName: { type: string, nullable: true }
+        scrapedAt: { type: string, format: date-time }
+      required: [subscriptionId, scrapedAt]
 
     KitDailyPoint:
       type: object

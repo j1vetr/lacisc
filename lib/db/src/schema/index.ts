@@ -141,9 +141,123 @@ export const stationKits = pgTable("station_kits", {
   shipName: text("ship_name"),
   detailUrl: text("detail_url"),
   shipNameSyncedAt: timestamp("ship_name_synced_at"),
+  // CardDetails.aspx zenginleştirmesi (Task #20). Tümü opsiyonel; periyodik
+  // sync'te yenilenir. cardDetailsSyncedAt = en son başarılı CardDetails
+  // ziyareti (UI "Son senkron" rozetinde gösterilecek).
+  imsi: text("imsi"),
+  imei: text("imei"),
+  mobileNumber: text("mobile_number"),
+  costCenter: text("cost_center"),
+  activationDate: date("activation_date"),
+  activePlanName: text("active_plan_name"),
+  activePlanStartedAt: date("active_plan_started_at"),
+  activeSubscriptionId: text("active_subscription_id"),
+  optOutGib: doublePrecision("opt_out_gib"),
+  stepAlertGib: doublePrecision("step_alert_gib"),
+  lastSessionStart: timestamp("last_session_start"),
+  lastSessionEnd: timestamp("last_session_end"),
+  lastSessionActive: boolean("last_session_active"),
+  lastSessionType: text("last_session_type"),
+  cardDetailsSyncedAt: timestamp("card_details_synced_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// Snapshot — overwrite each Map sync. Inline JSON `MapManager.terminals`
+// on /Starlink/Telemetry/Map sayfasından çekilir; kitNo PK çünkü portal'da
+// her terminal tek satır. credential_id FK cascade — hesap silinince düşer.
+export const stationKitLocation = pgTable(
+  "station_kit_location",
+  {
+    kitNo: text("kit_no").primaryKey(),
+    credentialId: integer("credential_id")
+      .notNull()
+      .references(() => stationCredentials.id, { onDelete: "cascade" }),
+    lat: doublePrecision("lat").notNull(),
+    lng: doublePrecision("lng").notNull(),
+    active: boolean("active").default(true).notNull(),
+    offline: boolean("offline").default(false).notNull(),
+    icon: integer("icon"),
+    customerId: integer("customer_id"),
+    lastSeenAt: timestamp("last_seen_at").defaultNow().notNull(),
+  },
+  (t) => [index("station_kit_location_credential_idx").on(t.credentialId)]
+);
+export type StationKitLocation = typeof stationKitLocation.$inferSelect;
+
+// Saatlik telemetri (6 metrik × min/avg/max). DevExpress
+// `gvStarlinkMeasurementsOneHour` grid'inden parse edilir; her satır
+// bir (kit, intervalStart) noktası. Birim: Mbps (DL/UL), ms (latency),
+// % (ping drop / obstruction / signal quality). PK üçlüsü idempotent
+// upsert sağlar — aynı saatlik nokta tekrar gelirse overwrite olur.
+export const stationKitTelemetryHourly = pgTable(
+  "station_kit_telemetry_hourly",
+  {
+    credentialId: integer("credential_id")
+      .notNull()
+      .references(() => stationCredentials.id, { onDelete: "cascade" }),
+    kitNo: text("kit_no").notNull(),
+    intervalStart: timestamp("interval_start").notNull(),
+    downloadMinMbps: doublePrecision("download_min_mbps"),
+    downloadAvgMbps: doublePrecision("download_avg_mbps"),
+    downloadMaxMbps: doublePrecision("download_max_mbps"),
+    uploadMinMbps: doublePrecision("upload_min_mbps"),
+    uploadAvgMbps: doublePrecision("upload_avg_mbps"),
+    uploadMaxMbps: doublePrecision("upload_max_mbps"),
+    latencyMinMs: doublePrecision("latency_min_ms"),
+    latencyAvgMs: doublePrecision("latency_avg_ms"),
+    latencyMaxMs: doublePrecision("latency_max_ms"),
+    pingDropMinPct: doublePrecision("ping_drop_min_pct"),
+    pingDropAvgPct: doublePrecision("ping_drop_avg_pct"),
+    pingDropMaxPct: doublePrecision("ping_drop_max_pct"),
+    obstructionMinPct: doublePrecision("obstruction_min_pct"),
+    obstructionAvgPct: doublePrecision("obstruction_avg_pct"),
+    obstructionMaxPct: doublePrecision("obstruction_max_pct"),
+    signalQualityMinPct: doublePrecision("signal_quality_min_pct"),
+    signalQualityAvgPct: doublePrecision("signal_quality_avg_pct"),
+    signalQualityMaxPct: doublePrecision("signal_quality_max_pct"),
+    scrapedAt: timestamp("scraped_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("uq_station_kit_telemetry_hourly").on(
+      t.credentialId,
+      t.kitNo,
+      t.intervalStart
+    ),
+    index("station_kit_telemetry_hourly_lookup_idx").on(
+      t.kitNo,
+      t.intervalStart
+    ),
+  ]
+);
+export type StationKitTelemetryHourly =
+  typeof stationKitTelemetryHourly.$inferSelect;
+
+// Abonelik geçmişi — CardDetails.aspx alt grid'inden (gvSubscriptionHistory)
+// parse edilir. PK: (kit_no, subscription_id). Her sync'te upsert; eski
+// abonelik kayıtları korunur.
+export const stationKitSubscriptionHistory = pgTable(
+  "station_kit_subscription_history",
+  {
+    credentialId: integer("credential_id")
+      .notNull()
+      .references(() => stationCredentials.id, { onDelete: "cascade" }),
+    kitNo: text("kit_no").notNull(),
+    subscriptionId: text("subscription_id").notNull(),
+    startDate: date("start_date"),
+    endDate: date("end_date"),
+    customerId: text("customer_id"),
+    customerName: text("customer_name"),
+    pricePlanName: text("price_plan_name"),
+    scrapedAt: timestamp("scraped_at").defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.credentialId, t.kitNo, t.subscriptionId] }),
+    index("station_kit_subscription_history_kit_idx").on(t.kitNo),
+  ]
+);
+export type StationKitSubscriptionHistory =
+  typeof stationKitSubscriptionHistory.$inferSelect;
 
 // One row per individual CDR (charge line) inside a (kit, period). The portal
 // renders these as gün-gün satırlar in the rated CDR grid. We keep cdr_id in

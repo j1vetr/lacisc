@@ -6,8 +6,11 @@ import {
   stationKitPeriodTotal,
   stationSyncLogs,
   stationCredentials,
+  stationKitLocation,
+  stationKitTelemetryHourly,
+  stationKitSubscriptionHistory,
 } from "@workspace/db";
-import { eq, desc, asc, and, inArray, sql, count, max } from "drizzle-orm";
+import { eq, desc, asc, and, gte, inArray, sql, count, max } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
 import {
   getAssignedKits,
@@ -182,8 +185,169 @@ router.get("/station/kits/:kitNo", requireAuth, async (req: AuthRequest, res): P
     totalUsd: latest?.totalUsd ?? null,
     rowCount: latest?.rowCount ?? 0,
     lastSyncedAt: latest?.scrapedAt ?? null,
+    // CardDetails enrichment alanları (Task #20). İlk sync tamamlanmadan
+    // önce tümü null'dır.
+    imsi: kitMeta?.imsi ?? null,
+    imei: kitMeta?.imei ?? null,
+    mobileNumber: kitMeta?.mobileNumber ?? null,
+    costCenter: kitMeta?.costCenter ?? null,
+    activationDate: kitMeta?.activationDate ?? null,
+    activePlanName: kitMeta?.activePlanName ?? null,
+    activePlanStartedAt: kitMeta?.activePlanStartedAt ?? null,
+    activeSubscriptionId: kitMeta?.activeSubscriptionId ?? null,
+    optOutGib: kitMeta?.optOutGib ?? null,
+    stepAlertGib: kitMeta?.stepAlertGib ?? null,
+    lastSessionStart: kitMeta?.lastSessionStart ?? null,
+    lastSessionEnd: kitMeta?.lastSessionEnd ?? null,
+    lastSessionActive: kitMeta?.lastSessionActive ?? null,
+    lastSessionType: kitMeta?.lastSessionType ?? null,
+    cardDetailsSyncedAt: kitMeta?.cardDetailsSyncedAt ?? null,
   });
 });
+
+// --- Task #20 enrichment endpoints --------------------------------------
+
+// Tek KIT konumu — Map sayfası snapshot'ı.
+router.get(
+  "/station/kits/:kitNo/location",
+  requireAuth,
+  async (req: AuthRequest, res): Promise<void> => {
+    const kitNo = String(req.params.kitNo);
+    const scope = await customerSatcomScope(req);
+    if (scope !== null && !scope.includes(kitNo)) {
+      res.status(404).json({ error: "KIT bulunamadı." });
+      return;
+    }
+    const [row] = await db
+      .select({
+        kitNo: stationKitLocation.kitNo,
+        lat: stationKitLocation.lat,
+        lng: stationKitLocation.lng,
+        active: stationKitLocation.active,
+        offline: stationKitLocation.offline,
+        icon: stationKitLocation.icon,
+        customerId: stationKitLocation.customerId,
+        lastSeenAt: stationKitLocation.lastSeenAt,
+        shipName: stationKits.shipName,
+      })
+      .from(stationKitLocation)
+      .leftJoin(stationKits, eq(stationKits.kitNo, stationKitLocation.kitNo))
+      .where(eq(stationKitLocation.kitNo, kitNo))
+      .limit(1);
+    if (!row) {
+      res.status(404).json({ error: "KIT konum verisi yok." });
+      return;
+    }
+    res.json(row);
+  }
+);
+
+// Tüm Satcom KIT konumları — Map widget'i için.
+router.get(
+  "/station/locations",
+  requireAuth,
+  async (req: AuthRequest, res): Promise<void> => {
+    const scope = await customerSatcomScope(req);
+    if (scope !== null && scope.length === 0) {
+      res.json([]);
+      return;
+    }
+    const baseQuery = db
+      .select({
+        kitNo: stationKitLocation.kitNo,
+        lat: stationKitLocation.lat,
+        lng: stationKitLocation.lng,
+        active: stationKitLocation.active,
+        offline: stationKitLocation.offline,
+        icon: stationKitLocation.icon,
+        customerId: stationKitLocation.customerId,
+        lastSeenAt: stationKitLocation.lastSeenAt,
+        shipName: stationKits.shipName,
+      })
+      .from(stationKitLocation)
+      .leftJoin(stationKits, eq(stationKits.kitNo, stationKitLocation.kitNo));
+    const rows = scope
+      ? await baseQuery.where(inArray(stationKitLocation.kitNo, scope))
+      : await baseQuery;
+    res.json(rows);
+  }
+);
+
+// Saatlik telemetri (varsayılan son 7 gün, max 30).
+router.get(
+  "/station/kits/:kitNo/telemetry/hourly",
+  requireAuth,
+  async (req: AuthRequest, res): Promise<void> => {
+    const kitNo = String(req.params.kitNo);
+    const scope = await customerSatcomScope(req);
+    if (scope !== null && !scope.includes(kitNo)) {
+      res.status(404).json({ error: "KIT bulunamadı." });
+      return;
+    }
+    const daysRaw = Number((req.query as { days?: string }).days ?? 7);
+    const days = Math.max(1, Math.min(30, isNaN(daysRaw) ? 7 : daysRaw));
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const rows = await db
+      .select({
+        intervalStart: stationKitTelemetryHourly.intervalStart,
+        downloadMinMbps: stationKitTelemetryHourly.downloadMinMbps,
+        downloadAvgMbps: stationKitTelemetryHourly.downloadAvgMbps,
+        downloadMaxMbps: stationKitTelemetryHourly.downloadMaxMbps,
+        uploadMinMbps: stationKitTelemetryHourly.uploadMinMbps,
+        uploadAvgMbps: stationKitTelemetryHourly.uploadAvgMbps,
+        uploadMaxMbps: stationKitTelemetryHourly.uploadMaxMbps,
+        latencyMinMs: stationKitTelemetryHourly.latencyMinMs,
+        latencyAvgMs: stationKitTelemetryHourly.latencyAvgMs,
+        latencyMaxMs: stationKitTelemetryHourly.latencyMaxMs,
+        pingDropMinPct: stationKitTelemetryHourly.pingDropMinPct,
+        pingDropAvgPct: stationKitTelemetryHourly.pingDropAvgPct,
+        pingDropMaxPct: stationKitTelemetryHourly.pingDropMaxPct,
+        obstructionMinPct: stationKitTelemetryHourly.obstructionMinPct,
+        obstructionAvgPct: stationKitTelemetryHourly.obstructionAvgPct,
+        obstructionMaxPct: stationKitTelemetryHourly.obstructionMaxPct,
+        signalQualityMinPct: stationKitTelemetryHourly.signalQualityMinPct,
+        signalQualityAvgPct: stationKitTelemetryHourly.signalQualityAvgPct,
+        signalQualityMaxPct: stationKitTelemetryHourly.signalQualityMaxPct,
+      })
+      .from(stationKitTelemetryHourly)
+      .where(
+        and(
+          eq(stationKitTelemetryHourly.kitNo, kitNo),
+          gte(stationKitTelemetryHourly.intervalStart, since)
+        )
+      )
+      .orderBy(asc(stationKitTelemetryHourly.intervalStart));
+    res.json(rows);
+  }
+);
+
+// Abonelik geçmişi.
+router.get(
+  "/station/kits/:kitNo/subscriptions",
+  requireAuth,
+  async (req: AuthRequest, res): Promise<void> => {
+    const kitNo = String(req.params.kitNo);
+    const scope = await customerSatcomScope(req);
+    if (scope !== null && !scope.includes(kitNo)) {
+      res.status(404).json({ error: "KIT bulunamadı." });
+      return;
+    }
+    const rows = await db
+      .select({
+        subscriptionId: stationKitSubscriptionHistory.subscriptionId,
+        startDate: stationKitSubscriptionHistory.startDate,
+        endDate: stationKitSubscriptionHistory.endDate,
+        customerId: stationKitSubscriptionHistory.customerId,
+        customerName: stationKitSubscriptionHistory.customerName,
+        pricePlanName: stationKitSubscriptionHistory.pricePlanName,
+        scrapedAt: stationKitSubscriptionHistory.scrapedAt,
+      })
+      .from(stationKitSubscriptionHistory)
+      .where(eq(stationKitSubscriptionHistory.kitNo, kitNo))
+      .orderBy(desc(stationKitSubscriptionHistory.startDate));
+    res.json(rows);
+  }
+);
 
 // --- /station/kits/:kitNo/daily?period=YYYYMM — günlük CDR satırları ---
 router.get("/station/kits/:kitNo/daily", requireAuth, async (req: AuthRequest, res): Promise<void> => {

@@ -510,6 +510,69 @@ export interface KitDetail {
   totalUsd?: number | null;
   rowCount: number;
   lastSyncedAt?: string | null;
+  imsi?: string | null;
+  imei?: string | null;
+  mobileNumber?: string | null;
+  costCenter?: string | null;
+  /** YYYY-MM-DD */
+  activationDate?: string | null;
+  activePlanName?: string | null;
+  /** YYYY-MM-DD */
+  activePlanStartedAt?: string | null;
+  activeSubscriptionId?: string | null;
+  optOutGib?: number | null;
+  stepAlertGib?: number | null;
+  lastSessionStart?: string | null;
+  lastSessionEnd?: string | null;
+  lastSessionActive?: boolean | null;
+  lastSessionType?: string | null;
+  cardDetailsSyncedAt?: string | null;
+}
+
+export interface KitLocation {
+  kitNo: string;
+  lat: number;
+  lng: number;
+  active: boolean;
+  offline: boolean;
+  icon?: number | null;
+  customerId?: number | null;
+  shipName?: string | null;
+  lastSeenAt: string;
+}
+
+export interface KitTelemetryHourlyPoint {
+  intervalStart: string;
+  downloadMinMbps?: number | null;
+  downloadAvgMbps?: number | null;
+  downloadMaxMbps?: number | null;
+  uploadMinMbps?: number | null;
+  uploadAvgMbps?: number | null;
+  uploadMaxMbps?: number | null;
+  latencyMinMs?: number | null;
+  latencyAvgMs?: number | null;
+  latencyMaxMs?: number | null;
+  pingDropMinPct?: number | null;
+  pingDropAvgPct?: number | null;
+  pingDropMaxPct?: number | null;
+  obstructionMinPct?: number | null;
+  obstructionAvgPct?: number | null;
+  obstructionMaxPct?: number | null;
+  signalQualityMinPct?: number | null;
+  signalQualityAvgPct?: number | null;
+  signalQualityMaxPct?: number | null;
+}
+
+export interface KitSubscription {
+  subscriptionId: string;
+  /** YYYY-MM-DD */
+  startDate?: string | null;
+  /** YYYY-MM-DD */
+  endDate?: string | null;
+  customerId?: string | null;
+  customerName?: string | null;
+  pricePlanName?: string | null;
+  scrapedAt: string;
 }
 
 export interface KitDailyPoint {
@@ -603,6 +666,15 @@ export const GetKitsSortBy = {
 
 export type GetKitDailyParams = {
   period?: string;
+};
+
+export type GetKitTelemetryHourlyParams = {
+  /**
+   * Geriye dönük kaç günü döndüreceğiz (varsayılan 7, max 30).
+   * @minimum 1
+   * @maximum 30
+   */
+  days?: number;
 };
 
 export type TestStarlinkConnectionBody = {

@@ -10,6 +10,7 @@ Detaylı "şu an nasıl çalışıyor" referansı. Hızlı operatör özeti içi
 - **Live progress** (`sync-progress.ts`): in-memory snapshot with `phase: idle|starlink|satcom` + per-phase counters. `GET /station/sync-progress` polled at 1.5s by `SyncProgressPanel`; global `SyncCompletionToast` polls at 3s and surfaces the result on any page.
 - **Two-tier sync**: first sync (`firstFullSyncAt` null) walks **202601** → current; scheduled syncs only touch current + previous. Manual button always passes `forceFull: true`.
 - **Per-(KIT × dönem) FV scrape**: bare `RatedCdrs.aspx` is server-capped, so each KIT is fetched separately via `?FC=ICCID&FV=KITPxxxx` to get an accurate footer.
+- **Map + Measurements + CardDetails enrichment** (`scraper-enrichment.ts`): after CDR walk, three additional sources are scraped per sync — Map (per-account terminals JSON, lat/lng/active/offline → `station_kit_location`), Measurements (per-KIT hourly grid w/ download/upload Mbps + latency + ping-drop + obstruction + signal-quality min/avg/max → `station_kit_telemetry_hourly`, full-sync 80 pages / incremental 2 pages), CardDetails (per-KIT IMSI/IMEI/MSISDN, active plan + Opt Out / Step Alert thresholds, last session, subscription history → `station_kits` + `station_kit_subscription_history`). All best-effort `.catch(warn)`; final ratedCdrs link click returns scraper to the grid before downstream code runs.
 
 ## Auth & RBAC
 
