@@ -1,0 +1,60 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Inter:wght@400;500;600;700&display=swap');
+
+.bridge-theme {
+  --bg-base: #06090e;
+  --bg-panel: #0d1219;
+  --bg-card: #111721;
+  --border-subtle: rgba(255,255,255,0.06);
+  --border-strong: rgba(255,255,255,0.15);
+  
+  --text-muted: #6b778c;
+  --text-base: #94a3b8;
+  --text-strong: #e2e8f0;
+  --text-bright: #ffffff;
+  
+  --cyan-glow: rgba(34, 211, 238, 0.4);
+  --cyan-base: #22d3ee;
+  --cyan-muted: rgba(34, 211, 238, 0.15);
+
+  --amber-glow: rgba(245, 158, 11, 0.4);
+  --amber-base: #f59e0b;
+  --amber-muted: rgba(245, 158, 11, 0.15);
+  
+  --red-base: #ef4444;
+  --green-base: #10b981;
+
+  background-color: var(--bg-base);
+  color: var(--text-base);
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+}
+
+.bridge-theme .font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.bridge-pulse {
+  animation: bridge-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes bridge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .4; }
+}
+
+.bridge-scanline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(to right, transparent, var(--cyan-base), transparent);
+  opacity: 0.3;
+  animation: scan 4s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes scan {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(100vh); }
+}

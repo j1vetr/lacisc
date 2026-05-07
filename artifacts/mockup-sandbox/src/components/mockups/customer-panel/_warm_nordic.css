@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+.warm-nordic-theme {
+  --wn-bg: #F5F3ED; /* soft sand/oat */
+  --wn-surface: #FCFBF9; /* lighter cream for cards */
+  --wn-surface-hover: #F0EEE5;
+  --wn-text: #2C3539; /* dark muted teal/slate */
+  --wn-text-muted: #6B7275;
+  --wn-teal: #4A6E7C; /* muted teal */
+  --wn-teal-light: #E8ECEE;
+  --wn-brass: #D4A373; /* soft brass accent */
+  --wn-brass-light: #F8EFE6;
+  --wn-satcom: #E08D6E; /* warm orange tone */
+  --wn-starlink: #5C8898; /* cool blue/teal tone */
+  --wn-border: #E8E5DC;
+  
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: var(--wn-bg);
+  color: var(--wn-text);
+  min-height: 100vh;
+}
+
+.warm-nordic-theme .wn-card {
+  background-color: var(--wn-surface);
+  border: 1px solid var(--wn-border);
+  border-radius: 24px;
+  box-shadow: 0 4px 20px -8px rgba(44, 53, 57, 0.05);
+  transition: all 0.2s ease;
+}
+
+.warm-nordic-theme .wn-card:hover {
+  box-shadow: 0 8px 24px -8px rgba(44, 53, 57, 0.08);
+  transform: translateY(-2px);
+}
+
+.warm-nordic-theme .wn-sidebar-item {
+  border-radius: 16px;
+  transition: all 0.2s ease;
+}
+
+.warm-nordic-theme .wn-sidebar-item:hover {
+  background-color: var(--wn-surface-hover);
+}
+
+.warm-nordic-theme .wn-sidebar-item.active {
+  background-color: #ffffff;
+  box-shadow: 0 2px 10px -4px rgba(44, 53, 57, 0.05);
+  border: 1px solid var(--wn-border);
+}

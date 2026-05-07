@@ -1,0 +1,65 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,600&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500&display=swap');
+
+.editorial-theme {
+  --bg-cream: #f8f6f1;
+  --bg-cream-alt: #f2efe7;
+  --text-ink: #1c1f24;
+  --text-ink-light: #494e54;
+  --text-ink-lighter: #828891;
+  --accent-rust: #bf5d39;
+  --accent-rust-light: rgba(191, 93, 57, 0.1);
+  --accent-blue: #476a8a;
+  --accent-blue-light: rgba(71, 106, 138, 0.1);
+  
+  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-mono: 'Space Mono', monospace;
+  --font-sans: 'Inter', sans-serif;
+  
+  background-color: var(--bg-cream);
+  color: var(--text-ink);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+}
+
+.editorial-theme h1, 
+.editorial-theme h2, 
+.editorial-theme h3, 
+.editorial-theme h4,
+.editorial-theme .font-serif {
+  font-family: var(--font-serif);
+}
+
+.editorial-theme .font-mono {
+  font-family: var(--font-mono);
+}
+
+.editorial-theme .hairline-bottom {
+  border-bottom: 1px solid rgba(28, 31, 36, 0.15);
+}
+
+.editorial-theme .hairline-top {
+  border-top: 1px solid rgba(28, 31, 36, 0.15);
+}
+
+.editorial-theme .hairline-left {
+  border-left: 1px solid rgba(28, 31, 36, 0.15);
+}
+
+.editorial-theme .hairline-right {
+  border-right: 1px solid rgba(28, 31, 36, 0.15);
+}
+
+.editorial-theme .hairline-all {
+  border: 1px solid rgba(28, 31, 36, 0.15);
+}
+
+/* Subtle texture/noise overlay for the magazine feel */
+.editorial-theme::before {
+  content: "";
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.25;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
