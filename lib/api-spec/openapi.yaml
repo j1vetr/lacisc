@@ -708,10 +708,23 @@ paths:
 
 components:
   securitySchemes:
+    # Birincil auth: tarayıcılar için httpOnly `auth_token` cookie (login
+    # yanıtında Set-Cookie ile gelir) + mutation'larda `x-csrf-token` header
+    # (double-submit; non-httpOnly `csrf_token` cookie'sinden echo). CLI/mobil
+    # istemciler için Authorization: Bearer fallback'i de kabul edilir; bu
+    # durumda CSRF kontrolü atlanır.
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: |
+        Cookie-first: `auth_token` httpOnly cookie. Bearer header is the
+        non-browser fallback; mutations additionally require the
+        `x-csrf-token` header echoed from the `csrf_token` cookie.
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: auth_token
 
   schemas:
     HealthStatus:

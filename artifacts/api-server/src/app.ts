@@ -61,6 +61,14 @@ function buildCorsAllowlist(): string[] {
   return list;
 }
 const allowlist = buildCorsAllowlist();
+// Production'da CORS allowlist boşsa hızlı başarısızlık ver — aksi halde
+// REPLIT_DOMAINS unutulduğunda canlıda her cross-origin istek 'CORS reddedildi'
+// hatasıyla kapanır (sessiz lockout). Boot'ta apaçık hata daha güvenli.
+if (isProd && allowlist.length === 0) {
+  throw new Error(
+    "CORS allowlist is empty in production. Set REPLIT_DOMAINS (comma-separated) or CORS_ALLOWLIST."
+  );
+}
 app.use(
   cors({
     credentials: true,

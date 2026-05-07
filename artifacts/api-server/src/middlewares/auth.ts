@@ -80,11 +80,13 @@ async function decodeAndValidate(req: AuthRequest): Promise<boolean> {
     const tv = await currentTokenVersion(payload.userId);
     if (tv === null) return false;
     if ((payload.tv ?? 0) !== tv) return false;
-    if (payload.jti) {
-      const ok = await sessionExists(payload.jti);
-      if (!ok) return false;
-      req.sessionJti = payload.jti;
-    }
+    // Tüm token'lar artık `jti` taşımak zorunda; yeni session-tracking
+    // sisteminden önce verilmiş eski JWT'ler (jti yok) reddedilir → kullanıcı
+    // yeniden giriş yapar ve session satırı oluşur (revoke edilebilir hale gelir).
+    if (!payload.jti) return false;
+    const ok = await sessionExists(payload.jti);
+    if (!ok) return false;
+    req.sessionJti = payload.jti;
     req.userId = payload.userId;
     req.userEmail = payload.email;
     req.userRole = (payload.role as Role | undefined) ?? "admin";
