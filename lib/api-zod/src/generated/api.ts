@@ -438,6 +438,23 @@ export const GetKitsResponseItem = zod.object({
 });
 export const GetKitsResponse = zod.array(GetKitsResponseItem);
 
+/**
+ * Authoritative classifier — checks the actual `starlink_terminals` and
+`station_kits` tables. Frontend dispatcher and customer-scope use this
+instead of guessing from the `KITP` prefix (Tototheo serials may also
+start with `KITP\d`, which would otherwise be misrouted to Satcom).
+
+ * @summary Resolve which data source a KIT belongs to (satcom vs starlink)
+ */
+export const GetKitSourceParams = zod.object({
+  kitNo: zod.coerce.string(),
+});
+
+export const GetKitSourceResponse = zod.object({
+  kitNo: zod.string(),
+  source: zod.enum(["satcom", "starlink", "unknown"]),
+});
+
 export const GetKitDetailParams = zod.object({
   kitNo: zod.coerce.string(),
 });

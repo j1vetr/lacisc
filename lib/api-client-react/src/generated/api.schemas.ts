@@ -478,6 +478,20 @@ export interface EmailSettingsUpdate {
   thresholdStepGib?: number;
 }
 
+export type KitSourceResponseSource =
+  (typeof KitSourceResponseSource)[keyof typeof KitSourceResponseSource];
+
+export const KitSourceResponseSource = {
+  satcom: "satcom",
+  starlink: "starlink",
+  unknown: "unknown",
+} as const;
+
+export interface KitSourceResponse {
+  kitNo: string;
+  source: KitSourceResponseSource;
+}
+
 export interface KitSummary {
   kitNo: string;
   shipName?: string | null;

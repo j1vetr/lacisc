@@ -38,6 +38,7 @@ import type {
   KitDailyPoint,
   KitDetail,
   KitMonthlyPoint,
+  KitSourceResponse,
   KitSummary,
   ListAuditLogsParams,
   ListSessions200Item,
@@ -1992,6 +1993,98 @@ export function useGetKits<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetKitsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Authoritative classifier — checks the actual `starlink_terminals` and
+`station_kits` tables. Frontend dispatcher and customer-scope use this
+instead of guessing from the `KITP` prefix (Tototheo serials may also
+start with `KITP\d`, which would otherwise be misrouted to Satcom).
+
+ * @summary Resolve which data source a KIT belongs to (satcom vs starlink)
+ */
+export const getGetKitSourceUrl = (kitNo: string) => {
+  return `/api/station/kits/${kitNo}/source`;
+};
+
+export const getKitSource = async (
+  kitNo: string,
+  options?: RequestInit,
+): Promise<KitSourceResponse> => {
+  return customFetch<KitSourceResponse>(getGetKitSourceUrl(kitNo), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetKitSourceQueryKey = (kitNo: string) => {
+  return [`/api/station/kits/${kitNo}/source`] as const;
+};
+
+export const getGetKitSourceQueryOptions = <
+  TData = Awaited<ReturnType<typeof getKitSource>>,
+  TError = ErrorType<unknown>,
+>(
+  kitNo: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getKitSource>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetKitSourceQueryKey(kitNo);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getKitSource>>> = ({
+    signal,
+  }) => getKitSource(kitNo, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!kitNo,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getKitSource>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetKitSourceQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getKitSource>>
+>;
+export type GetKitSourceQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Resolve which data source a KIT belongs to (satcom vs starlink)
+ */
+
+export function useGetKitSource<
+  TData = Awaited<ReturnType<typeof getKitSource>>,
+  TError = ErrorType<unknown>,
+>(
+  kitNo: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getKitSource>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetKitSourceQueryOptions(kitNo, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

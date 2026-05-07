@@ -76,17 +76,11 @@ export default function AdminUsers() {
     query: { queryKey: getListAdminUsersQueryKey() },
   });
 
-  const createMut = useCreateAdminUser({
-    mutation: {
-      onSuccess: () => {
-        qc.invalidateQueries({ queryKey: getListAdminUsersQueryKey() });
-        toast({ title: "Kullanıcı oluşturuldu" });
-        setCreateOpen(false);
-        setCreateForm({ name: "", email: "", username: "", password: "", role: "admin" });
-      },
-      onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
-    },
-  });
+  // Müşteri rolünde Create dialog atama'yı sıralı tetiklediği için tek-noktada
+  // toast/invalidate yapamıyoruz; mutation'ı sade tutup hata yönetimini submit
+  // handler'a bıraktık. Operatör/admin oluşturmada akış aynı.
+  const createMut = useCreateAdminUser();
+  const createAssignMut = useUpdateAssignedKits();
   const updateMut = useUpdateAdminUser({
     mutation: {
       onSuccess: () => {
@@ -124,6 +118,65 @@ export default function AdminUsers() {
     password: "",
     role: "admin" as Role,
   });
+  const [createAssignedKits, setCreateAssignedKits] = useState<Set<string>>(
+    new Set(),
+  );
+
+  const resetCreateForm = () => {
+    setCreateForm({ name: "", email: "", username: "", password: "", role: "admin" });
+    setCreateAssignedKits(new Set());
+  };
+
+  const handleCreateSubmit = async () => {
+    try {
+      const created = await createMut.mutateAsync({
+        data: {
+          name: createForm.name,
+          password: createForm.password,
+          role: createForm.role,
+          email: createForm.email.trim() || null,
+          username: createForm.username.trim() || null,
+        },
+      });
+      // Müşteri ise ve KIT seçildiyse ikinci PUT — atomik değil ama replace-all
+      // olduğu için yeniden çalıştırmak güvenli. Hata olursa kullanıcı yine de
+      // listede görünür ve ayrı modal ile atama tamamlanabilir.
+      if (
+        createForm.role === "customer" &&
+        createAssignedKits.size > 0 &&
+        created &&
+        typeof (created as { id?: number }).id === "number"
+      ) {
+        try {
+          await createAssignMut.mutateAsync({
+            id: (created as { id: number }).id,
+            data: { kitNos: Array.from(createAssignedKits) },
+          });
+        } catch (e) {
+          toast({
+            title: "Kullanıcı oluşturuldu, KIT atama başarısız",
+            description:
+              "Listeden satırın yanındaki KIT atama düğmesi ile tekrar deneyin.",
+            variant: "destructive",
+          });
+          qc.invalidateQueries({ queryKey: getListAdminUsersQueryKey() });
+          setCreateOpen(false);
+          resetCreateForm();
+          return;
+        }
+      }
+      qc.invalidateQueries({ queryKey: getListAdminUsersQueryKey() });
+      toast({ title: "Kullanıcı oluşturuldu" });
+      setCreateOpen(false);
+      resetCreateForm();
+    } catch (e) {
+      toast({
+        title: "Hata",
+        description: (e as Error).message,
+        variant: "destructive",
+      });
+    }
+  };
 
   const [editOpen, setEditOpen] = useState<null | { id: number; name: string; username: string | null; role: Role }>(null);
   const [resetOpen, setResetOpen] = useState<null | { id: number; label: string }>(null);
@@ -288,8 +341,14 @@ export default function AdminUsers() {
       </Card>
 
       {/* Create dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
+      <Dialog
+        open={createOpen}
+        onOpenChange={(o) => {
+          setCreateOpen(o);
+          if (!o) resetCreateForm();
+        }}
+      >
+        <DialogContent className={createForm.role === "customer" ? "max-w-2xl" : undefined}>
           <DialogHeader>
             <DialogTitle>Yeni kullanıcı</DialogTitle>
             <DialogDescription>
@@ -308,7 +367,11 @@ export default function AdminUsers() {
               <Label>Rol</Label>
               <Select
                 value={createForm.role}
-                onValueChange={(v) => setCreateForm((f) => ({ ...f, role: v as Role }))}
+                onValueChange={(v) => {
+                  setCreateForm((f) => ({ ...f, role: v as Role }));
+                  // Müşteri rolünden çıkıldığında seçili KIT'leri unut.
+                  if (v !== "customer") setCreateAssignedKits(new Set());
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -358,26 +421,39 @@ export default function AdminUsers() {
               />
               <PasswordStrength password={createForm.password} />
             </div>
+            {createForm.role === "customer" && (
+              <div className="space-y-1.5 pt-2 border-t border-border">
+                <Label>
+                  KIT atamaları{" "}
+                  <span className="text-[11px] text-muted-foreground">
+                    (oluşturma ile birlikte atanır — sonradan değiştirilebilir)
+                  </span>
+                </Label>
+                <KitPickerInline
+                  enabled={createOpen}
+                  selected={createAssignedKits}
+                  onChange={setCreateAssignedKits}
+                />
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCreateOpen(false);
+                resetCreateForm();
+              }}
+            >
               İptal
             </Button>
             <Button
-              disabled={createMut.isPending}
-              onClick={() =>
-                createMut.mutate({
-                  data: {
-                    name: createForm.name,
-                    password: createForm.password,
-                    role: createForm.role,
-                    email: createForm.email.trim() || null,
-                    username: createForm.username.trim() || null,
-                  },
-                })
-              }
+              disabled={createMut.isPending || createAssignMut.isPending}
+              onClick={handleCreateSubmit}
             >
-              Oluştur
+              {createForm.role === "customer" && createAssignedKits.size > 0
+                ? `Oluştur (+${createAssignedKits.size} KIT)`
+                : "Oluştur"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -710,6 +786,121 @@ function AssignKitsDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Inline KIT picker — Create dialog'da müşteri rolünde kullanılır. AssignKits
+// modalındaki tam UI'ın hafif sürümü: aynı `useListAssignableKits` cache'ini
+// paylaşır (staleTime 30sn), aynı Satcom/Tototheo gruplama + arama + toplu seç
+// kontrolleri. Yükseklik daha kompakt (260px) çünkü Create dialog içinde başka
+// alanlarla yan yana duruyor.
+// ---------------------------------------------------------------------------
+
+function KitPickerInline({
+  enabled,
+  selected,
+  onChange,
+}: {
+  enabled: boolean;
+  selected: Set<string>;
+  onChange: (next: Set<string>) => void;
+}) {
+  const { data: assignableData, isLoading } = useListAssignableKits({
+    query: {
+      queryKey: getListAssignableKitsQueryKey(),
+      enabled,
+      staleTime: 30_000,
+    },
+  });
+  const assignable = assignableData?.kits ?? [];
+  const [search, setSearch] = useState("");
+
+  const filtered = assignable.filter((k) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      k.kitNo.toLowerCase().includes(q) ||
+      (k.label ?? "").toLowerCase().includes(q)
+    );
+  });
+  const satcom = filtered.filter((k) => k.source === "satcom");
+  const starlink = filtered.filter((k) => k.source === "starlink");
+
+  const toggle = (kit: string) => {
+    const next = new Set(selected);
+    if (next.has(kit)) next.delete(kit);
+    else next.add(kit);
+    onChange(next);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="KIT no veya gemi adı ara…"
+          className="pl-9 h-8 text-xs"
+        />
+      </div>
+      <div className="text-[11px] text-muted-foreground flex items-center justify-between">
+        <span>
+          {selected.size} seçili / {assignable.length} toplam
+        </span>
+        <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 text-[11px] px-2"
+            type="button"
+            onClick={() => onChange(new Set(filtered.map((k) => k.kitNo)))}
+          >
+            Görüneni seç
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 text-[11px] px-2"
+            type="button"
+            onClick={() => onChange(new Set())}
+          >
+            Tümünü temizle
+          </Button>
+        </div>
+      </div>
+      <ScrollArea className="h-[260px] border border-border rounded-lg">
+        {isLoading ? (
+          <div className="p-6 text-sm text-muted-foreground">Yükleniyor…</div>
+        ) : assignable.length === 0 ? (
+          <div className="p-6 text-sm text-muted-foreground">
+            Henüz hiç KIT verisi yok. Önce bir hesap senkronize edin.
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {satcom.length > 0 && (
+              <KitGroup
+                title="Satcom"
+                badgeClass="bg-[#fde0d0] text-[#a4400a] border-[#f4b896]"
+                items={satcom}
+                selected={selected}
+                onToggle={toggle}
+              />
+            )}
+            {starlink.length > 0 && (
+              <KitGroup
+                title="Tototheo"
+                badgeClass="bg-[#dde9f7] text-[#2563a6] border-[#9fbbe0]"
+                items={starlink}
+                selected={selected}
+                onToggle={toggle}
+              />
+            )}
+          </div>
+        )}
+      </ScrollArea>
+    </div>
   );
 }
 

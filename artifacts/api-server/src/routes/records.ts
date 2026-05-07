@@ -9,7 +9,11 @@ import {
 } from "@workspace/db";
 import { eq, desc, asc, and, inArray, sql, count, max } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
-import { getAssignedKits, isCustomer } from "../lib/customer-scope";
+import {
+  getAssignedKits,
+  isCustomer,
+  classifyKitDb,
+} from "../lib/customer-scope";
 
 const router: IRouter = Router();
 
@@ -106,6 +110,32 @@ router.get("/station/kits", requireAuth, async (req: AuthRequest, res): Promise<
 
   res.json(list);
 });
+
+// --- /station/kits/:kitNo/source — sayfalanan KIT'in Satcom/Starlink ayrımı ---
+// Frontend dispatcher (kit-detail.tsx) ve customer-scope bunu kullanarak
+// "KITP\d" tahmin kuralından kurtulur — Tototheo serileri de bu prefix'le
+// gelebildiği için tahmin yanlış sınıflandırma üretiyor.
+router.get(
+  "/station/kits/:kitNo/source",
+  requireAuth,
+  async (req: AuthRequest, res): Promise<void> => {
+    const kitNo = String(req.params.kitNo);
+    const source = await classifyKitDb(kitNo);
+    // Müşteri ise atanmamış KIT'lerin varlığını da sızdırma — 404 dön.
+    if (isCustomer(req.userRole)) {
+      const scope = await getAssignedKits(req.userId!);
+      if (!scope.all.includes(kitNo)) {
+        res.status(404).json({ error: "KIT bulunamadı." });
+        return;
+      }
+    }
+    if (source === "unknown") {
+      res.status(404).json({ error: "KIT bulunamadı." });
+      return;
+    }
+    res.json({ kitNo, source });
+  },
+);
 
 // --- /station/kits/:kitNo — KIT detayı + aktif dönem özeti ---
 router.get("/station/kits/:kitNo", requireAuth, async (req: AuthRequest, res): Promise<void> => {

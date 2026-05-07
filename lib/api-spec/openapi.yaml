@@ -515,6 +515,32 @@ paths:
                 items:
                   $ref: "#/components/schemas/KitSummary"
 
+  /station/kits/{kitNo}/source:
+    get:
+      operationId: getKitSource
+      tags: [records]
+      summary: Resolve which data source a KIT belongs to (satcom vs starlink)
+      description: |
+        Authoritative classifier — checks the actual `starlink_terminals` and
+        `station_kits` tables. Frontend dispatcher and customer-scope use this
+        instead of guessing from the `KITP` prefix (Tototheo serials may also
+        start with `KITP\d`, which would otherwise be misrouted to Satcom).
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: kitNo
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: KIT source
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KitSourceResponse"
+
   /station/kits/{kitNo}:
     get:
       operationId: getKitDetail
@@ -1501,6 +1527,15 @@ components:
         fromName: { type: string }
         alertRecipients: { type: string, nullable: true }
         thresholdStepGib: { type: integer, minimum: 10, maximum: 10000 }
+
+    KitSourceResponse:
+      type: object
+      properties:
+        kitNo: { type: string }
+        source:
+          type: string
+          enum: [satcom, starlink, unknown]
+      required: [kitNo, source]
 
     KitSummary:
       type: object

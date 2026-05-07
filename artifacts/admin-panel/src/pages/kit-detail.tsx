@@ -7,6 +7,8 @@ import {
   getGetKitDailyQueryKey,
   useGetKitMonthly,
   getGetKitMonthlyQueryKey,
+  useGetKitSource,
+  getGetKitSourceQueryKey,
 } from "@workspace/api-client-react";
 import {
   ArrowLeft,
@@ -47,12 +49,6 @@ import { formatNumber, formatDate } from "@/lib/format";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import StarlinkDetail from "./starlink-detail";
 
-// Satcom KIT IDs follow the "KITPxxxx" pattern (KITP + digits). Anything else
-// (e.g. Tototheo's "KITxxxxxxxxxx") is routed to the Starlink detail view.
-function isStarlinkKit(kitNo: string): boolean {
-  return !/^KITP\d/i.test(kitNo);
-}
-
 function formatPeriodLabel(period?: string | null) {
   if (!period) return "-";
   if (/^\d{6}$/.test(period)) {
@@ -68,14 +64,54 @@ function formatDay(dayDate: string) {
   return dayDate;
 }
 
-// Wrapper picks the correct view based on KIT prefix. Done at the top of the
-// component tree (before any hooks) so the per-source children own their own
-// hook order — avoids react-hooks/rules-of-hooks violations across branches.
+// Wrapper picks the correct view by asking the backend which data source the
+// KIT belongs to (`starlink_terminals` vs `station_kits`). We cannot rely on
+// the "KITP\d" prefix — Tototheo cihazları da bu prefix ile gelebiliyor ve
+// yanlış sınıflandırma Satcom CDR tasarımını açıyordu. The query is cached
+// (5min staleTime) so subsequent visits are instant.
 export default function KitDetail() {
   const [, params] = useRoute("/kits/:kitNo");
   const rawKitNo = params?.kitNo ?? "";
   const kitNo = decodeURIComponent(rawKitNo);
-  if (kitNo && isStarlinkKit(kitNo)) {
+  const { data: srcData, isLoading: srcLoading, error: srcError } = useGetKitSource(
+    kitNo,
+    {
+      query: {
+        queryKey: getGetKitSourceQueryKey(kitNo),
+        enabled: Boolean(kitNo),
+        staleTime: 5 * 60 * 1000,
+        retry: 0,
+      },
+    },
+  );
+
+  if (!kitNo) {
+    return <SatcomKitDetail kitNo={kitNo} />;
+  }
+  if (srcLoading) {
+    return (
+      <div className="space-y-3 animate-in fade-in duration-300">
+        <Skeleton className="h-12 w-full rounded-lg" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <Skeleton className="lg:col-span-8 h-[140px] rounded-lg" />
+          <Skeleton className="lg:col-span-4 h-[140px] rounded-lg" />
+        </div>
+        <Skeleton className="h-32 w-full rounded-lg" />
+      </div>
+    );
+  }
+  // 404 (KIT bilinmiyor) ya da network — fall back to prefix heuristic so the
+  // child can still render its own "not found" / loading screen consistently.
+  const source: "satcom" | "starlink" =
+    srcData?.source === "starlink" || srcData?.source === "satcom"
+      ? srcData.source
+      : srcError
+        ? /^KITP\d/i.test(kitNo)
+          ? "satcom"
+          : "starlink"
+        : "satcom";
+
+  if (source === "starlink") {
     return <StarlinkDetail kit={kitNo} />;
   }
   return <SatcomKitDetail kitNo={kitNo} />;

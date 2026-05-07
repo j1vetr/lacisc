@@ -19,7 +19,7 @@ import {
 } from "../middlewares/auth";
 import { audit } from "../lib/audit";
 import { validatePassword } from "../lib/password-policy";
-import { classifyKit } from "../lib/customer-scope";
+import { classifyKitsDb } from "../lib/customer-scope";
 
 // Bump tokenVersion AND delete every active session for the target user, so
 // privilege/credential changes take effect immediately (no stale 7-day JWTs).
@@ -598,6 +598,11 @@ router.put(
     const added = requested.filter((k) => !prevSet.has(k));
     const removed = previous.map((p) => p.kitNo).filter((k) => !nextSet.has(k));
 
+    // Source haritasını DB'den al — KITP\d prefix tahmininden bağımsız, gerçek
+    // tablo (starlink_terminals vs station_kits) hangi tarafta KIT varsa onu
+    // kullanır. Yukarıdaki validation tüm requested KIT'leri doğruladığı için
+    // satcom default'una düşmeyiz, ama emniyet için fallback bırakıyoruz.
+    const sourceMap = await classifyKitsDb(requested);
     // Replace-all stratejisi: eski satırları silip yenilerini ekleyerek
     // toplam halini istek body'sine eşitle. Tek bir transaction'da çalışır
     // ki kısmen başarısız bir update kullanıcıyı hibrit bir state'te bırakmasın.
@@ -610,7 +615,7 @@ router.put(
           requested.map((kit) => ({
             userId: id,
             kitNo: kit,
-            source: classifyKit(kit),
+            source: sourceMap.get(kit) ?? "satcom",
             assignedByUserId: req.userId ?? null,
           })),
         );
