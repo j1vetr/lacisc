@@ -216,9 +216,21 @@ router.post(
         password,
         testOnly: true,
       });
+      await audit(req, {
+        action: "station.account.test_connection",
+        target: `account:${id}`,
+        success: result.success,
+        meta: { label: c.label, username: c.username, message: result.message },
+      });
       res.json({ success: result.success, message: result.message });
     } catch (err) {
       req.log.error({ err, id }, "Test connection failed");
+      await audit(req, {
+        action: "station.account.test_connection",
+        target: `account:${id}`,
+        success: false,
+        meta: { error: (err as Error).message },
+      });
       res.json({
         success: false,
         message: `Bağlantı başarısız: ${(err as Error).message}`,
@@ -368,9 +380,21 @@ router.post("/station/test-connection", requireAuth, requireRole("admin"), async
       password,
       testOnly: true,
     });
+    await audit(req, {
+      action: "station.test_connection",
+      target: `account:${settings.id}`,
+      success: result.success,
+      meta: { username: settings.username, message: result.message },
+    });
     res.json({ success: result.success, message: result.message });
   } catch (err) {
     req.log.error({ err }, "Test connection failed");
+    await audit(req, {
+      action: "station.test_connection",
+      target: `account:${settings.id}`,
+      success: false,
+      meta: { error: (err as Error).message },
+    });
     res.json({
       success: false,
       message: `Bağlantı başarısız: ${(err as Error).message}`,

@@ -3,7 +3,7 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import rateLimit from "express-rate-limit";
 import { db, adminUsers, adminSessions } from "@workspace/db";
-import { and, eq, sql, desc } from "drizzle-orm";
+import { and, eq, ne, sql, desc } from "drizzle-orm";
 import { signToken } from "../lib/jwt";
 import {
   requireAuth,
@@ -325,7 +325,39 @@ router.post(
       .set({ passwordHash, updatedAt: new Date() })
       .where(eq(adminUsers.id, req.userId!));
 
-    await audit(req, { action: "auth.change_password", success: true });
+    // Self-password-change → kendi mevcut oturumu hariç DİĞER tüm oturumları
+    // sonlandır + tokenVersion bump (post-compromise persistence riski azalır;
+    // bir saldırgan eski şifreyle başka cihazda oturum açmışsa anında düşer).
+    const others = await db
+      .select({ id: adminSessions.id, jti: adminSessions.jti })
+      .from(adminSessions)
+      .where(eq(adminSessions.userId, req.userId!));
+    const toRevoke = others.filter((s) => s.jti !== req.sessionJti);
+    if (toRevoke.length > 0) {
+      await db
+        .delete(adminSessions)
+        .where(
+          and(
+            eq(adminSessions.userId, req.userId!),
+            ne(adminSessions.jti, req.sessionJti ?? ""),
+          ),
+        );
+      for (const s of toRevoke) invalidateSessionCache(s.jti);
+      await db
+        .update(adminUsers)
+        .set({
+          tokenVersion: sql`${adminUsers.tokenVersion} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(adminUsers.id, req.userId!));
+      invalidateTokenVersionCache(req.userId!);
+    }
+
+    await audit(req, {
+      action: "auth.change_password",
+      success: true,
+      meta: { otherSessionsRevoked: toRevoke.length },
+    });
     logger.info({ userId: req.userId }, "Password changed");
     res.json({ message: "Şifre başarıyla değiştirildi." });
   }
