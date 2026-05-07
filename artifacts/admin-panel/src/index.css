@@ -157,7 +157,11 @@
 }
 
 /* Leaflet tweaks — sade, editöryel görünüm */
-.ssa-leaflet { background: var(--background, #f7f7f4); }
+.ssa-leaflet { background: var(--background, #f7f7f4); isolation: isolate; z-index: 0; }
+.ssa-leaflet .leaflet-pane,
+.ssa-leaflet .leaflet-top,
+.ssa-leaflet .leaflet-bottom { z-index: 1; }
+.ssa-leaflet .leaflet-control { z-index: 2; }
 .ssa-leaflet .leaflet-control-zoom {
   border: none !important;
   box-shadow: 0 1px 0 rgba(0,0,0,0.04) !important;
