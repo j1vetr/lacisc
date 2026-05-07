@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import brandLogo from "@assets/1_1778023047729.png";
+import brandLogoWhite from "@assets/2_1778184166378.png";
 import toovLogo from "@assets/TOOV_1778023131850.png";
 import toovLogoWhite from "@assets/TOOV_(1)_1778184135138.png";
 import { useThemedAsset } from "@/hooks/use-themed-asset";
@@ -42,6 +43,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const qc = useQueryClient();
   const { data: user, isLoading: userLoading } = useGetMe({ query: { queryKey: getGetMeQueryKey() } });
   const toovSrc = useThemedAsset(toovLogo, toovLogoWhite);
+  const brandSrc = useThemedAsset(brandLogo, brandLogoWhite);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -134,7 +136,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {!inDrawer && (
         <div className="h-24 flex items-center justify-center px-4 border-b border-border shrink-0">
           <img
-            src={brandLogo}
+            src={brandSrc}
             alt="Lacivert Teknoloji"
             className="max-h-16 w-auto object-contain"
           />
@@ -201,7 +203,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <SheetHeader className="h-16 px-4 border-b border-border shrink-0 flex flex-row items-center justify-start">
             <SheetTitle className="sr-only">Menü</SheetTitle>
             <img
-              src={brandLogo}
+              src={brandSrc}
               alt="Lacivert Teknoloji"
               className="max-h-10 w-auto object-contain"
             />
@@ -223,7 +225,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <Menu className="w-5 h-5" />
           </Button>
           <div className="lg:hidden">
-            <img src={brandLogo} alt="Lacivert" className="h-8 w-auto object-contain" />
+            <img src={brandSrc} alt="Lacivert" className="h-8 w-auto object-contain" />
           </div>
           <div className="flex-1" />
           <Button

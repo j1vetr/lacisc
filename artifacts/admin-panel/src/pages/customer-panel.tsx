@@ -25,6 +25,8 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 
 import brandLogo from "@assets/1_1778023047729.png";
+import brandLogoWhite from "@assets/2_1778184166378.png";
+import { useThemedAsset } from "@/hooks/use-themed-asset";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import "@/styles/editorial.css";
 
@@ -86,6 +88,7 @@ export default function CustomerPanel() {
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
   const logout = useLogout();
+  const brandSrc = useThemedAsset(brandLogo, brandLogoWhite);
 
   const { data: me } = useGetMe({
     query: { queryKey: getGetMeQueryKey(), staleTime: 60_000 },
@@ -235,7 +238,7 @@ export default function CustomerPanel() {
       <aside className="w-[320px] shrink-0 hl-r min-h-screen sticky top-0 h-screen flex flex-col">
         <div className="px-8 pt-9 pb-9">
           <div className="brand-mark">
-            <img src={brandLogo} alt="Lacivert Teknoloji" />
+            <img src={brandSrc} alt="Lacivert Teknoloji" />
           </div>
         </div>
 

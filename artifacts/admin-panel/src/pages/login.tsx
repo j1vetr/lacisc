@@ -3,6 +3,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import brandLogo from "@assets/1_1778023047729.png";
+import brandLogoWhite from "@assets/2_1778184166378.png";
 import toovLogo from "@assets/TOOV_1778023131850.png";
 import toovLogoWhite from "@assets/TOOV_(1)_1778184135138.png";
 import { useThemedAsset } from "@/hooks/use-themed-asset";
@@ -41,6 +42,7 @@ export default function Login() {
   const { toast } = useToast();
   const loginMutation = useLogin();
   const toovSrc = useThemedAsset(toovLogo, toovLogoWhite);
+  const brandSrc = useThemedAsset(brandLogo, brandLogoWhite);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -73,7 +75,7 @@ export default function Login() {
         <div className="h-1 w-full bg-primary" />
         <CardHeader className="space-y-6 pt-10 pb-8 text-center px-10">
           <img
-            src={brandLogo}
+            src={brandSrc}
             alt="Lacivert Teknoloji"
             className="mx-auto max-h-24 w-auto object-contain"
           />
