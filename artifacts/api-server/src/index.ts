@@ -2,7 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { startScheduler } from "./lib/scheduler";
 import { db, adminUsers } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
 const rawPort = process.env["PORT"];
@@ -53,7 +53,6 @@ async function seed(): Promise<void> {
       logger.info({ userId: oldest.id, email: oldest.email }, "Promoted existing user to owner");
     }
   }
-  void sql; // keep import in case of future use
 }
 
 app.listen(port, async (err) => {

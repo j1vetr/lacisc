@@ -238,11 +238,21 @@ router.delete(
         return;
       }
     }
+    // Önce hedef kullanıcının tüm session/token cache'lerini temizle ki
+    // silinen hesap, cache TTL süresince (~30s) post-delete erişim sağlamasın.
+    // CASCADE FK zaten admin_sessions satırlarını silecek; burada in-memory
+    // cache'leri proaktif olarak invalidate ediyoruz.
+    const sessions = await db
+      .select({ jti: adminSessions.jti })
+      .from(adminSessions)
+      .where(eq(adminSessions.userId, id));
+    for (const s of sessions) invalidateSessionCache(s.jti);
+    invalidateTokenVersionCache(id);
     await db.delete(adminUsers).where(eq(adminUsers.id, id));
     await audit(req, {
       action: "user.delete",
       target: `user:${id}`,
-      meta: { email: target.email },
+      meta: { email: target.email, sessionsRevoked: sessions.length },
     });
     res.json({ message: "Kullanıcı silindi." });
   }
