@@ -1198,16 +1198,42 @@ export async function runSync(opts: RunSyncOptions): Promise<SyncResult> {
     }
 
     // 2) Period listesi belirle + full vs incremental karar ver.
-    // ratedCdrs sayfasında olduğumuzdan emin ol (enrich navigate etmiş olabilir).
-    const cdrLink = page
-      .locator("a[href*='ratedCdrs.aspx' i], a[href*='RatedCdrs.aspx' i]")
-      .first();
-    if ((await cdrLink.count()) > 0 && !/ratedCdrs\.aspx/i.test(page.url())) {
-      await Promise.all([
-        page.waitForNavigation({ waitUntil: "networkidle", timeout: 20000 }).catch(() => {}),
-        cdrLink.click(),
-      ]);
+    // The bare /ratedCdrs.aspx grid does NOT render the period combo on this
+    // portal (probe shows comboFound=false, no buttons, no __doPostBack).
+    // The combo only materializes on the FV-filtered URL. So navigate to the
+    // first kit's FV URL — that page has both the grid AND the period combo.
+    if (kits.length > 0) {
+      const firstKit = kits[0];
+      const fvUrl = `${baseUrl}/RatedCdrs.aspx?FC=ICCID&FV=${encodeURIComponent(firstKit.kitNo)}`;
+      await page
+        .goto(fvUrl, { waitUntil: "networkidle", timeout: 30000 })
+        .catch((e) =>
+          logger.warn(
+            { err: (e as Error).message, kit: firstKit.kitNo },
+            "FV navigation for period combo readout failed"
+          )
+        );
+      await waitForGridReady(page, `combo-readout FV ${firstKit.kitNo}`).catch(() => {});
     }
+
+    // Diagnostic: confirm we're on a page that has the combo before reading.
+    const comboProbe = await page.evaluate(() => {
+      const w = window as unknown as Record<string, unknown>;
+      const combo = w["ctl00_ContentPlaceHolder1_ctl00_ctl00"] as
+        | { GetItemCount?: () => number }
+        | undefined;
+      return {
+        url: location.href,
+        title: document.title,
+        comboFound: !!combo,
+        itemCountBeforeOpen:
+          combo && typeof combo.GetItemCount === "function" ? combo.GetItemCount() : null,
+        hasComboButton: !!document.querySelector(
+          "#ctl00_ContentPlaceHolder1_ctl00_ctl00_B-1Img, #ctl00_ContentPlaceHolder1_ctl00_ctl00_B-1"
+        ),
+      };
+    });
+    logger.info(comboProbe, "Pre-readPeriodOptions probe");
 
     // DevExpress lazy-loads combo items: GetItemCount() returns 1 (the
     // currently-selected period) until the dropdown is opened. Click the
@@ -1220,7 +1246,7 @@ export async function runSync(opts: RunSyncOptions): Promise<SyncResult> {
       await page.waitForSelector("#ctl00_ContentPlaceHolder1_ctl00_ctl00_DDD_L_LBT tr", {
         timeout: 5000,
       }).catch(() => {});
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(400);
     } catch (e) {
       logger.warn(
         { err: (e as Error).message },
