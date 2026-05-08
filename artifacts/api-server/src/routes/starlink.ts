@@ -405,6 +405,7 @@ router.get("/starlink/terminals", requireAuth, async (req: AuthRequest, res): Pr
       t.active_alerts_count  AS "activeAlertsCount",
       t.last_seen_at         AS "lastSeenAt",
       t.updated_at           AS "updatedAt",
+      t.plan_allowance_gb    AS "planAllowanceGb",
       p.total_gb             AS "currentPeriodTotalGb",
       p.package_usage_gb     AS "currentPeriodPackageGb",
       p.priority_gb          AS "currentPeriodPriorityGb",

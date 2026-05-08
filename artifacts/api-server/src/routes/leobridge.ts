@@ -480,6 +480,7 @@ router.get(
         updatedAt: r.updatedAt.toISOString(),
         currentPeriod: totals.get(r.kitSerialNumber)?.period ?? null,
         currentPeriodTotalGb: totals.get(r.kitSerialNumber)?.totalGb ?? null,
+        planAllowanceGb: r.planAllowanceGb ?? null,
       })),
     );
   },

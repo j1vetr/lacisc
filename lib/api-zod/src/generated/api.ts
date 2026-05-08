@@ -441,6 +441,12 @@ export const GetKitsResponseItem = zod.object({
   rowCount: zod.number(),
   lastPeriod: zod.string().nullish(),
   lastSyncedAt: zod.coerce.date().nullish(),
+  planAllowanceGb: zod
+    .number()
+    .nullish()
+    .describe(
+      "Aktif plan adından parse edilen kota (decimal GB). Müşteri panelinde kullanım\/kota progress bar için.",
+    ),
 });
 export const GetKitsResponse = zod.array(GetKitsResponseItem);
 
@@ -833,6 +839,12 @@ export const GetStarlinkTerminalsResponseItem = zod.object({
   currentPeriodPackageGb: zod.number().nullish(),
   currentPeriodPriorityGb: zod.number().nullish(),
   currentPeriodOverageGb: zod.number().nullish(),
+  planAllowanceGb: zod
+    .number()
+    .nullish()
+    .describe(
+      "Aktif servis planındaki kota (decimal GB). Müşteri panelinde kullanım\/kota progress bar için.",
+    ),
 });
 export const GetStarlinkTerminalsResponse = zod.array(
   GetStarlinkTerminalsResponseItem,
@@ -1081,6 +1093,12 @@ export const GetLeobridgeTerminalsResponseItem = zod.object({
   updatedAt: zod.coerce.date().nullish(),
   currentPeriod: zod.string().nullish(),
   currentPeriodTotalGb: zod.number().nullish(),
+  planAllowanceGb: zod
+    .number()
+    .nullish()
+    .describe(
+      "Aktif fatura döngüsündeki recurring data block'ların toplamı (decimal GB). Müşteri panelinde kullanım\/kota progress bar için.",
+    ),
 });
 export const GetLeobridgeTerminalsResponse = zod.array(
   GetLeobridgeTerminalsResponseItem,

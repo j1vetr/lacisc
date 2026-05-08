@@ -18,6 +18,8 @@ export type FleetRow = {
   kitNo: string;
   shipName: string;
   currentPeriodGb: number;
+  /** Decimal GB. null = bilinmiyor (plan adından parse edilemedi vs.). */
+  planAllowanceGb: number | null;
   online: boolean;
 };
 
@@ -77,6 +79,7 @@ export function useCustomerFleet(): FleetState {
         shipName: k.shipName?.trim() || "Adsız Gemi",
         // Satcom GiB → GB; Starlink + Norway zaten GB.
         currentPeriodGb: (k.totalGib ?? 0) * 1.073741824,
+        planAllowanceGb: k.planAllowanceGb ?? null,
         online: isOnlineSatcom(k.lastSyncedAt ?? null),
       });
     }
@@ -86,6 +89,7 @@ export function useCustomerFleet(): FleetState {
         kitNo: t.kitSerialNumber,
         shipName: t.nickname?.trim() || t.assetName?.trim() || "Adsız Gemi",
         currentPeriodGb: t.currentPeriodTotalGb ?? 0,
+        planAllowanceGb: t.planAllowanceGb ?? null,
         online: t.isOnline ?? false,
       });
     }
@@ -95,6 +99,7 @@ export function useCustomerFleet(): FleetState {
         kitNo: t.kitSerialNumber,
         shipName: t.nickname?.trim() || "Adsız Gemi",
         currentPeriodGb: t.currentPeriodTotalGb ?? 0,
+        planAllowanceGb: t.planAllowanceGb ?? null,
         online: t.isOnline ?? false,
       });
     }

@@ -94,6 +94,7 @@ router.get("/station/kits", requireAuth, async (req: AuthRequest, res): Promise<
       l.row_count     AS "rowCount",
       l.scraped_at    AS "lastSyncedAt",
       k.ship_name     AS "shipName",
+      k.active_plan_name AS "activePlanName",
       l.credential_id AS "credentialId",
       c.label         AS "accountLabel",
       c.username      AS "accountUsername"
@@ -113,10 +114,12 @@ router.get("/station/kits", requireAuth, async (req: AuthRequest, res): Promise<
         rowCount: number;
         lastSyncedAt: string | Date | null;
         shipName: string | null;
+        activePlanName: string | null;
       }>;
     }
   ).rows.map((r) => ({
     ...r,
+    planAllowanceGb: parseSatcomPlanAllowanceGb(r.activePlanName),
     // Postgres `timestamp` (timezone'suz) raw SQL'de Z'siz string döner.
     // Drizzle ORM yolu (kit-detail) Date → ISO+Z üretiyor; tutarlı olmak için
     // string gelirse UTC kabul edip ISO'ya çeviriyoruz.

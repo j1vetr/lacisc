@@ -2022,6 +2022,10 @@ components:
         currentPeriodPackageGb: { type: number, nullable: true }
         currentPeriodPriorityGb: { type: number, nullable: true }
         currentPeriodOverageGb: { type: number, nullable: true }
+        planAllowanceGb:
+          type: number
+          nullable: true
+          description: "Aktif servis planındaki kota (decimal GB). Müşteri panelinde kullanım/kota progress bar için."
 
     StarlinkTerminalDetail:
       type: object
@@ -2173,6 +2177,10 @@ components:
         updatedAt: { type: string, format: date-time, nullable: true }
         currentPeriod: { type: string, nullable: true }
         currentPeriodTotalGb: { type: number, nullable: true }
+        planAllowanceGb:
+          type: number
+          nullable: true
+          description: "Aktif fatura döngüsündeki recurring data block'ların toplamı (decimal GB). Müşteri panelinde kullanım/kota progress bar için."
 
     LeobridgeTerminalDetail:
       type: object
@@ -2277,6 +2285,10 @@ components:
         rowCount: { type: integer }
         lastPeriod: { type: string, nullable: true }
         lastSyncedAt: { type: string, format: date-time, nullable: true }
+        planAllowanceGb:
+          type: number
+          nullable: true
+          description: "Aktif plan adından parse edilen kota (decimal GB). Müşteri panelinde kullanım/kota progress bar için."
       required: [kitNo, rowCount]
 
     KitDetail:

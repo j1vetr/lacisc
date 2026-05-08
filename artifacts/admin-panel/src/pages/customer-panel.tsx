@@ -16,19 +16,23 @@ const fmtGb = (n: number) =>
 
 function ShipCard({
   row,
-  maxGb,
   onOpen,
 }: {
   row: FleetRow;
-  maxGb: number;
   onOpen: () => void;
 }) {
-  // Real veride per-KIT kotası yok; barı filo zirvesine göre relative çiz.
-  const pct = Math.min(
-    100,
-    Math.max(2, Math.round((row.currentPeriodGb / Math.max(0.001, maxGb)) * 100)),
-  );
-  const warn = pct >= 80;
+  // Kullanım / Kota: plan tahsisi biliniyorsa onu kullan.
+  const hasQuota = row.planAllowanceGb != null && row.planAllowanceGb > 0;
+  const pct = hasQuota
+    ? Math.min(
+        100,
+        Math.max(
+          0,
+          Math.round((row.currentPeriodGb / row.planAllowanceGb!) * 100),
+        ),
+      )
+    : 0;
+  const warn = hasQuota && pct >= 80;
 
   return (
     <button
@@ -63,7 +67,7 @@ function ShipCard({
         </div>
       </div>
 
-      <div className="flex items-baseline gap-2">
+      <div className="flex items-baseline gap-2 flex-wrap">
         <span
           className="sd-tnum text-[30px] sm:text-[34px] font-semibold leading-none"
           style={{ letterSpacing: "-0.025em" }}
@@ -73,25 +77,34 @@ function ShipCard({
         <span className="text-[13px]" style={{ color: "var(--sd-muted)" }}>
           GB
         </span>
-        <span
-          className="text-[12px] ml-auto sd-tnum"
-          style={{ color: "var(--sd-muted)" }}
-        >
-          %{pct}
-        </span>
+        {hasQuota && (
+          <span
+            className="text-[12px] sd-tnum"
+            style={{ color: "var(--sd-muted)" }}
+          >
+            / {fmtGb(row.planAllowanceGb!)} GB
+          </span>
+        )}
+        {hasQuota && (
+          <span
+            className="text-[12px] ml-auto sd-tnum"
+            style={{ color: "var(--sd-muted)" }}
+          >
+            %{pct}
+          </span>
+        )}
       </div>
 
       <div className="flex flex-col gap-2">
-        <div className="sd-bar-track">
-          <div
-            className={`sd-bar-fill ${warn ? "warn" : ""}`}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-[11px]" style={{ color: "var(--sd-muted)" }}>
-            Filo zirvesine göre
-          </span>
+        {hasQuota && (
+          <div className="sd-bar-track">
+            <div
+              className={`sd-bar-fill ${warn ? "warn" : ""}`}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        )}
+        <div className="flex items-center justify-end">
           <span
             className="flex items-center gap-1 text-[12px] sd-detail-label"
             style={{ color: "var(--sd-muted)" }}
@@ -142,7 +155,6 @@ export default function CustomerPanel() {
   const totalGb = fleet.reduce((s, r) => s + r.currentPeriodGb, 0);
   const onlineCount = fleet.filter((r) => r.online).length;
   const totalCount = fleet.length;
-  const maxGb = fleet.reduce((m, r) => Math.max(m, r.currentPeriodGb), 0);
 
   return (
     <>
@@ -231,7 +243,6 @@ export default function CustomerPanel() {
               <ShipCard
                 key={`${row.source}:${row.kitNo}`}
                 row={row}
-                maxGb={maxGb}
                 onOpen={() => setLocation(detailHref(row))}
               />
             ))}
