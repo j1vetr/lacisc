@@ -21,9 +21,6 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         <h1 className="text-[28px] sm:text-[40px] leading-[1.1] font-normal tracking-[-0.02em] text-foreground">
           Ayarlar
         </h1>
-        <p className="text-sm sm:text-base text-muted-foreground">
-          Her gece 01:00 da senkronize sağlanır.
-        </p>
       </div>
 
       <nav className="flex gap-1 border-b border-border overflow-x-auto -mx-1 px-1">
