@@ -134,14 +134,16 @@ export class LeobridgeClient {
   private async getJson<T>(path: string): Promise<T> {
     await this.ensureLogin();
     const url = `${this.base()}${path}`;
-    let res = await fetch(url, {
-      headers: {
-        Cookie: cookieHeader(this.jar),
-        Accept: "application/json",
-        "User-Agent":
-          "Mozilla/5.0 (Linux x86_64) AppleWebKit/537.36 LeoBridgeSync/1.0",
-      },
-    });
+    const headers = {
+      Cookie: cookieHeader(this.jar),
+      Accept: "application/json",
+      // Portal probes show the API expects a same-origin Referer; sending it
+      // matches the browser flow and avoids stricter checks rejecting us.
+      Referer: `${this.base()}/`,
+      "User-Agent":
+        "Mozilla/5.0 (Linux x86_64) AppleWebKit/537.36 LeoBridgeSync/1.0",
+    } as const;
+    let res = await fetch(url, { headers });
     if (res.status === 401 || res.status === 403) {
       // Session expired — re-login once and retry.
       logger.debug({ path, status: res.status }, "Leo Bridge re-login");
@@ -149,8 +151,8 @@ export class LeobridgeClient {
       await this.login();
       res = await fetch(url, {
         headers: {
+          ...headers,
           Cookie: cookieHeader(this.jar),
-          Accept: "application/json",
         },
       });
     }
@@ -170,11 +172,28 @@ export class LeobridgeClient {
     return data.serviceLines ?? [];
   }
 
+  async getServiceLine(serviceLineNumber: string): Promise<LeoServiceLine> {
+    const safe = encodeURIComponent(serviceLineNumber);
+    return this.getJson<LeoServiceLine>(
+      `/api/starlink/service-line/${safe}`
+    );
+  }
+
   async getDataUsage(serviceLineNumber: string): Promise<LeoBillingPeriod[]> {
     const safe = encodeURIComponent(serviceLineNumber);
     return this.getJson<LeoBillingPeriod[]>(
       `/api/starlink/service-line/${safe}/data-usage`
     );
+  }
+
+  async listAlerts(): Promise<unknown[]> {
+    // Returns whatever shape the portal exposes; intentionally typed as
+    // unknown[] until alerts are surfaced in the UI.
+    const data = await this.getJson<{ alerts?: unknown[] } | unknown[]>(
+      "/api/starlink/alerts"
+    );
+    if (Array.isArray(data)) return data;
+    return data.alerts ?? [];
   }
 }
 

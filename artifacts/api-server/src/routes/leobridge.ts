@@ -6,7 +6,7 @@ import {
   leobridgeTerminalDaily,
   leobridgeTerminalPeriodTotal,
 } from "@workspace/db";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
 import { encrypt, decrypt } from "../lib/crypto";
 import { isCustomer, getAssignedKits } from "../lib/customer-scope";
@@ -332,8 +332,5 @@ router.get(
     );
   }
 );
-
-// Suppress unused-import warning for `and` (kept for future filters).
-void and;
 
 export default router;
