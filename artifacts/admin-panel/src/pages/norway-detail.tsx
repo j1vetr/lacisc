@@ -1,6 +1,4 @@
-import React, { useMemo, useState, lazy, Suspense } from "react";
-
-const TerminalMap = lazy(() => import("@/components/terminal-map"));
+import { useMemo, useState, lazy, Suspense } from "react";
 import { Link } from "wouter";
 import {
   useGetLeobridgeTerminalDetail,
@@ -17,9 +15,10 @@ import {
   Activity,
   Wifi,
   WifiOff,
-  MapPin,
   Clock,
   Compass,
+  Zap,
+  Gauge,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -31,7 +30,10 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
+  Cell,
 } from "recharts";
+
+const TerminalMap = lazy(() => import("@/components/terminal-map"));
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatNumber, formatDate } from "@/lib/format";
@@ -40,7 +42,7 @@ import { useIsCustomer } from "@/hooks/use-is-customer";
 import { Card, Pill } from "@/components/kit-detail/primitives";
 
 function formatPeriodLabel(period?: string | null) {
-  if (!period) return "-";
+  if (!period) return "—";
   if (/^\d{6}$/.test(period)) {
     return `${period.slice(4, 6)}/${period.slice(0, 4)}`;
   }
@@ -54,12 +56,17 @@ function formatDay(dayDate: string) {
   return dayDate;
 }
 
+function fmtCoord(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  return n.toFixed(4);
+}
+
 export default function NorwayDetail({ kit }: { kit: string }) {
   useDocumentTitle(kit);
   const isCustomer = useIsCustomer();
 
   const [selectedPeriod, setSelectedPeriod] = useState<string | undefined>(
-    undefined
+    undefined,
   );
 
   const { data: detail, isLoading: detailLoading } =
@@ -87,43 +94,21 @@ export default function NorwayDetail({ kit }: { kit: string }) {
         queryKey: getGetLeobridgeTerminalDailyQueryKey(kit, dailyParams),
         enabled: Boolean(kit) && Boolean(activePeriod),
       },
-    }
+    },
   );
 
   const periodLabel = formatPeriodLabel(activePeriod);
 
-  const chartData = useMemo(
+  const dailyChart = useMemo(
     () =>
       (daily ?? []).map((r) => ({
         day: formatDay(r.dayDate),
-        gib: r.totalGb ?? 0,
+        priority: r.priorityGb ?? 0,
+        standard: r.standardGb ?? 0,
+        total: r.totalGb ?? 0,
       })),
-    [daily]
+    [daily],
   );
-
-  // Last 6 months of monthly history with zero-fill for missing periods so
-  // the bar chart always shows a stable 6-bucket axis (parity with required
-  // monthly visualization spec).
-  const monthlyChart = useMemo(() => {
-    const byPeriod = new Map<string, number>();
-    for (const m of monthly ?? []) {
-      if (m.period) byPeriod.set(m.period, m.totalGb ?? 0);
-    }
-    const out: { period: string; label: string; gib: number }[] = [];
-    const now = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const period = `${yyyy}${mm}`;
-      out.push({
-        period,
-        label: `${mm}/${yyyy}`,
-        gib: byPeriod.get(period) ?? 0,
-      });
-    }
-    return out;
-  }, [monthly]);
 
   const periodOptions = useMemo(() => {
     const set = new Set<string>();
@@ -132,12 +117,31 @@ export default function NorwayDetail({ kit }: { kit: string }) {
     return Array.from(set).sort((a, b) => (a < b ? 1 : -1));
   }, [monthly, detail?.currentPeriod]);
 
+  const monthlyChart = useMemo(
+    () =>
+      (monthly ?? [])
+        .slice()
+        .sort((a, b) => (a.period < b.period ? -1 : 1))
+        .map((m) => ({
+          period: m.period ?? "",
+          label: formatPeriodLabel(m.period),
+          total: m.totalGb ?? 0,
+          priority: m.priorityGb ?? 0,
+          standard: m.standardGb ?? 0,
+        })),
+    [monthly],
+  );
+
   const shipName = detail?.nickname || "—";
-  const used = detail?.currentPeriodTotalGb ?? 0;
+  const total = detail?.currentPeriodTotalGb ?? 0;
+  const priority = detail?.currentPeriodPriorityGb ?? 0;
+  const standard = detail?.currentPeriodStandardGb ?? 0;
+  const priorityPct =
+    total > 0 ? Math.round((priority / total) * 100) : 0;
 
   return (
     <div className="space-y-4 animate-in fade-in duration-500">
-      {/* Sticky dense header — same shape as Tototheo, but plan/ipv4 omitted */}
+      {/* Header — Norway-tailored: name + KIT + source/account/online status */}
       <div className="rounded-lg border border-border bg-card sticky top-0 z-20 shadow-[0_1px_0_0_hsl(var(--border))]">
         <div className="px-4 sm:px-5 py-3 flex items-center gap-3 sm:gap-4 border-b border-border flex-wrap">
           {!isCustomer && (
@@ -186,96 +190,132 @@ export default function NorwayDetail({ kit }: { kit: string }) {
           {detail?.serviceLineNumber && (
             <span>
               <span className="text-muted-foreground">Servis Hattı:</span>{" "}
-              <span className="text-foreground">{detail.serviceLineNumber}</span>
+              <span className="text-foreground">
+                {detail.serviceLineNumber}
+              </span>
             </span>
           )}
-          {detail?.updatedAt && (
+          {detail?.lastSeenAt && (
             <span className="ml-auto flex items-center gap-1.5">
               <Clock className="w-3 h-3" /> Son Bağlantı{" "}
-              {formatDate(detail.updatedAt)}
+              {formatDate(detail.lastSeenAt)}
             </span>
           )}
         </div>
       </div>
 
-      {/* Top row: usage hero (8) + Map (4) — no plan / no price */}
+      {/* Top: usage hero (col-7) + Map (col-5). No plan, no price, no address. */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <Card className="lg:col-span-8">
-          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold tracking-tight">
-                Bu Dönem Kullanım
-              </h2>
-              <Pill tone="info">{periodLabel}</Pill>
-            </div>
+        <Card className="lg:col-span-7">
+          <div className="px-5 py-3 border-b border-border flex items-center gap-2">
+            <Activity className="w-4 h-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold tracking-tight">
+              Bu Dönem Kullanım
+            </h2>
+            <Pill tone="info">{periodLabel}</Pill>
           </div>
-          <div className="p-6">
+          <div className="px-5 py-6">
             {detailLoading ? (
-              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-20 w-2/3" />
             ) : (
-              <div className="flex items-baseline gap-2">
-                <span className="font-mono text-5xl tracking-tight tabular-nums">
-                  {formatNumber(used, 1)}
+              <div className="flex items-baseline gap-3">
+                <span className="font-mono text-[56px] leading-none tracking-tight tabular-nums">
+                  {formatNumber(total, 1)}
                 </span>
-                <span className="text-sm text-muted-foreground">GB</span>
-                {detail?.currentPeriodPriorityGb != null && (
-                  <span className="ml-4 text-xs font-mono text-muted-foreground">
-                    Öncelikli: {formatNumber(detail.currentPeriodPriorityGb, 1)} GB
-                  </span>
-                )}
-                {detail?.currentPeriodStandardGb != null && (
-                  <span className="ml-2 text-xs font-mono text-muted-foreground">
-                    Standart: {formatNumber(detail.currentPeriodStandardGb, 1)} GB
-                  </span>
-                )}
+                <span className="text-base text-muted-foreground">GB</span>
               </div>
             )}
-            {detail?.addressLabel && (
-              <div className="mt-4 text-[12px] text-muted-foreground flex items-start gap-1.5">
-                <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                <span>{detail.addressLabel}</span>
+
+            {/* Priority / Standard split */}
+            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="rounded-lg border border-border bg-secondary/30 px-4 py-3.5">
+                <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-1.5">
+                  <Zap className="w-3 h-3" />
+                  Öncelikli
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="font-mono text-2xl tabular-nums">
+                    {detailLoading ? "—" : formatNumber(priority, 1)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">GB</span>
+                  {!detailLoading && total > 0 && (
+                    <span className="ml-2 text-[11px] font-mono text-muted-foreground">
+                      %{priorityPct}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="rounded-lg border border-border bg-secondary/30 px-4 py-3.5">
+                <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-1.5">
+                  <Gauge className="w-3 h-3" />
+                  Standart
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="font-mono text-2xl tabular-nums">
+                    {detailLoading ? "—" : formatNumber(standard, 1)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">GB</span>
+                  {!detailLoading && total > 0 && (
+                    <span className="ml-2 text-[11px] font-mono text-muted-foreground">
+                      %{Math.max(0, 100 - priorityPct)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Stacked composition bar */}
+            {!detailLoading && total > 0 && (
+              <div className="mt-5">
+                <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-border">
+                  <div
+                    className="h-full bg-[#f54e00]"
+                    style={{ width: `${priorityPct}%` }}
+                    title={`Öncelikli ${formatNumber(priority, 1)} GB`}
+                  />
+                  <div
+                    className="h-full bg-[#9fbbe0]"
+                    style={{ width: `${Math.max(0, 100 - priorityPct)}%` }}
+                    title={`Standart ${formatNumber(standard, 1)} GB`}
+                  />
+                </div>
+                <div className="mt-2 flex items-center gap-4 text-[11px] font-mono text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-sm bg-[#f54e00]" />
+                    Öncelikli
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-sm bg-[#9fbbe0]" />
+                    Standart
+                  </span>
+                </div>
               </div>
             )}
           </div>
         </Card>
 
-        <Card className="lg:col-span-4 overflow-hidden">
+        <Card className="lg:col-span-5 overflow-hidden flex flex-col">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Compass className="w-4 h-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold tracking-tight">Konum</h2>
             </div>
-            {detail?.lastSeenAt && (
-              <span className="text-[10px] font-mono text-muted-foreground">
-                {formatDate(detail.lastSeenAt)}
-              </span>
-            )}
+            <span className="font-mono text-[11px] text-muted-foreground">
+              {fmtCoord(detail?.lat)} , {fmtCoord(detail?.lng)}
+            </span>
           </div>
-          <div className="relative h-[260px] bg-secondary">
+          <div className="relative flex-1 min-h-[280px] bg-secondary">
             {detailLoading ? (
               <Skeleton className="absolute inset-0" />
             ) : detail?.lat != null && detail?.lng != null ? (
-              <>
-                <Suspense
-                  fallback={<div className="absolute inset-0 bg-secondary" />}
-                >
-                  <TerminalMap lat={detail.lat} lng={detail.lng} zoom={3} />
-                </Suspense>
-                <div className="absolute bottom-0 left-0 right-0 px-3 py-2 bg-card/90 backdrop-blur-sm border-t border-border flex justify-between text-[11px] font-mono z-[400] pointer-events-none">
-                  <span>
-                    <span className="text-muted-foreground">lat</span>{" "}
-                    {detail.lat.toFixed(4)}
-                  </span>
-                  <span>
-                    <span className="text-muted-foreground">lng</span>{" "}
-                    {detail.lng.toFixed(4)}
-                  </span>
-                </div>
-              </>
+              <Suspense
+                fallback={<div className="absolute inset-0 bg-secondary" />}
+              >
+                <TerminalMap lat={detail.lat} lng={detail.lng} zoom={4} />
+              </Suspense>
             ) : (
               <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-                <MapPin className="w-3.5 h-3.5 mr-1.5 opacity-50" />
+                <Compass className="w-3.5 h-3.5 mr-1.5 opacity-50" />
                 Konum bilgisi yok.
               </div>
             )}
@@ -283,7 +323,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
         </Card>
       </div>
 
-      {/* Daily breakdown */}
+      {/* Daily breakdown — area chart (priority + standard stacked totals shown as 'total' line) */}
       <Card>
         <div className="px-4 py-3 border-b border-border flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2">
@@ -307,55 +347,98 @@ export default function NorwayDetail({ kit }: { kit: string }) {
             </select>
           )}
         </div>
-        <div className="p-4 h-56">
+        <div className="p-4 h-64">
           {dailyLoading ? (
             <Skeleton className="h-full w-full rounded-lg" />
-          ) : chartData.length === 0 ? (
+          ) : dailyChart.length === 0 ? (
             <div className="h-full flex items-center justify-center text-sm text-muted-foreground border border-dashed border-border rounded-lg">
               Bu dönem için günlük okuma yok.
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
-                data={chartData}
+                data={dailyChart}
                 margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
               >
                 <defs>
-                  <linearGradient id="ssa-norway-grad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#f54e00" stopOpacity={0.35} />
+                  <linearGradient
+                    id="ssa-norway-prio"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop offset="0%" stopColor="#f54e00" stopOpacity={0.4} />
                     <stop offset="100%" stopColor="#f54e00" stopOpacity={0} />
                   </linearGradient>
+                  <linearGradient
+                    id="ssa-norway-std"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop offset="0%" stopColor="#9fbbe0" stopOpacity={0.5} />
+                    <stop offset="100%" stopColor="#9fbbe0" stopOpacity={0} />
+                  </linearGradient>
                 </defs>
-                <CartesianGrid stroke="#e6e5e0" strokeDasharray="2 4" vertical={false} />
+                <CartesianGrid
+                  stroke="#e6e5e0"
+                  strokeDasharray="2 4"
+                  vertical={false}
+                />
                 <XAxis
                   dataKey="day"
                   stroke="#a8a79e"
-                  tick={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}
+                  tick={{
+                    fontSize: 11,
+                    fontFamily: "JetBrains Mono, monospace",
+                  }}
                   tickLine={false}
                   axisLine={{ stroke: "#e6e5e0" }}
                 />
                 <YAxis
-                  stroke="#9fbbe0"
-                  tick={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}
+                  stroke="#a8a79e"
+                  tick={{
+                    fontSize: 11,
+                    fontFamily: "JetBrains Mono, monospace",
+                  }}
                   tickLine={false}
                   axisLine={false}
+                  width={42}
                 />
                 <Tooltip
                   contentStyle={{
-                    background: "#fffefb",
+                    background: "var(--background, #fffefb)",
                     border: "1px solid #e6e5e0",
                     borderRadius: 6,
                     fontFamily: "Inter, sans-serif",
                     fontSize: 12,
                   }}
-                  formatter={(v: number) => [`${formatNumber(v, 2)} GB`, "Veri"]}
+                  formatter={(v: number, name) => [
+                    `${formatNumber(v, 2)} GB`,
+                    name === "priority"
+                      ? "Öncelikli"
+                      : name === "standard"
+                        ? "Standart"
+                        : "Toplam",
+                  ]}
                 />
                 <Area
                   type="monotone"
-                  dataKey="gib"
+                  stackId="1"
+                  dataKey="priority"
                   stroke="#f54e00"
                   strokeWidth={2}
-                  fill="url(#ssa-norway-grad)"
+                  fill="url(#ssa-norway-prio)"
+                />
+                <Area
+                  type="monotone"
+                  stackId="1"
+                  dataKey="standard"
+                  stroke="#9fbbe0"
+                  strokeWidth={2}
+                  fill="url(#ssa-norway-std)"
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -363,104 +446,141 @@ export default function NorwayDetail({ kit }: { kit: string }) {
         </div>
       </Card>
 
-      {/* Monthly history */}
+      {/* Monthly history — bar chart + compact table side-by-side on lg */}
       <Card>
         <div className="px-4 py-3 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CalendarClock className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold tracking-tight">Aylık Geçmiş</h2>
+            <h2 className="text-sm font-semibold tracking-tight">
+              Aylık Geçmiş
+            </h2>
+            <span className="text-[11px] text-muted-foreground">
+              {monthlyChart.length} dönem
+            </span>
           </div>
         </div>
-        <div className="p-4 border-b border-border">
-          {monthlyLoading ? (
-            <Skeleton className="h-40 w-full" />
-          ) : (
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={monthlyChart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e6e5e0" vertical={false} />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fontSize: 11, fill: "#7a7869" }}
-                  tickLine={false}
-                  axisLine={{ stroke: "#e6e5e0" }}
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: "#7a7869" }}
-                  tickLine={false}
-                  axisLine={false}
-                  width={40}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "#fff",
-                    border: "1px solid #e6e5e0",
-                    borderRadius: 6,
-                    fontSize: 12,
-                  }}
-                  formatter={(v: number) => [`${formatNumber(v, 2)} GB`, "Toplam"]}
-                />
-                <Bar dataKey="gib" fill="#f54e00" radius={[2, 2, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-        {monthlyLoading ? (
-          <div className="p-4">
-            <Skeleton className="h-32 w-full" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
+          <div className="lg:col-span-7 p-4 border-b lg:border-b-0 lg:border-r border-border h-56">
+            {monthlyLoading ? (
+              <Skeleton className="h-full w-full" />
+            ) : monthlyChart.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+                Henüz aylık veri yok.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={monthlyChart}
+                  margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#e6e5e0"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 11, fill: "#7a7869" }}
+                    tickLine={false}
+                    axisLine={{ stroke: "#e6e5e0" }}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: "#7a7869" }}
+                    tickLine={false}
+                    axisLine={false}
+                    width={42}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--background, #fff)",
+                      border: "1px solid #e6e5e0",
+                      borderRadius: 6,
+                      fontSize: 12,
+                    }}
+                    formatter={(v: number) => [
+                      `${formatNumber(v, 2)} GB`,
+                      "Toplam",
+                    ]}
+                  />
+                  <Bar dataKey="total" radius={[3, 3, 0, 0]}>
+                    {monthlyChart.map((m) => (
+                      <Cell
+                        key={m.period}
+                        fill={
+                          m.period === activePeriod ? "#f54e00" : "#dfa88f"
+                        }
+                        cursor="pointer"
+                        onClick={() => setSelectedPeriod(m.period)}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
-        ) : !monthly || monthly.length === 0 ? (
-          <div className="m-4 text-center py-12 text-sm text-muted-foreground border border-dashed border-border rounded-lg">
-            Henüz aylık veri yok.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-[12px] min-w-[640px]">
-              <thead className="bg-secondary/40">
-                <tr>
-                  {[
-                    { label: "Dönem", alignClass: "text-left", pad: "pl-4" },
-                    { label: "Toplam", alignClass: "text-right" },
-                    { label: "Öncelikli", alignClass: "text-right" },
-                    { label: "Standart", alignClass: "text-right" },
-                    { label: "Tarama", alignClass: "text-right", pad: "pr-4" },
-                  ].map((h) => (
-                    <th
-                      key={h.label}
-                      className={`h-9 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold ${h.alignClass} ${h.pad ?? ""}`}
-                    >
-                      {h.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {monthly.map((r) => (
-                  <tr
-                    key={r.period}
-                    className="border-t border-border h-11 hover:bg-secondary/40 cursor-pointer"
-                    onClick={() => setSelectedPeriod(r.period)}
-                  >
-                    <td className="pl-4 font-mono">{formatPeriodLabel(r.period)}</td>
-                    <td className="text-right font-mono">
-                      {formatNumber(r.totalGb, 1)} GB
-                    </td>
-                    <td className="text-right font-mono">
-                      {formatNumber(r.priorityGb, 1)}{" "}
-                      <span className="text-[11px] text-muted-foreground">GB</span>
-                    </td>
-                    <td className="text-right font-mono">
-                      {formatNumber(r.standardGb, 1)}{" "}
-                      <span className="text-[11px] text-muted-foreground">GB</span>
-                    </td>
-                    <td className="text-right pr-4 font-mono text-[11px] text-muted-foreground">
-                      {r.scrapedAt ? formatDate(r.scrapedAt) : "-"}
-                    </td>
+          <div className="lg:col-span-5 overflow-x-auto">
+            {monthlyLoading ? (
+              <div className="p-4">
+                <Skeleton className="h-32 w-full" />
+              </div>
+            ) : !monthly || monthly.length === 0 ? (
+              <div className="m-4 text-center py-8 text-sm text-muted-foreground border border-dashed border-border rounded-lg">
+                Henüz aylık veri yok.
+              </div>
+            ) : (
+              <table className="w-full text-[12px]">
+                <thead className="bg-secondary/40">
+                  <tr>
+                    {[
+                      { label: "Dönem", alignClass: "text-left", pad: "pl-4" },
+                      { label: "Öncelikli", alignClass: "text-right" },
+                      { label: "Standart", alignClass: "text-right" },
+                      {
+                        label: "Toplam",
+                        alignClass: "text-right",
+                        pad: "pr-4",
+                      },
+                    ].map((h) => (
+                      <th
+                        key={h.label}
+                        className={`h-9 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold ${h.alignClass} ${h.pad ?? ""}`}
+                      >
+                        {h.label}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {monthly.map((r) => {
+                    const active = r.period === activePeriod;
+                    return (
+                      <tr
+                        key={r.period}
+                        className={`border-t border-border h-11 cursor-pointer transition-colors ${active ? "bg-secondary/60" : "hover:bg-secondary/40"}`}
+                        onClick={() =>
+                          r.period && setSelectedPeriod(r.period)
+                        }
+                      >
+                        <td className="pl-4 font-mono">
+                          {formatPeriodLabel(r.period)}
+                        </td>
+                        <td className="text-right font-mono">
+                          {formatNumber(r.priorityGb, 1)}
+                        </td>
+                        <td className="text-right font-mono">
+                          {formatNumber(r.standardGb, 1)}
+                        </td>
+                        <td className="text-right pr-4 font-mono font-semibold">
+                          {formatNumber(r.totalGb, 1)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
-        )}
+        </div>
       </Card>
     </div>
   );
