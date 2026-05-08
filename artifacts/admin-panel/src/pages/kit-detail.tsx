@@ -464,24 +464,10 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
               <span className="text-foreground">{detail.costCenter}</span>
             </span>
           )}
-          {detail?.lastSessionStart && (
-            <span className="inline-flex items-center gap-1.5">
-              <PlugZap className="w-3 h-3" />
-              <span className="text-muted-foreground">Son oturum:</span>{" "}
-              <span className="text-foreground">
-                {formatDate(detail.lastSessionStart)}
-              </span>
-              {detail.lastSessionType && (
-                <span className="text-muted-foreground">
-                  · {detail.lastSessionType}
-                </span>
-              )}
-            </span>
-          )}
           {detail?.lastSyncedAt && (
-            <span className="ml-auto inline-flex items-center gap-1.5">
+            <span className="ml-auto inline-flex items-center gap-1.5 uppercase tracking-wider">
               <Clock className="w-3 h-3" />
-              Son senkronizasyon {formatDate(detail.lastSyncedAt)}
+              SON SENKRON: {formatDate(detail.lastSyncedAt)}
             </span>
           )}
         </div>
@@ -490,7 +476,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
 
       {/* Top row: Live telemetry (8) + Map (4) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <Card className="lg:col-span-8">
+        <Card className="lg:col-span-8 flex flex-col">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Radio className="w-4 h-4 text-muted-foreground" />
@@ -513,7 +499,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
               </div>
             </div>
           ) : (
-          <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <div className="flex-1 p-4 grid grid-cols-2 sm:grid-cols-3 gap-2 place-content-center">
             {telemetryDayLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <Skeleton key={i} className="h-[68px] rounded-lg" />
@@ -700,26 +686,12 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                 )}
               </div>
 
-              <div className="lg:col-span-7 grid grid-cols-3 gap-3">
+              <div className="lg:col-span-7 grid grid-cols-2 gap-3">
                 <QuotaStat
                   label="Kullanılan"
                   value={formatGibAsGb(used, 1)}
                   unit="GB"
                   tone="primary"
-                />
-                <QuotaStat
-                  label="Opt-Out Eşiği"
-                  value={
-                    optOutGib != null ? formatGibAsGb(optOutGib, 0) : "—"
-                  }
-                  unit={optOutGib != null ? "GB" : undefined}
-                  tone={
-                    remaining != null &&
-                    allowance != null &&
-                    remaining / allowance < 0.1
-                      ? "warn"
-                      : "ok"
-                  }
                 />
                 <QuotaStat
                   label="Adım Uyarısı"
@@ -926,58 +898,6 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
           )}
         </div>
       </Card>
-
-      {/* Subscription history — sadece veri varsa göster */}
-      {hasSubscriptions && (
-        <Card>
-          <div className="px-4 py-3 border-b border-border flex items-center gap-2">
-            <Briefcase className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold tracking-tight">
-              Abonelik Geçmişi
-            </h2>
-            <span className="text-[10px] font-mono text-muted-foreground">
-              {(subscriptions ?? []).length} kayıt
-            </span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-[12px] min-w-[560px]">
-              <thead className="bg-secondary/40">
-                <tr>
-                  <th className="h-9 pl-4 text-left text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Plan
-                  </th>
-                  <th className="h-9 text-left text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Başlama
-                  </th>
-                  <th className="h-9 text-left text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Bitiş
-                  </th>
-                  <th className="h-9 pr-4 text-left text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Müşteri
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {(subscriptions ?? []).map((s) => (
-                  <tr
-                    key={s.subscriptionId}
-                    className="border-t border-border h-11 hover:bg-secondary/40"
-                  >
-                    <td className="pl-4 font-mono text-foreground">
-                      {s.pricePlanName ?? "—"}
-                    </td>
-                    <td className="font-mono">{s.startDate ?? "—"}</td>
-                    <td className="font-mono">{s.endDate ?? "—"}</td>
-                    <td className="pr-4 truncate max-w-[220px]">
-                      {s.customerName ?? s.customerId ?? "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
 
       {/* Monthly summary */}
       <Card>

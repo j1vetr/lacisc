@@ -192,17 +192,9 @@ export default function NorwayDetail({ kit }: { kit: string }) {
           </div>
         </div>
         <div className="px-4 sm:px-5 py-2 flex items-center gap-4 sm:gap-6 text-[11px] font-mono text-muted-foreground flex-wrap">
-          {detail?.serviceLineNumber && (
-            <span>
-              <span className="text-muted-foreground">Servis Hattı:</span>{" "}
-              <span className="text-foreground">
-                {detail.serviceLineNumber}
-              </span>
-            </span>
-          )}
           {detail?.lastSeenAt && (
-            <span className="ml-auto flex items-center gap-1.5">
-              <Clock className="w-3 h-3" /> Son Bağlantı{" "}
+            <span className="ml-auto flex items-center gap-1.5 uppercase tracking-wider">
+              <Clock className="w-3 h-3" /> SON SENKRON:{" "}
               {formatDate(detail.lastSeenAt)}
             </span>
           )}
