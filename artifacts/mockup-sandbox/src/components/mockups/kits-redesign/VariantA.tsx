@@ -1,10 +1,11 @@
 import "./_group.css";
 import { useMemo, useState } from "react";
-import { Search, ArrowRight } from "lucide-react";
+import { Search, ArrowRight, Sun, Moon } from "lucide-react";
 import { rows, fmtGb, sourceLabel, sourceClass, type Row } from "./_mock";
 
 export default function VariantA() {
   const [q, setQ] = useState("");
+  const [dark, setDark] = useState(false);
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     if (!s) return rows;
@@ -23,7 +24,7 @@ export default function VariantA() {
   const GRID = "1fr 160px 220px";
 
   return (
-    <div className="kr-theme">
+    <div className={`kr-theme${dark ? " kr-dark" : ""}`}>
       <div style={{ maxWidth: 1180, margin: "0 auto", padding: "40px 32px" }}>
         {/* Header */}
         <div className="flex items-end justify-between gap-6 mb-8 flex-wrap">
@@ -65,13 +66,34 @@ export default function VariantA() {
             </div>
           </div>
 
-          <div className="kr-search" style={{ width: 320 }}>
-            <Search size={14} style={{ color: "var(--kr-muted)" }} />
-            <input
-              placeholder="KIT no veya gemi ara…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
+          <div className="flex items-center gap-2">
+            <div className="kr-search" style={{ width: 320 }}>
+              <Search size={14} style={{ color: "var(--kr-muted)" }} />
+              <input
+                placeholder="KIT no veya gemi ara…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setDark((d) => !d)}
+              aria-label="Tema"
+              style={{
+                width: 36,
+                height: 36,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 10,
+                border: "1px solid var(--kr-hairline)",
+                background: "var(--kr-surface)",
+                color: "var(--kr-ink)",
+                cursor: "pointer",
+              }}
+            >
+              {dark ? <Sun size={14} /> : <Moon size={14} />}
+            </button>
           </div>
         </div>
 

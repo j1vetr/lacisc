@@ -28,6 +28,31 @@
 }
 .kr-theme *, .kr-theme *::before, .kr-theme *::after { box-sizing: border-box; }
 
+/* Dark — admin-panel'in .dark token setiyle birebir uyumlu */
+.kr-theme.kr-dark {
+  --kr-bg: #161512;
+  --kr-surface: #1c1b18;
+  --kr-soft: #1f1e1b;
+  --kr-ink: #ededec;
+  --kr-muted: #9e9b8f;
+  --kr-hairline: #2c2b27;
+  --kr-hairline-strong: #3a3934;
+  --kr-orange: #ff6b1f;
+  --kr-success: #34c08e;
+
+  --kr-satcom: #f4b896;
+  --kr-satcom-bg: #3a1f10;
+  --kr-tototheo: #9fbbe0;
+  --kr-tototheo-bg: #16263a;
+  --kr-norway: #a6a6dd;
+  --kr-norway-bg: #1d1d3a;
+
+  color-scheme: dark;
+}
+.kr-theme.kr-dark .kr-row:hover {
+  background-color: rgba(255, 255, 255, 0.035);
+}
+
 .kr-theme .kr-mono {
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   font-variant-numeric: tabular-nums;
