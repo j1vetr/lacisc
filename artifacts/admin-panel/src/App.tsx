@@ -167,7 +167,7 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/">{() => <RootRoute />}</Route>
-      <Route path="/kits">{() => <ProtectedRoute component={Kits} />}</Route>
+      <Route path="/kits">{() => <ProtectedRoute component={Kits} minRole="viewer" />}</Route>
       <Route path="/kits/:kitNo">{() => <ProtectedRoute component={KitDetail} />}</Route>
       <Route path="/norway/:kitNo">{() => <ProtectedRoute component={KitDetail} />}</Route>
       <Route path="/starlink/:kitNo">{() => <ProtectedRoute component={KitDetail} />}</Route>

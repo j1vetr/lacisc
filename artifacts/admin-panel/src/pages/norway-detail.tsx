@@ -36,6 +36,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatNumber, formatDate } from "@/lib/format";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { useIsCustomer } from "@/hooks/use-is-customer";
 import { Card, Pill } from "@/components/kit-detail/primitives";
 
 function formatPeriodLabel(period?: string | null) {
@@ -55,6 +56,7 @@ function formatDay(dayDate: string) {
 
 export default function NorwayDetail({ kit }: { kit: string }) {
   useDocumentTitle(kit);
+  const isCustomer = useIsCustomer();
 
   const [selectedPeriod, setSelectedPeriod] = useState<string | undefined>(
     undefined
@@ -138,13 +140,17 @@ export default function NorwayDetail({ kit }: { kit: string }) {
       {/* Sticky dense header — same shape as Tototheo, but plan/ipv4 omitted */}
       <div className="rounded-lg border border-border bg-card sticky top-0 z-20 shadow-[0_1px_0_0_hsl(var(--border))]">
         <div className="px-4 sm:px-5 py-3 flex items-center gap-3 sm:gap-4 border-b border-border flex-wrap">
-          <Link href="/kits">
-            <div className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Terminaller
-            </div>
-          </Link>
-          <span className="text-border">/</span>
+          {!isCustomer && (
+            <>
+              <Link href="/kits">
+                <div className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  Terminaller
+                </div>
+              </Link>
+              <span className="text-border">/</span>
+            </>
+          )}
           <Globe className="w-4 h-4 text-muted-foreground shrink-0" />
           <h1 className="text-base sm:text-lg tracking-tight truncate min-w-0">
             {detailLoading ? (
