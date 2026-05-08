@@ -166,11 +166,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
           <span className="font-mono text-xs sm:text-sm text-muted-foreground truncate">
             {kit}
           </span>
-          <Pill tone="info">Norway</Pill>
           <div className="ml-auto flex items-center gap-1.5 flex-wrap">
-            {!detailLoading && detail?.accountLabel && (
-              <Pill tone="info">Hesap: {detail.accountLabel}</Pill>
-            )}
             {!detailLoading && (
               <Pill tone={detail?.isOnline ? "ok" : "warn"}>
                 {detail?.isOnline ? (
