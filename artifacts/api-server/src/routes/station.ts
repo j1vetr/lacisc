@@ -20,6 +20,7 @@ import {
   releaseRun,
 } from "../lib/sync-orchestrator";
 import { runStarlinkSync, isStarlinkSyncRunning } from "../lib/starlink-sync";
+import { runLeobridgeSync, isLeobridgeSyncRunning } from "../lib/leobridge-sync";
 import * as progress from "../lib/sync-progress";
 import {
   getEmailSettings,
@@ -432,14 +433,50 @@ router.post("/station/sync-now", requireAuth, requireRole("admin"), async (req: 
   }
   // Fire-and-forget — claim already held, runAllAccountsClaimed() reuses it
   // and releases on completion. Manual button always forces a full backfill
-  // (202601 → current) for every account. After Satcom finishes, chain a
-  // Tototheo (Starlink API) sync so the manual button from /sync-logs runs
-  // both data sources end-to-end. Both phases share a single combined
-  // run-state envelope so /sync-progress shows one continuous run.
+  // (202601 → current) for every account. Phases run in the same order as the
+  // 30-min cron: Tototheo (Starlink) → Leo Bridge (Norway) → Satcom. All three
+  // phases share a single combined run-state envelope so /sync-progress shows
+  // one continuous run.
   progress.startCombinedRun();
   void (async () => {
-    let satcomOk = true;
     let starlinkOk = true;
+    let leobridgeOk = true;
+    let satcomOk = true;
+
+    // Phase 1: Tototheo Starlink. Has its own internal lock; we reuse the
+    // orchestrator claim only as a coarse "manual run is alive" gate.
+    try {
+      if (isStarlinkSyncRunning()) {
+        logger.debug("Starlink sync already in flight, skipping chained phase");
+      } else {
+        const r = await runStarlinkSync();
+        logger.info({ ...r }, "Manual Starlink phase finished");
+        starlinkOk =
+          r.success || (!r.success && r.terminalCount === 0); // disabled = soft-ok
+      }
+    } catch (err) {
+      starlinkOk = false;
+      logger.error({ err }, "Manual Starlink phase crashed");
+    }
+
+    // Phase 2: Leo Bridge / Space Norway.
+    try {
+      if (isLeobridgeSyncRunning()) {
+        logger.debug("Leo Bridge sync already in flight, skipping chained phase");
+      } else {
+        const r = await runLeobridgeSync();
+        logger.info({ ...r }, "Manual Leo Bridge phase finished");
+        leobridgeOk =
+          r.success || (!r.success && r.terminalCount === 0); // disabled = soft-ok
+      }
+    } catch (err) {
+      leobridgeOk = false;
+      logger.error({ err }, "Manual Leo Bridge phase crashed");
+    }
+
+    // Phase 3: Satcom (Playwright). runAllAccountsClaimed() releases the lock
+    // in its own finally{}, so the orchestrator claim we hold from the gate
+    // above is the one it consumes here.
     try {
       const r = await runAllAccountsClaimed({ forceFull: true });
       logger.info({ ...r }, "Manual Satcom phase finished");
@@ -449,41 +486,14 @@ router.post("/station/sync-now", requireAuth, requireRole("admin"), async (req: 
     } catch (err) {
       satcomOk = false;
       logger.error({ err }, "Manual Satcom phase crashed");
+      // Lock is held by runAllAccountsClaimed(); ensure we release on hard crash.
+      try { releaseRun(); } catch { /* already released */ }
     }
-    // Re-claim the orchestrator lock for the Tototheo phase so a second
-    // /station/sync-now click cannot squeeze a fresh Satcom run in between
-    // the two phases. runAllAccountsClaimed() releases the lock in its own
-    // finally{}, so we re-grab it here. If reclaim fails (cron tick slipped
-    // in), we log and skip Starlink — Starlink has its own lock anyway, and
-    // the cron tick will already be running it.
-    const reclaimed = tryClaimRun();
-    try {
-      if (!reclaimed) {
-        logger.warn("Could not reclaim orchestrator lock between phases — skipping chained Tototheo");
-      } else if (isStarlinkSyncRunning()) {
-        logger.debug("Starlink sync already in flight, skipping chained phase");
-      } else {
-        try {
-          const r = await runStarlinkSync();
-          logger.info({ ...r }, "Manual Starlink phase finished");
-          if (!r.success && r.terminalCount === 0) {
-            // No-op (disabled / no token) — informational, not a hard failure.
-            starlinkOk = true;
-          } else {
-            starlinkOk = r.success;
-          }
-        } catch (err) {
-          starlinkOk = false;
-          logger.error({ err }, "Manual Starlink phase crashed");
-        }
-      }
-    } finally {
-      if (reclaimed) releaseRun();
-    }
-    const ok = satcomOk && starlinkOk;
+
+    const ok = starlinkOk && leobridgeOk && satcomOk;
     progress.finishCombinedRun(
       ok
-        ? "Manuel tur tamamlandı (Satcom + Tototheo)."
+        ? "Manuel tur tamamlandı (Tototheo + Leo Bridge + Satcom)."
         : "Manuel tur kısmen tamamlandı (bir veya daha fazla faz başarısız).",
       ok
     );
@@ -491,7 +501,7 @@ router.post("/station/sync-now", requireAuth, requireRole("admin"), async (req: 
   await audit(req, { action: "station.sync_now" });
   res.json({
     success: true,
-    message: "Senkronizasyon başlatıldı (Satcom → Tototheo).",
+    message: "Senkronizasyon başlatıldı (Tototheo → Leo Bridge → Satcom).",
     recordsFound: 0,
     recordsInserted: 0,
     recordsUpdated: 0,
