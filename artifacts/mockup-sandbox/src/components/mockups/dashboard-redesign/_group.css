@@ -1,0 +1,70 @@
+.dr-theme {
+  --background: 60 17% 96%;
+  --foreground: 50 11% 14%;
+  --border: 50 15% 89%;
+  --input: 50 15% 89%;
+  --ring: 20 100% 48%;
+  --card: 0 0% 100%;
+  --card-foreground: 50 11% 14%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 50 11% 14%;
+  --primary: 20 100% 48%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 50 17% 93%;
+  --secondary-foreground: 50 11% 14%;
+  --muted: 50 17% 93%;
+  --muted-foreground: 45 6% 48%;
+  --accent: 50 17% 93%;
+  --accent-foreground: 50 11% 14%;
+  --destructive: 345 65% 49%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 159 63% 33%;
+  --radius: 0.75rem;
+
+  --satcom-bg: #fde0d0;
+  --satcom-fg: #a4400a;
+  --satcom-bd: #f4b896;
+  --tototheo-bg: #dde9f7;
+  --tototheo-fg: #2563a6;
+  --tototheo-bd: #9fbbe0;
+  --norway-bg: #dde2f7;
+  --norway-fg: #3a3aa6;
+  --norway-bd: #a6a6dd;
+
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+.dr-theme.dark {
+  --background: 50 8% 8%;
+  --foreground: 50 12% 92%;
+  --border: 50 6% 18%;
+  --input: 50 6% 18%;
+  --card: 50 7% 11%;
+  --card-foreground: 50 12% 92%;
+  --popover: 50 7% 11%;
+  --popover-foreground: 50 12% 92%;
+  --primary: 20 100% 55%;
+  --secondary: 50 7% 14%;
+  --secondary-foreground: 50 12% 92%;
+  --muted: 50 7% 14%;
+  --muted-foreground: 45 5% 60%;
+  --accent: 50 7% 14%;
+  --accent-foreground: 50 12% 92%;
+
+  --satcom-bg: #3a1f10;
+  --satcom-fg: #f4b896;
+  --satcom-bd: #5a2f18;
+  --tototheo-bg: #16263a;
+  --tototheo-fg: #9fbbe0;
+  --tototheo-bd: #1f3a5a;
+  --norway-bg: #1d1d3a;
+  --norway-fg: #a6a6dd;
+  --norway-bd: #2d2d5a;
+}
+.dr-theme .font-mono {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.dr-theme *, .dr-theme *::before, .dr-theme *::after { box-sizing: border-box; }
