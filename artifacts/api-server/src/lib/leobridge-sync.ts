@@ -173,23 +173,29 @@ function pickLatLng(sl: LeoServiceLine): {
   lat: number | null;
   lng: number | null;
 } {
-  // Tercih: gerçek adres koordinatı (`address.latitude/longitude`).
-  // `currentH3Cell.centerLat/Lon` yalnızca H3 hücre merkezidir — terminalin
-  // gerçek konumu değil, kullanıldığında harita binlerce km sapabilir.
-  if (
-    sl.address &&
-    typeof sl.address.latitude === "number" &&
-    typeof sl.address.longitude === "number"
-  ) {
-    return { lat: sl.address.latitude, lng: sl.address.longitude };
-  }
-  const t = sl.terminals?.find((t) => t.currentH3Cell);
+  // Tercih: terminalin **anlık konumu** (`currentH3Cell.centerLat/Lon`) —
+  // Leo Bridge'in son raporladığı H3 hücre merkezi. Hücre çapı ~1 km,
+  // gemi/araç hareketini takip etmek için yeterince hassas.
+  // Fallback: statik kurulum adresi (`address.latitude/longitude`).
+  const t = sl.terminals?.find(
+    (t) =>
+      t.currentH3Cell &&
+      typeof t.currentH3Cell.centerLat === "number" &&
+      typeof t.currentH3Cell.centerLon === "number",
+  );
   if (
     t?.currentH3Cell &&
     typeof t.currentH3Cell.centerLat === "number" &&
     typeof t.currentH3Cell.centerLon === "number"
   ) {
     return { lat: t.currentH3Cell.centerLat, lng: t.currentH3Cell.centerLon };
+  }
+  if (
+    sl.address &&
+    typeof sl.address.latitude === "number" &&
+    typeof sl.address.longitude === "number"
+  ) {
+    return { lat: sl.address.latitude, lng: sl.address.longitude };
   }
   return { lat: null, lng: null };
 }
