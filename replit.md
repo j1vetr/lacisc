@@ -72,6 +72,7 @@ See `lib/db/src/schema/index.ts` and `lib/api-spec/openapi.yaml` for source-of-t
 
 ## Gotchas
 
+- **Üretime Task #27 geçişi**: `pnpm db push` ÇALIŞTIRMAYIN — drizzle-kit NOT NULL `credential_id` kolonlarını mevcut satırlara tek atışta eklemeye çalışıp patlıyor. Bunun yerine: `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/migrate-task27-multi-account.sql`. Betik singleton `*_settings`'i 1 satır seed'e çevirir, terminal/daily/period_total satırlarını backfill eder, PK/index'leri kompozite çevirir, sync_logs tablolarını yaratır ve eski singleton'ları düşürür. İdempotenttir.
 - **Multi-account UI (Task #27)**: Starlink + Norway artık Satcom paritesinde liste + dialog. Düzenleme'de boş token/şifre alanı **mevcut sırrı korur** (NOT NULL kolonu zedelenmesin diye backend açık değer beklemiyor — `null/undefined` = no-op). Hesap silme cascade ile bağlı tüm terminal/daily/period_total/sync_logs satırlarını temizler — onay dialog'u zorunlu.
 - **Singleton `/starlink/settings` + `/leobridge/settings` GET endpoint'leri** geriye dönük uyum için duruyor (Dashboard'ın "lastSyncAt" rozeti hâlâ okuyor). UI artık yeni hesap işlemleri için yalnız `/api/{starlink,leobridge}/accounts` CRUD'unu kullanıyor; ileride bu endpoint'ler kaldırılabilir.
 - **Same-KIT, multi-account**: aynı KIT birden fazla credential'da görünebilir. Detail endpoint'leri en son güncellenen satırı seçer **ve** dönem-totalini aynı credential'a bağlar (yoksa rozet "Hesap A" derken total "Hesap B"den gelirdi). `starlink-detail.tsx` ve `norway-detail.tsx` `accountLabel` Pill'i gösterir.
