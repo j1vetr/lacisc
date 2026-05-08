@@ -148,7 +148,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
   const priorityPct =
     total > 0 ? Math.round((priority / total) * 100) : 0;
 
-  return (
+  const content = (
     <div className="space-y-4 animate-in fade-in duration-500">
       {/* Header — Norway-tailored: name + KIT + source/account/online status */}
       <div className="rounded-lg border border-border bg-card sticky top-0 z-20 shadow-[0_1px_0_0_hsl(var(--border))]">
@@ -612,4 +612,13 @@ export default function NorwayDetail({ kit }: { kit: string }) {
       </Card>
     </div>
   );
+
+  if (isCustomer) {
+    return (
+      <div className="py-6 px-4 sm:py-8 sm:px-6 lg:py-10 lg:px-10 max-w-[1200px] mx-auto w-full">
+        {content}
+      </div>
+    );
+  }
+  return content;
 }
