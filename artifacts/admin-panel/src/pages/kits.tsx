@@ -501,9 +501,6 @@ export default function Kits() {
           </Table>
         </div>
 
-        <div className="border-t border-border p-3 bg-card shrink-0 text-xs text-muted-foreground text-center">
-          Toplam {unified.length} terminal listeleniyor. Detaylı görünüm için bir satıra tıklayın.
-        </div>
       </div>
     </div>
   );
