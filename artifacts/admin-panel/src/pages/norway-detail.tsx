@@ -25,6 +25,8 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   Tooltip,
@@ -96,6 +98,30 @@ export default function NorwayDetail({ kit }: { kit: string }) {
       })),
     [daily]
   );
+
+  // Last 6 months of monthly history with zero-fill for missing periods so
+  // the bar chart always shows a stable 6-bucket axis (parity with required
+  // monthly visualization spec).
+  const monthlyChart = useMemo(() => {
+    const byPeriod = new Map<string, number>();
+    for (const m of monthly ?? []) {
+      if (m.period) byPeriod.set(m.period, m.totalGb ?? 0);
+    }
+    const out: { period: string; label: string; gib: number }[] = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const period = `${yyyy}${mm}`;
+      out.push({
+        period,
+        label: `${mm}/${yyyy}`,
+        gib: byPeriod.get(period) ?? 0,
+      });
+    }
+    return out;
+  }, [monthly]);
 
   const periodOptions = useMemo(() => {
     const set = new Set<string>();
@@ -335,6 +361,39 @@ export default function NorwayDetail({ kit }: { kit: string }) {
             <CalendarClock className="w-4 h-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold tracking-tight">Aylık Geçmiş</h2>
           </div>
+        </div>
+        <div className="p-4 border-b border-border">
+          {monthlyLoading ? (
+            <Skeleton className="h-40 w-full" />
+          ) : (
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={monthlyChart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e6e5e0" vertical={false} />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 11, fill: "#7a7869" }}
+                  tickLine={false}
+                  axisLine={{ stroke: "#e6e5e0" }}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: "#7a7869" }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={40}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "#fff",
+                    border: "1px solid #e6e5e0",
+                    borderRadius: 6,
+                    fontSize: 12,
+                  }}
+                  formatter={(v: number) => [`${formatNumber(v, 2)} GB`, "Toplam"]}
+                />
+                <Bar dataKey="gib" fill="#f54e00" radius={[2, 2, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
         {monthlyLoading ? (
           <div className="p-4">

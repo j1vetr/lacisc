@@ -5,7 +5,7 @@ import {
   leobridgeTerminalDaily,
   leobridgeTerminalPeriodTotal,
 } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { decrypt } from "./crypto";
 import { logger } from "./logger";
 import {
@@ -311,6 +311,4 @@ export async function ensureLeobridgeSettingsRow(): Promise<void> {
     .insert(leobridgeSettings)
     .values({ id: 1 })
     .onConflictDoNothing({ target: leobridgeSettings.id });
-  // Touch updatedAt only when first creating; conflict no-op leaves it.
-  void sql;
 }

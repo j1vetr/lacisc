@@ -145,8 +145,13 @@ router.post(
     startCombinedRun();
     void (async () => {
       try {
-        await runLeobridgeSync();
-        finishCombinedRun("Leo Bridge senkronizasyonu tamamlandı.", true);
+        const result = await runLeobridgeSync();
+        finishCombinedRun(
+          result.success
+            ? `Leo Bridge: ${result.message}`
+            : `Leo Bridge başarısız: ${result.message}`,
+          result.success
+        );
       } catch (err) {
         finishCombinedRun(
           `Leo Bridge senkronizasyonu başarısız: ${

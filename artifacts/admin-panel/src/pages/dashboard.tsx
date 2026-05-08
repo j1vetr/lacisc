@@ -11,6 +11,7 @@ import {
   ArrowRight,
   Terminal,
   Satellite,
+  Globe,
 } from "lucide-react";
 import {
   useGetDashboardSummary,
@@ -21,6 +22,10 @@ import {
   getGetStarlinkTerminalsQueryKey,
   useGetStarlinkSettings,
   getGetStarlinkSettingsQueryKey,
+  useGetLeobridgeTerminals,
+  getGetLeobridgeTerminalsQueryKey,
+  useGetLeobridgeSettings,
+  getGetLeobridgeSettingsQueryKey,
   useGetMe,
   getGetMeQueryKey,
 } from "@workspace/api-client-react";
@@ -35,7 +40,7 @@ import { formatNumber, formatDate } from "@/lib/format";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
 type MergedKitRow = {
-  source: "satcom" | "starlink";
+  source: "satcom" | "starlink" | "leobridge";
   kitNo: string;
   shipName: string | null;
   totalGib: number;
@@ -93,6 +98,26 @@ export default function Dashboard() {
       },
     });
 
+  // Leo Bridge (Space Norway) — 3rd source, mirrors Starlink customer-tolerance.
+  const { data: leobridgeSettings } = useGetLeobridgeSettings({
+    query: {
+      queryKey: getGetLeobridgeSettingsQueryKey(),
+      staleTime: 60_000,
+      enabled: !isCustomer,
+    },
+  });
+  const leobridgeActive = isCustomer
+    ? true
+    : !!leobridgeSettings?.enabled && !!leobridgeSettings?.hasPassword;
+  const { data: leobridgeTerminals, isLoading: leobridgeLoading } =
+    useGetLeobridgeTerminals({
+      query: {
+        queryKey: getGetLeobridgeTerminalsQueryKey(),
+        enabled: leobridgeActive,
+        refetchInterval: customerRefetch,
+      },
+    });
+
   const queryClient = useQueryClient();
 
   // Merge top terminals from both sources for the headline list.
@@ -114,9 +139,17 @@ export default function Dashboard() {
         totalGib: t.currentPeriodTotalGb ?? 0,
       });
     }
+    for (const t of leobridgeTerminals ?? []) {
+      out.push({
+        source: "leobridge",
+        kitNo: t.kitSerialNumber,
+        shipName: t.nickname ?? null,
+        totalGib: t.currentPeriodTotalGb ?? 0,
+      });
+    }
     out.sort((a, b) => b.totalGib - a.totalGib);
     return out;
-  }, [satcomKits, starlinkTerminals]);
+  }, [satcomKits, starlinkTerminals, leobridgeTerminals]);
 
   // Combined KPIs — Satcom totals come from the summary endpoint (already
   // index-backed); Starlink totals are summed client-side from the terminal
@@ -130,10 +163,23 @@ export default function Dashboard() {
       ),
     [starlinkTerminals]
   );
+  const leobridgeKitCount = leobridgeTerminals?.length ?? 0;
+  const leobridgeTotalGib = useMemo(
+    () =>
+      (leobridgeTerminals ?? []).reduce(
+        (s, t) => s + (t.currentPeriodTotalGb ?? 0),
+        0
+      ),
+    [leobridgeTerminals]
+  );
   const totalKitsCombined =
-    (summary?.totalKits ?? 0) + (starlinkActive ? starlinkKitCount : 0);
+    (summary?.totalKits ?? 0) +
+    (starlinkActive ? starlinkKitCount : 0) +
+    (leobridgeActive ? leobridgeKitCount : 0);
   const totalGibCombined =
-    (summary?.totalGib ?? 0) + (starlinkActive ? starlinkTotalGib : 0);
+    (summary?.totalGib ?? 0) +
+    (starlinkActive ? starlinkTotalGib : 0) +
+    (leobridgeActive ? leobridgeTotalGib : 0);
 
   if (isError) {
     return (
@@ -167,9 +213,11 @@ export default function Dashboard() {
                 <div className="text-3xl font-normal tracking-tight text-foreground font-mono">
                   {formatNumber(totalKitsCombined, 0)}
                 </div>
-                {starlinkActive && (
+                {(starlinkActive || leobridgeActive) && (
                   <div className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1 font-mono">
-                    {summary?.totalKits ?? 0} satcom · {starlinkKitCount} tototheo
+                    {summary?.totalKits ?? 0} satcom
+                    {starlinkActive ? ` · ${starlinkKitCount} tototheo` : ""}
+                    {leobridgeActive ? ` · ${leobridgeKitCount} norway` : ""}
                   </div>
                 )}
               </>
@@ -193,10 +241,15 @@ export default function Dashboard() {
                   </div>
                   <span className="text-sm font-medium text-muted-foreground">GB</span>
                 </div>
-                {starlinkActive && (
+                {(starlinkActive || leobridgeActive) && (
                   <div className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1 font-mono">
-                    {formatNumber(summary?.totalGib ?? 0, 1)} satcom ·{" "}
-                    {formatNumber(starlinkTotalGib, 1)} tototheo
+                    {formatNumber(summary?.totalGib ?? 0, 1)} satcom
+                    {starlinkActive
+                      ? ` · ${formatNumber(starlinkTotalGib, 1)} tototheo`
+                      : ""}
+                    {leobridgeActive
+                      ? ` · ${formatNumber(leobridgeTotalGib, 1)} norway`
+                      : ""}
                   </div>
                 )}
               </>
@@ -238,7 +291,9 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent className="flex-1">
-            {kitsLoading || (starlinkActive && starlinkLoading) ? (
+            {kitsLoading ||
+            (starlinkActive && starlinkLoading) ||
+            (leobridgeActive && leobridgeLoading) ? (
               <div className="space-y-2">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Skeleton key={i} className="h-12 w-full rounded-lg" />
@@ -250,6 +305,7 @@ export default function Dashboard() {
               <div className="divide-y divide-border">
                 {mergedTop.map((row) => {
                   const isStar = row.source === "starlink";
+                  const isLeo = row.source === "leobridge";
                   return (
                     <Link
                       key={`${row.source}:${row.kitNo}`}
@@ -260,6 +316,8 @@ export default function Dashboard() {
                           <div className="p-1.5 rounded-md bg-secondary text-muted-foreground shrink-0">
                             {isStar ? (
                               <Satellite className="w-4 h-4" />
+                            ) : isLeo ? (
+                              <Globe className="w-4 h-4" />
                             ) : (
                               <Terminal className="w-4 h-4" />
                             )}
@@ -270,6 +328,10 @@ export default function Dashboard() {
                               {isStar ? (
                                 <Badge className="bg-[#dde9f7] text-[#2563a6] border-[#9fbbe0] hover:bg-[#dde9f7] uppercase tracking-widest text-[9px] font-semibold shrink-0">
                                   Tototheo
+                                </Badge>
+                              ) : isLeo ? (
+                                <Badge className="bg-[#dde2f7] text-[#3a3aa6] border-[#a6a6dd] hover:bg-[#dde2f7] uppercase tracking-widest text-[9px] font-semibold shrink-0">
+                                  Norway
                                 </Badge>
                               ) : (
                                 <Badge className="bg-[#fde0d0] text-[#a4400a] border-[#f4b896] hover:bg-[#fde0d0] uppercase tracking-widest text-[9px] font-semibold shrink-0">
@@ -376,6 +438,24 @@ export default function Dashboard() {
                       <div className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate">
                         {starlinkSettings?.lastSyncAt
                           ? formatDate(starlinkSettings.lastSyncAt)
+                          : "İlk sync bekleniyor"}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {leobridgeActive && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg border border-[#a6a6dd]/60 bg-[#dde2f7]/40">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-[#a6a6dd] text-foreground">
+                      <Globe className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-medium text-foreground leading-tight">
+                        Norway
+                      </div>
+                      <div className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate">
+                        {leobridgeSettings?.lastSyncAt
+                          ? formatDate(leobridgeSettings.lastSyncAt)
                           : "İlk sync bekleniyor"}
                       </div>
                     </div>
