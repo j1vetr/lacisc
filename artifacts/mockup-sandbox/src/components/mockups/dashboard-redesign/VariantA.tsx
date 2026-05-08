@@ -17,62 +17,33 @@ import {
   summary,
   fmtGb,
   fmtInt,
-  sourceLabel,
   type Ship,
 } from "./_mock";
-
-type SourceFilter = "all" | "satcom" | "starlink" | "leobridge";
+import brandLight from "../../../assets/brand-light.png";
+import brandDark from "../../../assets/brand-dark.png";
+import toovLight from "../../../assets/toov-light.png";
+import toovDark from "../../../assets/toov-dark.png";
 
 function relTime(min?: number): string {
   if (min == null) return "—";
-  if (min < 1) return "şimdi";
-  if (min < 60) return `${min} dk önce`;
+  if (min < 1) return "ŞİMDİ";
+  if (min < 60) return `${min} DK ÖNCE`;
   const h = Math.floor(min / 60);
-  if (h < 24) return `${h} sa önce`;
+  if (h < 24) return `${h} SA ÖNCE`;
   const d = Math.floor(h / 24);
-  return `${d} gün önce`;
+  return `${d} GÜN ÖNCE`;
 }
 
-const SOURCE_DOT: Record<Ship["source"], string> = {
-  satcom: "var(--satcom-fg)",
-  starlink: "var(--tototheo-fg)",
-  leobridge: "var(--norway-fg)",
-};
+function fmtPeriod(p: string): string {
+  if (p && p.length === 6) return `${p.slice(0, 4)}-${p.slice(4)}`;
+  return p;
+}
 
 const SIGNAL_COLOR: Record<NonNullable<Ship["signal"]>, string> = {
   online: "#3a9b6e",
   degraded: "#d4a017",
   offline: "#c0392b",
 };
-
-function SourceBadge({ source }: { source: Ship["source"] }) {
-  const map: Record<Ship["source"], { bg: string; fg: string; bd: string }> = {
-    satcom: {
-      bg: "var(--satcom-bg)",
-      fg: "var(--satcom-fg)",
-      bd: "var(--satcom-bd)",
-    },
-    starlink: {
-      bg: "var(--tototheo-bg)",
-      fg: "var(--tototheo-fg)",
-      bd: "var(--tototheo-bd)",
-    },
-    leobridge: {
-      bg: "var(--norway-bg)",
-      fg: "var(--norway-fg)",
-      bd: "var(--norway-bd)",
-    },
-  };
-  const c = map[source];
-  return (
-    <span
-      className="inline-flex items-center px-1.5 py-0.5 rounded border text-[9px] font-semibold uppercase tracking-widest"
-      style={{ background: c.bg, color: c.fg, borderColor: c.bd }}
-    >
-      {sourceLabel[source]}
-    </span>
-  );
-}
 
 function ShipRow({
   ship,
@@ -83,6 +54,7 @@ function ShipRow({
   active: boolean;
   onClick: () => void;
 }) {
+  const sig = ship.signal ?? "online";
   return (
     <button
       onClick={onClick}
@@ -95,13 +67,10 @@ function ShipRow({
     >
       <span
         className="w-1.5 h-1.5 rounded-full shrink-0"
-        style={{ background: SOURCE_DOT[ship.source] }}
+        style={{ background: SIGNAL_COLOR[sig] }}
       />
       <span className="flex-1 min-w-0 truncate text-[12.5px] text-[hsl(var(--foreground))]">
         {ship.shipName}
-      </span>
-      <span className="font-mono text-[10.5px] text-[hsl(var(--muted-foreground))] tabular-nums">
-        {fmtGb(ship.totalGib, 0)}
       </span>
       <ChevronRight className="w-3 h-3 text-[hsl(var(--muted-foreground))] opacity-0 group-hover:opacity-100 transition-opacity" />
     </button>
@@ -134,26 +103,12 @@ function Sidebar({
       className="flex flex-col h-full bg-[hsl(var(--background))] border-r border-[hsl(var(--border))]"
       style={{ width: 260 }}
     >
-      <div className="h-14 flex items-center justify-between px-4 border-b border-[hsl(var(--border))] shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
-          <div
-            className="w-7 h-7 rounded flex items-center justify-center font-mono text-[13px] font-bold shrink-0"
-            style={{
-              background: "hsl(var(--primary))",
-              color: "hsl(var(--primary-foreground))",
-            }}
-          >
-            L
-          </div>
-          <div className="flex flex-col min-w-0 leading-tight">
-            <span className="text-[11px] font-semibold tracking-[0.18em] text-[hsl(var(--foreground))] truncate">
-              LACİVERT
-            </span>
-            <span className="text-[9px] tracking-[0.22em] text-[hsl(var(--muted-foreground))] uppercase truncate">
-              Teknoloji
-            </span>
-          </div>
-        </div>
+      <div className="h-20 flex items-center justify-between px-4 border-b border-[hsl(var(--border))] shrink-0">
+        <img
+          src={dark ? brandDark : brandLight}
+          alt="Lacivert Teknoloji"
+          className="max-h-12 w-auto object-contain"
+        />
         {isDrawer && onClose && (
           <button
             onClick={onClose}
@@ -205,14 +160,11 @@ function Sidebar({
       </div>
 
       <div className="border-t border-[hsl(var(--border))] px-4 py-3 flex items-center justify-between shrink-0">
-        <div className="flex flex-col leading-tight">
-          <span className="text-[9px] uppercase tracking-[0.22em] text-[hsl(var(--muted-foreground))]">
-            Partner
-          </span>
-          <span className="font-mono text-[12px] font-bold tracking-[0.18em] text-[hsl(var(--foreground))]">
-            TOOV
-          </span>
-        </div>
+        <img
+          src={dark ? toovDark : toovLight}
+          alt="TOOV"
+          className="h-5 w-auto object-contain"
+        />
         <button
           onClick={onToggleDark}
           className="w-8 h-8 rounded-md border border-[hsl(var(--border))] hover:bg-[hsl(var(--secondary))] flex items-center justify-center text-[hsl(var(--foreground))]"
@@ -257,37 +209,6 @@ function KpiCell({
   );
 }
 
-function FilterPill({
-  active,
-  onClick,
-  children,
-  count,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  count: number;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border text-[11px] font-medium transition-colors"
-      style={{
-        background: active ? "hsl(var(--card))" : "transparent",
-        borderColor: active ? "hsl(var(--primary))" : "hsl(var(--border))",
-        color: active
-          ? "hsl(var(--foreground))"
-          : "hsl(var(--muted-foreground))",
-      }}
-    >
-      {children}
-      <span className="font-mono text-[10px] tabular-nums opacity-70">
-        {count}
-      </span>
-    </button>
-  );
-}
-
 function ShipCard({
   ship,
   active,
@@ -318,12 +239,9 @@ function ShipCard({
       }}
     >
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <SourceBadge source={ship.source} />
-          <span className="font-mono text-[10.5px] text-[hsl(var(--muted-foreground))] truncate">
-            {ship.kitNo}
-          </span>
-        </div>
+        <span className="font-mono text-[10.5px] text-[hsl(var(--muted-foreground))] truncate uppercase tracking-[0.12em]">
+          {ship.kitNo}
+        </span>
         <span
           className="w-1.5 h-1.5 rounded-full shrink-0"
           style={{ background: SIGNAL_COLOR[sig] }}
@@ -349,7 +267,7 @@ function ShipCard({
         <span className="text-[12px] text-[hsl(var(--muted-foreground))]">GB</span>
       </div>
       <div className="mt-1 text-[9.5px] uppercase tracking-[0.22em] text-[hsl(var(--muted-foreground))] font-semibold">
-        Bu Ay
+        BU AY
       </div>
 
       {pct !== null && (
@@ -368,13 +286,13 @@ function ShipCard({
           </div>
           <div className="mt-1 flex items-center justify-between font-mono text-[10px] text-[hsl(var(--muted-foreground))] tabular-nums">
             <span>%{fmtGb(pct, 1)}</span>
-            <span>{fmtInt(ship.planGb!)} GB plan</span>
+            <span>{fmtInt(ship.planGb!)} GB PLAN</span>
           </div>
         </div>
       )}
 
-      <div className="mt-3 pt-3 border-t border-[hsl(var(--border))] text-[10.5px] text-[hsl(var(--muted-foreground))]">
-        Son görülme: {relTime(ship.lastSeenMin)}
+      <div className="mt-3 pt-3 border-t border-[hsl(var(--border))] text-[9.5px] uppercase tracking-[0.2em] text-[hsl(var(--muted-foreground))] font-semibold">
+        SON GÖRÜLME: {relTime(ship.lastSeenMin)}
       </div>
     </button>
   );
@@ -383,7 +301,6 @@ function ShipCard({
 export default function VariantA() {
   const [dark, setDark] = useState(false);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<SourceFilter>("all");
   const [activeKit, setActiveKit] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -396,18 +313,6 @@ export default function VariantA() {
         s.kitNo.toLowerCase().includes(q),
     );
   }, [query]);
-
-  const filteredCards = useMemo(() => {
-    if (filter === "all") return ships;
-    return ships.filter((s) => s.source === filter);
-  }, [filter]);
-
-  const counts = {
-    all: ships.length,
-    satcom: summary.satcomKits,
-    starlink: summary.starlinkKits,
-    leobridge: summary.norwayKits,
-  };
 
   return (
     <div className={"dr-theme " + (dark ? "dark" : "")}>
@@ -454,7 +359,7 @@ export default function VariantA() {
         {/* Main */}
         <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
           {/* Mobile header */}
-          <div className="md:hidden flex items-center justify-between h-12 px-3 border-b border-[hsl(var(--border))] shrink-0">
+          <div className="md:hidden flex items-center justify-between h-14 px-3 border-b border-[hsl(var(--border))] shrink-0">
             <button
               onClick={() => setDrawerOpen(true)}
               className="w-8 h-8 rounded-md hover:bg-[hsl(var(--secondary))] flex items-center justify-center"
@@ -462,20 +367,11 @@ export default function VariantA() {
             >
               <Menu className="w-4 h-4" />
             </button>
-            <div className="flex items-center gap-1.5">
-              <div
-                className="w-5 h-5 rounded flex items-center justify-center font-mono text-[10px] font-bold"
-                style={{
-                  background: "hsl(var(--primary))",
-                  color: "hsl(var(--primary-foreground))",
-                }}
-              >
-                L
-              </div>
-              <span className="text-[11px] font-semibold tracking-[0.18em]">
-                LACİVERT
-              </span>
-            </div>
+            <img
+              src={dark ? brandDark : brandLight}
+              alt="Lacivert Teknoloji"
+              className="h-8 w-auto object-contain"
+            />
             <button
               onClick={() => setDark((v) => !v)}
               className="w-8 h-8 rounded-md border border-[hsl(var(--border))] hover:bg-[hsl(var(--secondary))] flex items-center justify-center"
@@ -501,13 +397,12 @@ export default function VariantA() {
               />
               <KpiCell
                 label="Aktif Dönem"
-                value={summary.activePeriod}
+                value={fmtPeriod(summary.activePeriod)}
                 icon={<CalendarClock className="w-3 h-3" />}
               />
               <KpiCell
                 label="Çevrimiçi / Çevrimdışı"
                 value={`${summary.onlineCount}/${summary.offlineCount}`}
-                sub={`${summary.degradedCount} uyarı`}
                 icon={<Wifi className="w-3 h-3" />}
               />
             </div>
@@ -516,50 +411,17 @@ export default function VariantA() {
           {/* Content */}
           <div className="flex-1 overflow-y-auto">
             <div className="px-5 sm:px-7 py-5">
-              <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-                <div>
-                  <h1 className="text-[18px] font-semibold tracking-tight text-[hsl(var(--foreground))]">
-                    Filo
-                  </h1>
-                  <p className="text-[11.5px] text-[hsl(var(--muted-foreground))] mt-0.5">
-                    {fmtInt(filteredCards.length)} terminal · aktif dönem{" "}
-                    {summary.activePeriod}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <FilterPill
-                    active={filter === "all"}
-                    onClick={() => setFilter("all")}
-                    count={counts.all}
-                  >
-                    Tümü
-                  </FilterPill>
-                  <FilterPill
-                    active={filter === "satcom"}
-                    onClick={() => setFilter("satcom")}
-                    count={counts.satcom}
-                  >
-                    Satcom
-                  </FilterPill>
-                  <FilterPill
-                    active={filter === "starlink"}
-                    onClick={() => setFilter("starlink")}
-                    count={counts.starlink}
-                  >
-                    Tototheo
-                  </FilterPill>
-                  <FilterPill
-                    active={filter === "leobridge"}
-                    onClick={() => setFilter("leobridge")}
-                    count={counts.leobridge}
-                  >
-                    Norway
-                  </FilterPill>
-                </div>
+              <div className="mb-5">
+                <h1 className="text-[18px] font-semibold tracking-tight text-[hsl(var(--foreground))]">
+                  Gemiler
+                </h1>
+                <p className="mt-1 text-[10.5px] font-semibold uppercase tracking-[0.22em] text-[hsl(var(--muted-foreground))]">
+                  {fmtInt(summary.totalKits)} GEMİ · AKTİF DÖNEM {fmtPeriod(summary.activePeriod)}
+                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                {filteredCards.map((s) => (
+                {ships.map((s) => (
                   <ShipCard
                     key={s.kitNo}
                     ship={s}
@@ -568,12 +430,6 @@ export default function VariantA() {
                   />
                 ))}
               </div>
-
-              {filteredCards.length === 0 && (
-                <div className="border border-dashed border-[hsl(var(--border))] rounded-xl py-16 text-center text-[12px] text-[hsl(var(--muted-foreground))]">
-                  Bu filtreyle eşleşen gemi yok.
-                </div>
-              )}
             </div>
           </div>
         </main>
