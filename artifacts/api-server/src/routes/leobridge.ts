@@ -555,6 +555,19 @@ router.get(
   },
 );
 
+// T005 multi-account: aynı KIT birden fazla credential'da olabilir; daily/monthly
+// endpoint'leri detail endpoint ile aynı credential'a (en son güncellenen satır)
+// pin'lensin — aksi halde rozet "Hesap A" derken seri "Hesap B"den gelir.
+async function resolveLatestCredentialId(kit: string): Promise<number | null> {
+  const [row] = await db
+    .select({ credentialId: leobridgeTerminals.credentialId })
+    .from(leobridgeTerminals)
+    .where(eq(leobridgeTerminals.kitSerialNumber, kit))
+    .orderBy(desc(leobridgeTerminals.updatedAt))
+    .limit(1);
+  return row?.credentialId ?? null;
+}
+
 router.get(
   "/leobridge/terminals/:kit/daily",
   requireAuth,
@@ -568,10 +581,18 @@ router.get(
       typeof req.query.period === "string" && /^\d{6}$/.test(req.query.period)
         ? req.query.period
         : null;
+    const credentialId = await resolveLatestCredentialId(kit);
+    if (credentialId === null) {
+      res.json([]);
+      return;
+    }
     const rows = await db
       .select()
       .from(leobridgeTerminalDaily)
-      .where(eq(leobridgeTerminalDaily.kitSerialNumber, kit))
+      .where(
+        sql`${leobridgeTerminalDaily.kitSerialNumber} = ${kit}
+            AND ${leobridgeTerminalDaily.credentialId} = ${credentialId}`,
+      )
       .orderBy(leobridgeTerminalDaily.dayDate);
     const filtered = period
       ? rows.filter((r) => r.dayDate.replace(/-/g, "").slice(0, 6) === period)
@@ -599,10 +620,18 @@ router.get(
       res.status(404).json({ error: "Terminal bulunamadı." });
       return;
     }
+    const credentialId = await resolveLatestCredentialId(kit);
+    if (credentialId === null) {
+      res.json([]);
+      return;
+    }
     const rows = await db
       .select()
       .from(leobridgeTerminalPeriodTotal)
-      .where(eq(leobridgeTerminalPeriodTotal.kitSerialNumber, kit))
+      .where(
+        sql`${leobridgeTerminalPeriodTotal.kitSerialNumber} = ${kit}
+            AND ${leobridgeTerminalPeriodTotal.credentialId} = ${credentialId}`,
+      )
       .orderBy(desc(leobridgeTerminalPeriodTotal.period));
     res.json(
       rows.map((r) => ({
