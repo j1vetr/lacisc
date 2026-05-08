@@ -698,6 +698,111 @@ export const SyncStarlinkNowResponse = zod.object({
 });
 
 /**
+ * @summary Tüm Starlink hesaplarını listele
+ */
+export const ListStarlinkAccountsResponseItem = zod.object({
+  id: zod.number(),
+  label: zod.string().nullish(),
+  apiBaseUrl: zod.string(),
+  hasToken: zod.boolean(),
+  isActive: zod.boolean(),
+  syncIntervalMinutes: zod.number(),
+  lastSuccessSyncAt: zod.coerce.date().nullish(),
+  lastErrorMessage: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+  kitCount: zod.number(),
+});
+export const ListStarlinkAccountsResponse = zod.array(
+  ListStarlinkAccountsResponseItem,
+);
+
+/**
+ * @summary Yeni Starlink hesabı ekle
+ */
+export const CreateStarlinkAccountBody = zod.object({
+  label: zod.string().nullish(),
+  apiBaseUrl: zod.string().optional(),
+  token: zod.string(),
+  isActive: zod.boolean().optional(),
+  syncIntervalMinutes: zod.number().optional(),
+});
+
+export const CreateStarlinkAccountResponse = zod.object({
+  id: zod.number(),
+  label: zod.string().nullish(),
+  apiBaseUrl: zod.string(),
+  hasToken: zod.boolean(),
+  isActive: zod.boolean(),
+  syncIntervalMinutes: zod.number(),
+  lastSuccessSyncAt: zod.coerce.date().nullish(),
+  lastErrorMessage: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+  kitCount: zod.number(),
+});
+
+export const UpdateStarlinkAccountParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateStarlinkAccountBody = zod.object({
+  label: zod.string().nullish(),
+  apiBaseUrl: zod.string().optional(),
+  token: zod
+    .string()
+    .nullish()
+    .describe(
+      "undefined → değişmez, boş\/null → değişmez (token NOT NULL), dolu → yeni token.",
+    ),
+  isActive: zod.boolean().optional(),
+  syncIntervalMinutes: zod.number().optional(),
+});
+
+export const UpdateStarlinkAccountResponse = zod.object({
+  id: zod.number(),
+  label: zod.string().nullish(),
+  apiBaseUrl: zod.string(),
+  hasToken: zod.boolean(),
+  isActive: zod.boolean(),
+  syncIntervalMinutes: zod.number(),
+  lastSuccessSyncAt: zod.coerce.date().nullish(),
+  lastErrorMessage: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+  kitCount: zod.number(),
+});
+
+export const DeleteStarlinkAccountParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteStarlinkAccountResponse = zod.object({
+  message: zod.string(),
+});
+
+export const TestStarlinkAccountConnectionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const TestStarlinkAccountConnectionResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string(),
+  terminalCount: zod.number().optional(),
+});
+
+/**
+ * @summary Tek bir Starlink hesabı için manuel senkronizasyon (fire-and-forget).
+ */
+export const SyncStarlinkAccountParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SyncStarlinkAccountResponse = zod.object({
+  message: zod.string(),
+});
+
+/**
  * @summary Starlink terminalleri (aktif dönem GB'a göre sıralı).
  */
 export const GetStarlinkTerminalsResponseItem = zod.object({
@@ -845,6 +950,111 @@ export const TestLeobridgeConnectionResponse = zod.object({
  */
 export const SyncLeobridgeNowResponse = zod.object({
   success: zod.boolean(),
+  message: zod.string(),
+});
+
+/**
+ * @summary Tüm Leo Bridge (Norway) hesaplarını listele
+ */
+export const ListLeobridgeAccountsResponseItem = zod.object({
+  id: zod.number(),
+  label: zod.string().nullish(),
+  portalUrl: zod.string(),
+  username: zod.string(),
+  isActive: zod.boolean(),
+  syncIntervalMinutes: zod.number(),
+  lastSuccessSyncAt: zod.coerce.date().nullish(),
+  lastErrorMessage: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+  kitCount: zod.number(),
+});
+export const ListLeobridgeAccountsResponse = zod.array(
+  ListLeobridgeAccountsResponseItem,
+);
+
+/**
+ * @summary Yeni Leo Bridge hesabı ekle
+ */
+export const CreateLeobridgeAccountBody = zod.object({
+  label: zod.string().nullish(),
+  portalUrl: zod.string().optional(),
+  username: zod.string(),
+  password: zod.string(),
+  isActive: zod.boolean().optional(),
+  syncIntervalMinutes: zod.number().optional(),
+});
+
+export const CreateLeobridgeAccountResponse = zod.object({
+  id: zod.number(),
+  label: zod.string().nullish(),
+  portalUrl: zod.string(),
+  username: zod.string(),
+  isActive: zod.boolean(),
+  syncIntervalMinutes: zod.number(),
+  lastSuccessSyncAt: zod.coerce.date().nullish(),
+  lastErrorMessage: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+  kitCount: zod.number(),
+});
+
+export const UpdateLeobridgeAccountParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateLeobridgeAccountBody = zod.object({
+  label: zod.string().nullish(),
+  portalUrl: zod.string().optional(),
+  username: zod.string().optional(),
+  password: zod
+    .string()
+    .nullish()
+    .describe("undefined → değişmez, boş\/null → değişmez, dolu → yeni şifre."),
+  isActive: zod.boolean().optional(),
+  syncIntervalMinutes: zod.number().optional(),
+});
+
+export const UpdateLeobridgeAccountResponse = zod.object({
+  id: zod.number(),
+  label: zod.string().nullish(),
+  portalUrl: zod.string(),
+  username: zod.string(),
+  isActive: zod.boolean(),
+  syncIntervalMinutes: zod.number(),
+  lastSuccessSyncAt: zod.coerce.date().nullish(),
+  lastErrorMessage: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+  kitCount: zod.number(),
+});
+
+export const DeleteLeobridgeAccountParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteLeobridgeAccountResponse = zod.object({
+  message: zod.string(),
+});
+
+export const TestLeobridgeAccountConnectionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const TestLeobridgeAccountConnectionResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string(),
+  terminalCount: zod.number(),
+});
+
+/**
+ * @summary Tek bir Leo Bridge hesabı için manuel senkronizasyon (fire-and-forget).
+ */
+export const SyncLeobridgeAccountParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SyncLeobridgeAccountResponse = zod.object({
   message: zod.string(),
 });
 

@@ -376,6 +376,37 @@ export interface StarlinkTestResult {
   terminalCount?: number;
 }
 
+export interface StarlinkAccount {
+  id: number;
+  label?: string | null;
+  apiBaseUrl: string;
+  hasToken: boolean;
+  isActive: boolean;
+  syncIntervalMinutes: number;
+  lastSuccessSyncAt?: string | null;
+  lastErrorMessage?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  kitCount: number;
+}
+
+export interface CreateStarlinkAccountBody {
+  label?: string | null;
+  apiBaseUrl?: string;
+  token: string;
+  isActive?: boolean;
+  syncIntervalMinutes?: number;
+}
+
+export interface UpdateStarlinkAccountBody {
+  label?: string | null;
+  apiBaseUrl?: string;
+  /** undefined → değişmez, boş/null → değişmez (token NOT NULL), dolu → yeni token. */
+  token?: string | null;
+  isActive?: boolean;
+  syncIntervalMinutes?: number;
+}
+
 export interface StarlinkTerminalSummary {
   kitSerialNumber: string;
   nickname?: string | null;
@@ -471,6 +502,39 @@ export interface LeobridgeTestResult {
   success: boolean;
   message: string;
   terminalCount: number;
+}
+
+export interface LeobridgeAccount {
+  id: number;
+  label?: string | null;
+  portalUrl: string;
+  username: string;
+  isActive: boolean;
+  syncIntervalMinutes: number;
+  lastSuccessSyncAt?: string | null;
+  lastErrorMessage?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  kitCount: number;
+}
+
+export interface CreateLeobridgeAccountBody {
+  label?: string | null;
+  portalUrl?: string;
+  username: string;
+  password: string;
+  isActive?: boolean;
+  syncIntervalMinutes?: number;
+}
+
+export interface UpdateLeobridgeAccountBody {
+  label?: string | null;
+  portalUrl?: string;
+  username?: string;
+  /** undefined → değişmez, boş/null → değişmez, dolu → yeni şifre. */
+  password?: string | null;
+  isActive?: boolean;
+  syncIntervalMinutes?: number;
 }
 
 export interface LeobridgeTerminalSummary {

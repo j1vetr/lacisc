@@ -170,6 +170,65 @@ export async function runStarlinkSync(): Promise<StarlinkSyncResult> {
   }
 }
 
+// T003 — tek bir hesabı sync eder. /starlink/accounts/:id/sync endpoint'i
+// için kullanılır. runStarlinkSync() ile aynı lock'u paylaşır (eşzamanlı
+// sync yok). Kendi `starlink_sync_logs` satırını açar/kapatır.
+export async function runStarlinkSyncForCredential(
+  credentialId: number,
+): Promise<StarlinkSyncResult> {
+  if (!tryClaim()) {
+    return {
+      success: false,
+      message: "Starlink sync zaten çalışıyor.",
+      terminalCount: 0,
+      errors: [],
+    };
+  }
+  try {
+    const [cred] = await db
+      .select()
+      .from(starlinkCredentials)
+      .where(eq(starlinkCredentials.id, credentialId))
+      .limit(1);
+    if (!cred) {
+      return {
+        success: false,
+        message: "Hesap bulunamadı.",
+        terminalCount: 0,
+        errors: [],
+      };
+    }
+    progress.startStarlinkPhase();
+    const logId = await openSyncLog(cred.id);
+    const credLabel = cred.label?.trim() || `#${cred.id}`;
+    progress.pushEvent("info", `Starlink hesap "${credLabel}" başlatıldı.`);
+    try {
+      const r = await syncOneCredential(cred, 0);
+      await closeSyncLog(logId, r);
+      progress.finishStarlinkPhase(r.message, r.success);
+      return r;
+    } catch (err) {
+      const msg = (err as Error).message;
+      logger.error(
+        { err, credentialId: cred.id, label: credLabel },
+        "Starlink credential sync crashed",
+      );
+      await markCredentialFailure(cred.id, msg);
+      const result: StarlinkSyncResult = {
+        success: false,
+        message: `${credLabel}: ${msg}`,
+        terminalCount: 0,
+        errors: [msg],
+      };
+      await closeSyncLog(logId, result);
+      progress.finishStarlinkPhase(result.message, false);
+      return result;
+    }
+  } finally {
+    running = false;
+  }
+}
+
 // T002 — tüm aktif credential'ları sırayla gezer; bir hesap düşerse
 // diğerleri devam eder. Her hesap için ayrı `starlink_sync_logs` satırı.
 async function runInner(): Promise<StarlinkSyncResult> {

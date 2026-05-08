@@ -327,6 +327,72 @@ export async function runLeobridgeSync(): Promise<LeobridgeSyncResult> {
   }
 }
 
+// T003 — tek bir hesabı sync eder. /leobridge/accounts/:id/sync endpoint'i
+// için kullanılır. runLeobridgeSync() ile aynı lock'u paylaşır.
+export async function runLeobridgeSyncForCredential(
+  credentialId: number,
+): Promise<LeobridgeSyncResult> {
+  if (!tryClaim()) {
+    return {
+      success: false,
+      message: "Leo Bridge senkronizasyonu zaten çalışıyor.",
+      terminalCount: 0,
+      failures: 0,
+    };
+  }
+  try {
+    const [cred] = await db
+      .select()
+      .from(leobridgeCredentials)
+      .where(eq(leobridgeCredentials.id, credentialId))
+      .limit(1);
+    if (!cred) {
+      return {
+        success: false,
+        message: "Hesap bulunamadı.",
+        terminalCount: 0,
+        failures: 0,
+      };
+    }
+    progress.startLeobridgePhase(0);
+    const logId = await openLeobridgeSyncLog(cred.id);
+    const credLabel = cred.label?.trim() || `#${cred.id}`;
+    progress.pushEvent("info", `Leo Bridge hesap "${credLabel}" başlatıldı.`);
+    try {
+      const r = await syncOneLeobridgeCredential(cred, 0);
+      await closeLeobridgeSyncLog(logId, {
+        success: r.success,
+        message: r.message,
+        terminalCount: r.terminalCount,
+      });
+      progress.finishLeobridgePhase(r.message, r.success);
+      return r;
+    } catch (err) {
+      const msg = (err as Error).message ?? "bilinmeyen hata";
+      logger.error(
+        { err, credentialId: cred.id, label: credLabel },
+        "Leo Bridge credential sync crashed",
+      );
+      await markCredential(cred.id, false, msg);
+      const result: LeobridgeSyncResult = {
+        success: false,
+        message: `${credLabel}: ${msg}`,
+        terminalCount: 0,
+        failures: 1,
+      };
+      await closeLeobridgeSyncLog(logId, {
+        success: false,
+        message: result.message,
+        terminalCount: 0,
+      });
+      progress.finishLeobridgePhase(result.message, false);
+      return result;
+    }
+  } finally {
+    release();
+  }
+}
+
 // T002 — tüm aktif credential'ları sırayla gezer; bir hesap düşerse
 // diğerleri devam eder. Her hesap için ayrı `leobridge_sync_logs` satırı.
 async function runLeobridgeInner(): Promise<LeobridgeSyncResult> {

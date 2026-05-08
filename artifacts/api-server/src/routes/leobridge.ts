@@ -1,15 +1,19 @@
 import { Router, type IRouter } from "express";
 import {
   db,
+  leobridgeCredentials,
   leobridgeTerminals,
   leobridgeTerminalDaily,
   leobridgeTerminalPeriodTotal,
 } from "@workspace/db";
-import { desc, eq, inArray } from "drizzle-orm";
+import { asc, count, desc, eq, inArray } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
+import { audit } from "../lib/audit";
+import { encrypt, decrypt } from "../lib/crypto";
 import { isCustomer, getAssignedKits } from "../lib/customer-scope";
 import {
   runLeobridgeSync,
+  runLeobridgeSyncForCredential,
   testLeobridgeConnection,
   isLeobridgeSyncRunning,
   getLeobridgeSettingsView,
@@ -21,6 +25,29 @@ import {
   finishCombinedRun,
   isRunning as isAnySyncRunning,
 } from "../lib/sync-progress";
+
+const DEFAULT_LEOBRIDGE_PORTAL_URL = "https://leobridge.spacenorway.com";
+
+function leobridgeAccountSummary(
+  c: typeof leobridgeCredentials.$inferSelect,
+  kitCount: number,
+) {
+  return {
+    id: c.id,
+    label: c.label,
+    portalUrl: c.portalUrl,
+    username: c.username,
+    isActive: c.isActive,
+    syncIntervalMinutes: c.syncIntervalMinutes,
+    lastSuccessSyncAt: c.lastSuccessSyncAt
+      ? c.lastSuccessSyncAt.toISOString()
+      : null,
+    lastErrorMessage: c.lastErrorMessage,
+    createdAt: c.createdAt.toISOString(),
+    updatedAt: c.updatedAt.toISOString(),
+    kitCount,
+  };
+}
 
 const router: IRouter = Router();
 
@@ -132,6 +159,265 @@ router.post(
       }
     })();
     res.json({ success: true, message: "Leo Bridge senkronizasyonu başlatıldı." });
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Multi-account CRUD (T003) — Satcom `/station/accounts` kalıbı
+// ---------------------------------------------------------------------------
+
+router.get(
+  "/leobridge/accounts",
+  requireAuth,
+  requireRole("viewer"),
+  async (_req, res): Promise<void> => {
+    const accounts = await db
+      .select()
+      .from(leobridgeCredentials)
+      .orderBy(asc(leobridgeCredentials.id));
+    const counts = await db
+      .select({
+        credentialId: leobridgeTerminals.credentialId,
+        n: count(),
+      })
+      .from(leobridgeTerminals)
+      .groupBy(leobridgeTerminals.credentialId);
+    const byCred = new Map(counts.map((r) => [r.credentialId, Number(r.n)]));
+    res.json(
+      accounts.map((c) => leobridgeAccountSummary(c, byCred.get(c.id) ?? 0)),
+    );
+  },
+);
+
+router.post(
+  "/leobridge/accounts",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const {
+      label,
+      portalUrl,
+      username,
+      password,
+      isActive,
+      syncIntervalMinutes,
+    } = req.body as {
+      label?: string | null;
+      portalUrl?: string;
+      username?: string;
+      password?: string;
+      isActive?: boolean;
+      syncIntervalMinutes?: number;
+    };
+    if (!username?.trim() || !password) {
+      res.status(400).json({ error: "Kullanıcı adı ve şifre zorunludur." });
+      return;
+    }
+    const [created] = await db
+      .insert(leobridgeCredentials)
+      .values({
+        label: label ?? null,
+        portalUrl:
+          portalUrl?.trim().replace(/\/+$/, "") || DEFAULT_LEOBRIDGE_PORTAL_URL,
+        username: username.trim(),
+        encryptedPassword: encrypt(password),
+        isActive: isActive ?? true,
+        syncIntervalMinutes: syncIntervalMinutes ?? 30,
+      })
+      .returning();
+    req.log.info({ id: created.id, label }, "Leobridge account created");
+    await audit(req, {
+      action: "leobridge.account.create",
+      target: `account:${created.id}`,
+      meta: { label, username: created.username, portalUrl: created.portalUrl },
+    });
+    res.json(leobridgeAccountSummary(created, 0));
+  },
+);
+
+router.patch(
+  "/leobridge/accounts/:id",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const id = parseInt(String(req.params.id), 10);
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ error: "Geçersiz hesap ID." });
+      return;
+    }
+    const {
+      label,
+      portalUrl,
+      username,
+      password,
+      isActive,
+      syncIntervalMinutes,
+    } = req.body as Partial<{
+      label: string | null;
+      portalUrl: string;
+      username: string;
+      password: string | null;
+      isActive: boolean;
+      syncIntervalMinutes: number;
+    }>;
+    const updates: Partial<typeof leobridgeCredentials.$inferInsert> = {
+      updatedAt: new Date(),
+    };
+    if (label !== undefined) updates.label = label;
+    if (portalUrl !== undefined)
+      updates.portalUrl =
+        portalUrl.trim().replace(/\/+$/, "") || DEFAULT_LEOBRIDGE_PORTAL_URL;
+    if (username !== undefined && username.trim())
+      updates.username = username.trim();
+    if (typeof password === "string" && password.length > 0)
+      updates.encryptedPassword = encrypt(password);
+    if (isActive !== undefined) updates.isActive = isActive;
+    if (syncIntervalMinutes !== undefined)
+      updates.syncIntervalMinutes = syncIntervalMinutes;
+
+    const [updated] = await db
+      .update(leobridgeCredentials)
+      .set(updates)
+      .where(eq(leobridgeCredentials.id, id))
+      .returning();
+    if (!updated) {
+      res.status(404).json({ error: "Hesap bulunamadı." });
+      return;
+    }
+    const [{ n }] = await db
+      .select({ n: count() })
+      .from(leobridgeTerminals)
+      .where(eq(leobridgeTerminals.credentialId, id));
+    await audit(req, {
+      action: "leobridge.account.update",
+      target: `account:${id}`,
+      meta: {
+        changedFields: Object.keys(updates).filter((k) => k !== "updatedAt"),
+        passwordChanged:
+          typeof password === "string" && password.length > 0,
+      },
+    });
+    res.json(leobridgeAccountSummary(updated, Number(n ?? 0)));
+  },
+);
+
+router.delete(
+  "/leobridge/accounts/:id",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const id = parseInt(String(req.params.id), 10);
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ error: "Geçersiz hesap ID." });
+      return;
+    }
+    const deleted = await db
+      .delete(leobridgeCredentials)
+      .where(eq(leobridgeCredentials.id, id))
+      .returning();
+    if (deleted.length === 0) {
+      res.status(404).json({ error: "Hesap bulunamadı." });
+      return;
+    }
+    req.log.warn({ id }, "Leobridge account deleted (cascade wiped data)");
+    await audit(req, {
+      action: "leobridge.account.delete",
+      target: `account:${id}`,
+    });
+    res.json({ message: "Hesap ve tüm verisi silindi." });
+  },
+);
+
+router.post(
+  "/leobridge/accounts/:id/test-connection",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const id = parseInt(String(req.params.id), 10);
+    const [c] = await db
+      .select()
+      .from(leobridgeCredentials)
+      .where(eq(leobridgeCredentials.id, id))
+      .limit(1);
+    if (!c) {
+      res
+        .status(404)
+        .json({ success: false, message: "Hesap bulunamadı.", terminalCount: 0 });
+      return;
+    }
+    let password: string;
+    try {
+      password = decrypt(c.encryptedPassword);
+    } catch {
+      res.json({
+        success: false,
+        message: "Kayıtlı şifre çözülemedi.",
+        terminalCount: 0,
+      });
+      return;
+    }
+    const result = await testLeobridgeConnection({
+      portalUrl: c.portalUrl,
+      username: c.username,
+      password,
+    });
+    await audit(req, {
+      action: "leobridge.account.test_connection",
+      target: `account:${id}`,
+      success: result.success,
+      meta: {
+        label: c.label,
+        username: c.username,
+        message: result.message,
+        terminalCount: result.terminalCount,
+      },
+    });
+    res.json(result);
+  },
+);
+
+router.post(
+  "/leobridge/accounts/:id/sync",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const id = parseInt(String(req.params.id), 10);
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ error: "Geçersiz hesap ID." });
+      return;
+    }
+    if (isLeobridgeSyncRunning() || isAnySyncRunning()) {
+      res
+        .status(409)
+        .json({ error: "Bir senkronizasyon zaten çalışıyor." });
+      return;
+    }
+    startCombinedRun();
+    void (async () => {
+      try {
+        const r = await runLeobridgeSyncForCredential(id);
+        finishCombinedRun(
+          r.success
+            ? `Leo Bridge: ${r.message}`
+            : `Leo Bridge başarısız: ${r.message}`,
+          r.success,
+        );
+      } catch (err) {
+        finishCombinedRun(
+          `Leo Bridge hesap sync hata: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+          false,
+        );
+      }
+    })();
+    await audit(req, {
+      action: "leobridge.account.sync_now",
+      target: `account:${id}`,
+    });
+    res.json({
+      message: "Leo Bridge hesap senkronizasyonu başlatıldı.",
+    });
   },
 );
 

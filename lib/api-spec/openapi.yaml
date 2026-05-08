@@ -813,6 +813,140 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /starlink/accounts:
+    get:
+      operationId: listStarlinkAccounts
+      tags: [starlink]
+      summary: Tüm Starlink hesaplarını listele
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StarlinkAccount"
+    post:
+      operationId: createStarlinkAccount
+      x-required-role: admin
+      tags: [starlink]
+      summary: Yeni Starlink hesabı ekle
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStarlinkAccountBody"
+      responses:
+        "200":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StarlinkAccount"
+
+  /starlink/accounts/{id}:
+    patch:
+      operationId: updateStarlinkAccount
+      x-required-role: admin
+      tags: [starlink]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStarlinkAccountBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StarlinkAccount"
+    delete:
+      operationId: deleteStarlinkAccount
+      x-required-role: admin
+      tags: [starlink]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /starlink/accounts/{id}/test-connection:
+    post:
+      operationId: testStarlinkAccountConnection
+      x-required-role: admin
+      tags: [starlink]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StarlinkTestResult"
+
+  /starlink/accounts/{id}/sync:
+    post:
+      operationId: syncStarlinkAccount
+      x-required-role: admin
+      tags: [starlink]
+      summary: Tek bir Starlink hesabı için manuel senkronizasyon (fire-and-forget).
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "409":
+          description: Already running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /starlink/terminals:
     get:
       operationId: getStarlinkTerminals
@@ -959,6 +1093,140 @@ paths:
                 properties:
                   success: { type: boolean }
                   message: { type: string }
+
+  /leobridge/accounts:
+    get:
+      operationId: listLeobridgeAccounts
+      tags: [leobridge]
+      summary: Tüm Leo Bridge (Norway) hesaplarını listele
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeobridgeAccount"
+    post:
+      operationId: createLeobridgeAccount
+      x-required-role: admin
+      tags: [leobridge]
+      summary: Yeni Leo Bridge hesabı ekle
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLeobridgeAccountBody"
+      responses:
+        "200":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeobridgeAccount"
+
+  /leobridge/accounts/{id}:
+    patch:
+      operationId: updateLeobridgeAccount
+      x-required-role: admin
+      tags: [leobridge]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLeobridgeAccountBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeobridgeAccount"
+    delete:
+      operationId: deleteLeobridgeAccount
+      x-required-role: admin
+      tags: [leobridge]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /leobridge/accounts/{id}/test-connection:
+    post:
+      operationId: testLeobridgeAccountConnection
+      x-required-role: admin
+      tags: [leobridge]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeobridgeTestResult"
+
+  /leobridge/accounts/{id}/sync:
+    post:
+      operationId: syncLeobridgeAccount
+      x-required-role: admin
+      tags: [leobridge]
+      summary: Tek bir Leo Bridge hesabı için manuel senkronizasyon (fire-and-forget).
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "409":
+          description: Already running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /leobridge/terminals:
     get:
@@ -1683,6 +1951,52 @@ components:
         message: { type: string }
         terminalCount: { type: integer }
 
+    StarlinkAccount:
+      type: object
+      required:
+        - id
+        - apiBaseUrl
+        - hasToken
+        - isActive
+        - syncIntervalMinutes
+        - createdAt
+        - updatedAt
+        - kitCount
+      properties:
+        id: { type: integer }
+        label: { type: string, nullable: true }
+        apiBaseUrl: { type: string }
+        hasToken: { type: boolean }
+        isActive: { type: boolean }
+        syncIntervalMinutes: { type: integer }
+        lastSuccessSyncAt: { type: string, format: date-time, nullable: true }
+        lastErrorMessage: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        kitCount: { type: integer }
+
+    CreateStarlinkAccountBody:
+      type: object
+      required: [token]
+      properties:
+        label: { type: string, nullable: true }
+        apiBaseUrl: { type: string }
+        token: { type: string }
+        isActive: { type: boolean }
+        syncIntervalMinutes: { type: integer }
+
+    UpdateStarlinkAccountBody:
+      type: object
+      properties:
+        label: { type: string, nullable: true }
+        apiBaseUrl: { type: string }
+        token:
+          type: string
+          nullable: true
+          description: "undefined → değişmez, boş/null → değişmez (token NOT NULL), dolu → yeni token."
+        isActive: { type: boolean }
+        syncIntervalMinutes: { type: integer }
+
     StarlinkTerminalSummary:
       type: object
       required: [kitSerialNumber, activeAlertsCount]
@@ -1793,6 +2107,54 @@ components:
         success: { type: boolean }
         message: { type: string }
         terminalCount: { type: integer }
+
+    LeobridgeAccount:
+      type: object
+      required:
+        - id
+        - portalUrl
+        - username
+        - isActive
+        - syncIntervalMinutes
+        - createdAt
+        - updatedAt
+        - kitCount
+      properties:
+        id: { type: integer }
+        label: { type: string, nullable: true }
+        portalUrl: { type: string }
+        username: { type: string }
+        isActive: { type: boolean }
+        syncIntervalMinutes: { type: integer }
+        lastSuccessSyncAt: { type: string, format: date-time, nullable: true }
+        lastErrorMessage: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        kitCount: { type: integer }
+
+    CreateLeobridgeAccountBody:
+      type: object
+      required: [username, password]
+      properties:
+        label: { type: string, nullable: true }
+        portalUrl: { type: string }
+        username: { type: string }
+        password: { type: string }
+        isActive: { type: boolean }
+        syncIntervalMinutes: { type: integer }
+
+    UpdateLeobridgeAccountBody:
+      type: object
+      properties:
+        label: { type: string, nullable: true }
+        portalUrl: { type: string }
+        username: { type: string }
+        password:
+          type: string
+          nullable: true
+          description: "undefined → değişmez, boş/null → değişmez, dolu → yeni şifre."
+        isActive: { type: boolean }
+        syncIntervalMinutes: { type: integer }
 
     LeobridgeTerminalSummary:
       type: object

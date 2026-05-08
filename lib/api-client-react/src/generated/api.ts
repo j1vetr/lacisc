@@ -25,6 +25,8 @@ import type {
   AuthResponse,
   ChangePasswordBody,
   CreateAdminUserBody,
+  CreateLeobridgeAccountBody,
+  CreateStarlinkAccountBody,
   CreateStationAccountBody,
   DashboardSummary,
   EmailSettings,
@@ -45,6 +47,7 @@ import type {
   KitSubscription,
   KitSummary,
   KitTelemetryHourlyPoint,
+  LeobridgeAccount,
   LeobridgeDailyPoint,
   LeobridgeMonthlyPoint,
   LeobridgeSettings,
@@ -59,6 +62,7 @@ import type {
   ReadinessStatus,
   ResetPasswordBody,
   SaveStationSettingsBody,
+  StarlinkAccount,
   StarlinkDailyPoint,
   StarlinkMonthlyPoint,
   StarlinkSettings,
@@ -79,6 +83,8 @@ import type {
   UpdateAdminUserBody,
   UpdateAssignedKitsBody,
   UpdateAssignedKitsResponse,
+  UpdateLeobridgeAccountBody,
+  UpdateStarlinkAccountBody,
   UpdateStationAccountBody,
   WipeDataResponse,
   WipeStationDataParams,
@@ -3154,6 +3160,493 @@ export const useSyncStarlinkNow = <
 };
 
 /**
+ * @summary Tüm Starlink hesaplarını listele
+ */
+export const getListStarlinkAccountsUrl = () => {
+  return `/api/starlink/accounts`;
+};
+
+export const listStarlinkAccounts = async (
+  options?: RequestInit,
+): Promise<StarlinkAccount[]> => {
+  return customFetch<StarlinkAccount[]>(getListStarlinkAccountsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListStarlinkAccountsQueryKey = () => {
+  return [`/api/starlink/accounts`] as const;
+};
+
+export const getListStarlinkAccountsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listStarlinkAccounts>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listStarlinkAccounts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListStarlinkAccountsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listStarlinkAccounts>>
+  > = ({ signal }) => listStarlinkAccounts({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listStarlinkAccounts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListStarlinkAccountsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listStarlinkAccounts>>
+>;
+export type ListStarlinkAccountsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Tüm Starlink hesaplarını listele
+ */
+
+export function useListStarlinkAccounts<
+  TData = Awaited<ReturnType<typeof listStarlinkAccounts>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listStarlinkAccounts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListStarlinkAccountsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Yeni Starlink hesabı ekle
+ */
+export const getCreateStarlinkAccountUrl = () => {
+  return `/api/starlink/accounts`;
+};
+
+export const createStarlinkAccount = async (
+  createStarlinkAccountBody: CreateStarlinkAccountBody,
+  options?: RequestInit,
+): Promise<StarlinkAccount> => {
+  return customFetch<StarlinkAccount>(getCreateStarlinkAccountUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createStarlinkAccountBody),
+  });
+};
+
+export const getCreateStarlinkAccountMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createStarlinkAccount>>,
+    TError,
+    { data: BodyType<CreateStarlinkAccountBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createStarlinkAccount>>,
+  TError,
+  { data: BodyType<CreateStarlinkAccountBody> },
+  TContext
+> => {
+  const mutationKey = ["createStarlinkAccount"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createStarlinkAccount>>,
+    { data: BodyType<CreateStarlinkAccountBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createStarlinkAccount(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateStarlinkAccountMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createStarlinkAccount>>
+>;
+export type CreateStarlinkAccountMutationBody =
+  BodyType<CreateStarlinkAccountBody>;
+export type CreateStarlinkAccountMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Yeni Starlink hesabı ekle
+ */
+export const useCreateStarlinkAccount = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createStarlinkAccount>>,
+    TError,
+    { data: BodyType<CreateStarlinkAccountBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createStarlinkAccount>>,
+  TError,
+  { data: BodyType<CreateStarlinkAccountBody> },
+  TContext
+> => {
+  return useMutation(getCreateStarlinkAccountMutationOptions(options));
+};
+
+export const getUpdateStarlinkAccountUrl = (id: number) => {
+  return `/api/starlink/accounts/${id}`;
+};
+
+export const updateStarlinkAccount = async (
+  id: number,
+  updateStarlinkAccountBody: UpdateStarlinkAccountBody,
+  options?: RequestInit,
+): Promise<StarlinkAccount> => {
+  return customFetch<StarlinkAccount>(getUpdateStarlinkAccountUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateStarlinkAccountBody),
+  });
+};
+
+export const getUpdateStarlinkAccountMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStarlinkAccount>>,
+    TError,
+    { id: number; data: BodyType<UpdateStarlinkAccountBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateStarlinkAccount>>,
+  TError,
+  { id: number; data: BodyType<UpdateStarlinkAccountBody> },
+  TContext
+> => {
+  const mutationKey = ["updateStarlinkAccount"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateStarlinkAccount>>,
+    { id: number; data: BodyType<UpdateStarlinkAccountBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateStarlinkAccount(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateStarlinkAccountMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateStarlinkAccount>>
+>;
+export type UpdateStarlinkAccountMutationBody =
+  BodyType<UpdateStarlinkAccountBody>;
+export type UpdateStarlinkAccountMutationError = ErrorType<unknown>;
+
+export const useUpdateStarlinkAccount = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStarlinkAccount>>,
+    TError,
+    { id: number; data: BodyType<UpdateStarlinkAccountBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateStarlinkAccount>>,
+  TError,
+  { id: number; data: BodyType<UpdateStarlinkAccountBody> },
+  TContext
+> => {
+  return useMutation(getUpdateStarlinkAccountMutationOptions(options));
+};
+
+export const getDeleteStarlinkAccountUrl = (id: number) => {
+  return `/api/starlink/accounts/${id}`;
+};
+
+export const deleteStarlinkAccount = async (
+  id: number,
+  options?: RequestInit,
+): Promise<MessageResponse> => {
+  return customFetch<MessageResponse>(getDeleteStarlinkAccountUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteStarlinkAccountMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteStarlinkAccount>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteStarlinkAccount>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteStarlinkAccount"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteStarlinkAccount>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteStarlinkAccount(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteStarlinkAccountMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteStarlinkAccount>>
+>;
+
+export type DeleteStarlinkAccountMutationError = ErrorType<unknown>;
+
+export const useDeleteStarlinkAccount = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteStarlinkAccount>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteStarlinkAccount>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteStarlinkAccountMutationOptions(options));
+};
+
+export const getTestStarlinkAccountConnectionUrl = (id: number) => {
+  return `/api/starlink/accounts/${id}/test-connection`;
+};
+
+export const testStarlinkAccountConnection = async (
+  id: number,
+  options?: RequestInit,
+): Promise<StarlinkTestResult> => {
+  return customFetch<StarlinkTestResult>(
+    getTestStarlinkAccountConnectionUrl(id),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getTestStarlinkAccountConnectionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testStarlinkAccountConnection>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof testStarlinkAccountConnection>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["testStarlinkAccountConnection"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof testStarlinkAccountConnection>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return testStarlinkAccountConnection(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TestStarlinkAccountConnectionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof testStarlinkAccountConnection>>
+>;
+
+export type TestStarlinkAccountConnectionMutationError = ErrorType<unknown>;
+
+export const useTestStarlinkAccountConnection = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testStarlinkAccountConnection>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof testStarlinkAccountConnection>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getTestStarlinkAccountConnectionMutationOptions(options));
+};
+
+/**
+ * @summary Tek bir Starlink hesabı için manuel senkronizasyon (fire-and-forget).
+ */
+export const getSyncStarlinkAccountUrl = (id: number) => {
+  return `/api/starlink/accounts/${id}/sync`;
+};
+
+export const syncStarlinkAccount = async (
+  id: number,
+  options?: RequestInit,
+): Promise<MessageResponse> => {
+  return customFetch<MessageResponse>(getSyncStarlinkAccountUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSyncStarlinkAccountMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncStarlinkAccount>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof syncStarlinkAccount>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["syncStarlinkAccount"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof syncStarlinkAccount>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return syncStarlinkAccount(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SyncStarlinkAccountMutationResult = NonNullable<
+  Awaited<ReturnType<typeof syncStarlinkAccount>>
+>;
+
+export type SyncStarlinkAccountMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Tek bir Starlink hesabı için manuel senkronizasyon (fire-and-forget).
+ */
+export const useSyncStarlinkAccount = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncStarlinkAccount>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof syncStarlinkAccount>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getSyncStarlinkAccountMutationOptions(options));
+};
+
+/**
  * @summary Starlink terminalleri (aktif dönem GB'a göre sıralı).
  */
 export const getGetStarlinkTerminalsUrl = () => {
@@ -3754,6 +4247,493 @@ export const useSyncLeobridgeNow = <
   TContext
 > => {
   return useMutation(getSyncLeobridgeNowMutationOptions(options));
+};
+
+/**
+ * @summary Tüm Leo Bridge (Norway) hesaplarını listele
+ */
+export const getListLeobridgeAccountsUrl = () => {
+  return `/api/leobridge/accounts`;
+};
+
+export const listLeobridgeAccounts = async (
+  options?: RequestInit,
+): Promise<LeobridgeAccount[]> => {
+  return customFetch<LeobridgeAccount[]>(getListLeobridgeAccountsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListLeobridgeAccountsQueryKey = () => {
+  return [`/api/leobridge/accounts`] as const;
+};
+
+export const getListLeobridgeAccountsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listLeobridgeAccounts>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listLeobridgeAccounts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListLeobridgeAccountsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listLeobridgeAccounts>>
+  > = ({ signal }) => listLeobridgeAccounts({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listLeobridgeAccounts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListLeobridgeAccountsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listLeobridgeAccounts>>
+>;
+export type ListLeobridgeAccountsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Tüm Leo Bridge (Norway) hesaplarını listele
+ */
+
+export function useListLeobridgeAccounts<
+  TData = Awaited<ReturnType<typeof listLeobridgeAccounts>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listLeobridgeAccounts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListLeobridgeAccountsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Yeni Leo Bridge hesabı ekle
+ */
+export const getCreateLeobridgeAccountUrl = () => {
+  return `/api/leobridge/accounts`;
+};
+
+export const createLeobridgeAccount = async (
+  createLeobridgeAccountBody: CreateLeobridgeAccountBody,
+  options?: RequestInit,
+): Promise<LeobridgeAccount> => {
+  return customFetch<LeobridgeAccount>(getCreateLeobridgeAccountUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createLeobridgeAccountBody),
+  });
+};
+
+export const getCreateLeobridgeAccountMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createLeobridgeAccount>>,
+    TError,
+    { data: BodyType<CreateLeobridgeAccountBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createLeobridgeAccount>>,
+  TError,
+  { data: BodyType<CreateLeobridgeAccountBody> },
+  TContext
+> => {
+  const mutationKey = ["createLeobridgeAccount"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createLeobridgeAccount>>,
+    { data: BodyType<CreateLeobridgeAccountBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createLeobridgeAccount(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateLeobridgeAccountMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createLeobridgeAccount>>
+>;
+export type CreateLeobridgeAccountMutationBody =
+  BodyType<CreateLeobridgeAccountBody>;
+export type CreateLeobridgeAccountMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Yeni Leo Bridge hesabı ekle
+ */
+export const useCreateLeobridgeAccount = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createLeobridgeAccount>>,
+    TError,
+    { data: BodyType<CreateLeobridgeAccountBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createLeobridgeAccount>>,
+  TError,
+  { data: BodyType<CreateLeobridgeAccountBody> },
+  TContext
+> => {
+  return useMutation(getCreateLeobridgeAccountMutationOptions(options));
+};
+
+export const getUpdateLeobridgeAccountUrl = (id: number) => {
+  return `/api/leobridge/accounts/${id}`;
+};
+
+export const updateLeobridgeAccount = async (
+  id: number,
+  updateLeobridgeAccountBody: UpdateLeobridgeAccountBody,
+  options?: RequestInit,
+): Promise<LeobridgeAccount> => {
+  return customFetch<LeobridgeAccount>(getUpdateLeobridgeAccountUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateLeobridgeAccountBody),
+  });
+};
+
+export const getUpdateLeobridgeAccountMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateLeobridgeAccount>>,
+    TError,
+    { id: number; data: BodyType<UpdateLeobridgeAccountBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateLeobridgeAccount>>,
+  TError,
+  { id: number; data: BodyType<UpdateLeobridgeAccountBody> },
+  TContext
+> => {
+  const mutationKey = ["updateLeobridgeAccount"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateLeobridgeAccount>>,
+    { id: number; data: BodyType<UpdateLeobridgeAccountBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateLeobridgeAccount(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateLeobridgeAccountMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateLeobridgeAccount>>
+>;
+export type UpdateLeobridgeAccountMutationBody =
+  BodyType<UpdateLeobridgeAccountBody>;
+export type UpdateLeobridgeAccountMutationError = ErrorType<unknown>;
+
+export const useUpdateLeobridgeAccount = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateLeobridgeAccount>>,
+    TError,
+    { id: number; data: BodyType<UpdateLeobridgeAccountBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateLeobridgeAccount>>,
+  TError,
+  { id: number; data: BodyType<UpdateLeobridgeAccountBody> },
+  TContext
+> => {
+  return useMutation(getUpdateLeobridgeAccountMutationOptions(options));
+};
+
+export const getDeleteLeobridgeAccountUrl = (id: number) => {
+  return `/api/leobridge/accounts/${id}`;
+};
+
+export const deleteLeobridgeAccount = async (
+  id: number,
+  options?: RequestInit,
+): Promise<MessageResponse> => {
+  return customFetch<MessageResponse>(getDeleteLeobridgeAccountUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteLeobridgeAccountMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteLeobridgeAccount>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteLeobridgeAccount>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteLeobridgeAccount"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteLeobridgeAccount>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteLeobridgeAccount(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteLeobridgeAccountMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteLeobridgeAccount>>
+>;
+
+export type DeleteLeobridgeAccountMutationError = ErrorType<unknown>;
+
+export const useDeleteLeobridgeAccount = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteLeobridgeAccount>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteLeobridgeAccount>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteLeobridgeAccountMutationOptions(options));
+};
+
+export const getTestLeobridgeAccountConnectionUrl = (id: number) => {
+  return `/api/leobridge/accounts/${id}/test-connection`;
+};
+
+export const testLeobridgeAccountConnection = async (
+  id: number,
+  options?: RequestInit,
+): Promise<LeobridgeTestResult> => {
+  return customFetch<LeobridgeTestResult>(
+    getTestLeobridgeAccountConnectionUrl(id),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getTestLeobridgeAccountConnectionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testLeobridgeAccountConnection>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof testLeobridgeAccountConnection>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["testLeobridgeAccountConnection"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof testLeobridgeAccountConnection>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return testLeobridgeAccountConnection(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TestLeobridgeAccountConnectionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof testLeobridgeAccountConnection>>
+>;
+
+export type TestLeobridgeAccountConnectionMutationError = ErrorType<unknown>;
+
+export const useTestLeobridgeAccountConnection = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testLeobridgeAccountConnection>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof testLeobridgeAccountConnection>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getTestLeobridgeAccountConnectionMutationOptions(options));
+};
+
+/**
+ * @summary Tek bir Leo Bridge hesabı için manuel senkronizasyon (fire-and-forget).
+ */
+export const getSyncLeobridgeAccountUrl = (id: number) => {
+  return `/api/leobridge/accounts/${id}/sync`;
+};
+
+export const syncLeobridgeAccount = async (
+  id: number,
+  options?: RequestInit,
+): Promise<MessageResponse> => {
+  return customFetch<MessageResponse>(getSyncLeobridgeAccountUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSyncLeobridgeAccountMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncLeobridgeAccount>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof syncLeobridgeAccount>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["syncLeobridgeAccount"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof syncLeobridgeAccount>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return syncLeobridgeAccount(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SyncLeobridgeAccountMutationResult = NonNullable<
+  Awaited<ReturnType<typeof syncLeobridgeAccount>>
+>;
+
+export type SyncLeobridgeAccountMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Tek bir Leo Bridge hesabı için manuel senkronizasyon (fire-and-forget).
+ */
+export const useSyncLeobridgeAccount = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncLeobridgeAccount>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof syncLeobridgeAccount>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getSyncLeobridgeAccountMutationOptions(options));
 };
 
 /**

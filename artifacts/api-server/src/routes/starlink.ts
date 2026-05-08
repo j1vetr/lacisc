@@ -1,23 +1,49 @@
 import { Router, type IRouter } from "express";
 import {
   db,
+  starlinkCredentials,
   starlinkTerminals,
   starlinkTerminalDaily,
   starlinkTerminalPeriodTotal,
 } from "@workspace/db";
-import { eq, asc, desc, sql } from "drizzle-orm";
+import { eq, asc, desc, sql, count } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
 import { audit } from "../lib/audit";
 import { logger } from "../lib/logger";
+import { encrypt, decrypt } from "../lib/crypto";
 import {
   getStarlinkSettingsView,
   saveStarlinkSettings,
   testStarlinkConnection,
   runStarlinkSync,
+  runStarlinkSyncForCredential,
   isStarlinkSyncRunning,
 } from "../lib/starlink-sync";
 import * as progress from "../lib/sync-progress";
 import { getAssignedKits, isCustomer } from "../lib/customer-scope";
+
+const DEFAULT_STARLINK_BASE_URL = "https://starlink.tototheo.com";
+
+function starlinkAccountSummary(
+  c: typeof starlinkCredentials.$inferSelect,
+  kitCount: number,
+) {
+  return {
+    id: c.id,
+    label: c.label,
+    apiBaseUrl: c.apiBaseUrl,
+    hasToken: !!c.encryptedToken,
+    isActive: c.isActive,
+    syncIntervalMinutes: c.syncIntervalMinutes,
+    lastSuccessSyncAt: c.lastSuccessSyncAt
+      ? c.lastSuccessSyncAt.toISOString()
+      : null,
+    lastErrorMessage: c.lastErrorMessage,
+    createdAt: c.createdAt.toISOString(),
+    updatedAt: c.updatedAt.toISOString(),
+    kitCount,
+  };
+}
 
 const router: IRouter = Router();
 
@@ -111,6 +137,227 @@ router.post(
     await audit(req, { action: "starlink.sync_now" });
     res.json({ success: true, message: "Starlink senkronizasyonu başlatıldı." });
   }
+);
+
+// ---------------------------------------------------------------------------
+// Multi-account CRUD (T003) — Satcom `/station/accounts` kalıbı
+// ---------------------------------------------------------------------------
+
+router.get(
+  "/starlink/accounts",
+  requireAuth,
+  requireRole("viewer"),
+  async (_req, res): Promise<void> => {
+    const accounts = await db
+      .select()
+      .from(starlinkCredentials)
+      .orderBy(asc(starlinkCredentials.id));
+    const counts = await db
+      .select({
+        credentialId: starlinkTerminals.credentialId,
+        n: count(),
+      })
+      .from(starlinkTerminals)
+      .groupBy(starlinkTerminals.credentialId);
+    const byCred = new Map(counts.map((r) => [r.credentialId, Number(r.n)]));
+    res.json(
+      accounts.map((c) => starlinkAccountSummary(c, byCred.get(c.id) ?? 0)),
+    );
+  },
+);
+
+router.post(
+  "/starlink/accounts",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const { label, apiBaseUrl, token, isActive, syncIntervalMinutes } =
+      req.body as {
+        label?: string | null;
+        apiBaseUrl?: string;
+        token?: string;
+        isActive?: boolean;
+        syncIntervalMinutes?: number;
+      };
+    if (!token || !token.trim()) {
+      res.status(400).json({ error: "Token zorunludur." });
+      return;
+    }
+    const [created] = await db
+      .insert(starlinkCredentials)
+      .values({
+        label: label ?? null,
+        apiBaseUrl: apiBaseUrl?.trim() || DEFAULT_STARLINK_BASE_URL,
+        encryptedToken: encrypt(token),
+        isActive: isActive ?? true,
+        syncIntervalMinutes: syncIntervalMinutes ?? 30,
+      })
+      .returning();
+    req.log.info({ id: created.id, label }, "Starlink account created");
+    await audit(req, {
+      action: "starlink.account.create",
+      target: `account:${created.id}`,
+      meta: { label, apiBaseUrl: created.apiBaseUrl },
+    });
+    res.json(starlinkAccountSummary(created, 0));
+  },
+);
+
+router.patch(
+  "/starlink/accounts/:id",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const id = parseInt(String(req.params.id), 10);
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ error: "Geçersiz hesap ID." });
+      return;
+    }
+    const { label, apiBaseUrl, token, isActive, syncIntervalMinutes } =
+      req.body as Partial<{
+        label: string | null;
+        apiBaseUrl: string;
+        token: string | null;
+        isActive: boolean;
+        syncIntervalMinutes: number;
+      }>;
+    const updates: Partial<typeof starlinkCredentials.$inferInsert> = {
+      updatedAt: new Date(),
+    };
+    if (label !== undefined) updates.label = label;
+    if (apiBaseUrl !== undefined)
+      updates.apiBaseUrl = apiBaseUrl.trim() || DEFAULT_STARLINK_BASE_URL;
+    // encrypted_token NOT NULL — clear istenirse atla, sadece dolu token set et.
+    if (typeof token === "string" && token.trim())
+      updates.encryptedToken = encrypt(token);
+    if (isActive !== undefined) updates.isActive = isActive;
+    if (syncIntervalMinutes !== undefined)
+      updates.syncIntervalMinutes = syncIntervalMinutes;
+
+    const [updated] = await db
+      .update(starlinkCredentials)
+      .set(updates)
+      .where(eq(starlinkCredentials.id, id))
+      .returning();
+    if (!updated) {
+      res.status(404).json({ error: "Hesap bulunamadı." });
+      return;
+    }
+    const [{ n }] = await db
+      .select({ n: count() })
+      .from(starlinkTerminals)
+      .where(eq(starlinkTerminals.credentialId, id));
+    await audit(req, {
+      action: "starlink.account.update",
+      target: `account:${id}`,
+      meta: {
+        changedFields: Object.keys(updates).filter((k) => k !== "updatedAt"),
+        tokenChanged: typeof token === "string" && Boolean(token.trim()),
+      },
+    });
+    res.json(starlinkAccountSummary(updated, Number(n ?? 0)));
+  },
+);
+
+router.delete(
+  "/starlink/accounts/:id",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const id = parseInt(String(req.params.id), 10);
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ error: "Geçersiz hesap ID." });
+      return;
+    }
+    const deleted = await db
+      .delete(starlinkCredentials)
+      .where(eq(starlinkCredentials.id, id))
+      .returning();
+    if (deleted.length === 0) {
+      res.status(404).json({ error: "Hesap bulunamadı." });
+      return;
+    }
+    req.log.warn({ id }, "Starlink account deleted (cascade wiped data)");
+    await audit(req, {
+      action: "starlink.account.delete",
+      target: `account:${id}`,
+    });
+    res.json({ message: "Hesap ve tüm verisi silindi." });
+  },
+);
+
+router.post(
+  "/starlink/accounts/:id/test-connection",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const id = parseInt(String(req.params.id), 10);
+    const [c] = await db
+      .select()
+      .from(starlinkCredentials)
+      .where(eq(starlinkCredentials.id, id))
+      .limit(1);
+    if (!c) {
+      res.status(404).json({ success: false, message: "Hesap bulunamadı." });
+      return;
+    }
+    let token: string;
+    try {
+      token = decrypt(c.encryptedToken);
+    } catch {
+      res.json({ success: false, message: "Kayıtlı token çözülemedi." });
+      return;
+    }
+    const result = await testStarlinkConnection(c.apiBaseUrl, token);
+    await audit(req, {
+      action: "starlink.account.test_connection",
+      target: `account:${id}`,
+      success: result.success,
+      meta: {
+        label: c.label,
+        message: result.message,
+        terminalCount: result.terminalCount ?? null,
+      },
+    });
+    res.json(result);
+  },
+);
+
+router.post(
+  "/starlink/accounts/:id/sync",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const id = parseInt(String(req.params.id), 10);
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ error: "Geçersiz hesap ID." });
+      return;
+    }
+    if (isStarlinkSyncRunning()) {
+      res.status(409).json({ error: "Starlink sync zaten devam ediyor." });
+      return;
+    }
+    progress.startCombinedRun();
+    void runStarlinkSyncForCredential(id)
+      .then((r) => {
+        logger.info({ id, ...r }, "Manual Starlink credential sync finished");
+        progress.finishCombinedRun(r.message, r.success);
+      })
+      .catch((err) => {
+        logger.error({ err, id }, "Manual Starlink credential sync crashed");
+        progress.finishCombinedRun(
+          `Starlink hesap sync hata: ${(err as Error).message}`,
+          false,
+        );
+      });
+    await audit(req, {
+      action: "starlink.account.sync_now",
+      target: `account:${id}`,
+    });
+    res.json({
+      message: "Starlink hesap senkronizasyonu başlatıldı.",
+    });
+  },
 );
 
 // ---------------------------------------------------------------------------
