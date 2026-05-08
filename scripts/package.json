@@ -7,11 +7,7 @@
     "hello": "tsx ./src/hello.ts",
     "dump-kit-page": "tsx ./src/dump-kit-page.ts",
     "explore-portal": "tsx ./src/explore-portal.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "probe-leobridge": "tsx ./src/probe-leobridge.ts",
-    "probe-leobridge-api": "tsx ./src/probe-leobridge-api.ts",
-    "probe-leobridge-usage": "tsx ./src/probe-leobridge-usage.ts",
-    "probe-leobridge-detail": "tsx ./src/probe-leobridge-detail.ts"
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@types/node": "catalog:",
