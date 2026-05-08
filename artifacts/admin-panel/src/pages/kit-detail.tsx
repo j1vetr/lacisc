@@ -686,22 +686,12 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                 )}
               </div>
 
-              <div className="lg:col-span-7 grid grid-cols-2 gap-3">
+              <div className="lg:col-span-7 grid grid-cols-1 gap-3">
                 <QuotaStat
                   label="Kullanılan"
                   value={formatGibAsGb(used, 1)}
                   unit="GB"
                   tone="primary"
-                />
-                <QuotaStat
-                  label="Adım Uyarısı"
-                  value={
-                    stepAlertGib != null
-                      ? formatGibAsGb(stepAlertGib, 0)
-                      : "—"
-                  }
-                  unit={stepAlertGib != null ? "GB" : undefined}
-                  tone="muted"
                 />
               </div>
 
