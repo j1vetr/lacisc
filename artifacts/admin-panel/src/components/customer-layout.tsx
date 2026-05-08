@@ -9,20 +9,15 @@ import {
   useLogout,
 } from "@workspace/api-client-react";
 
+import brandLogo from "@assets/1_1778023047729.png";
+import brandLogoWhite from "@assets/2_1778184166378.png";
+import { useThemedAsset } from "@/hooks/use-themed-asset";
 import {
   useCustomerFleet,
   CustomerFleetProvider,
   detailHref,
 } from "@/hooks/use-customer-fleet";
 import "@/styles/customer-sade.css";
-
-function LogoMark() {
-  return (
-    <span className="sd-logo-mark" aria-label="Station Satcom">
-      SS
-    </span>
-  );
-}
 
 export default function CustomerLayout({
   children,
@@ -33,6 +28,7 @@ export default function CustomerLayout({
   const qc = useQueryClient();
   const logout = useLogout();
   const { resolvedTheme, setTheme } = useTheme();
+  const brandSrc = useThemedAsset(brandLogo, brandLogoWhite);
   const [mounted, setMounted] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -149,16 +145,17 @@ export default function CustomerLayout({
     <aside
       className={`sd-sidebar w-[260px] shrink-0 flex flex-col ${mobileOpen ? "open" : ""}`}
     >
-      <div className="px-5 py-5 flex items-center justify-between gap-2">
+      <div className="px-4 py-5 flex items-center justify-between gap-2">
         <Link href="/">
-          <a className="flex items-center gap-2.5 cursor-pointer">
-            <LogoMark />
-            <span
-              className="text-[14px] font-semibold leading-none"
-              style={{ letterSpacing: "-0.01em" }}
-            >
-              Station Satcom
-            </span>
+          <a
+            className="flex items-center justify-center cursor-pointer flex-1 min-w-0"
+            aria-label="Ana sayfa"
+          >
+            <img
+              src={brandSrc}
+              alt="Lacivert Teknoloji"
+              className="max-h-14 w-auto object-contain"
+            />
           </a>
         </Link>
         <button

@@ -199,21 +199,6 @@ html.dark .sade-theme {
   border: 1px solid var(--sd-hairline);
 }
 
-.sade-theme .sd-logo-mark {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--sd-ink);
-  color: var(--sd-bg);
-  font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
-  font-weight: 600;
-  font-size: 12px;
-  letter-spacing: -0.02em;
-}
-
 .sade-theme .sd-mobile-overlay {
   position: fixed;
   inset: 0;
