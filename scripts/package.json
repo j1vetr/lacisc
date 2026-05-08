@@ -10,7 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "probe-leobridge": "tsx ./src/probe-leobridge.ts",
     "probe-leobridge-api": "tsx ./src/probe-leobridge-api.ts",
-    "probe-leobridge-usage": "tsx ./src/probe-leobridge-usage.ts"
+    "probe-leobridge-usage": "tsx ./src/probe-leobridge-usage.ts",
+    "probe-leobridge-detail": "tsx ./src/probe-leobridge-detail.ts"
   },
   "devDependencies": {
     "@types/node": "catalog:",
