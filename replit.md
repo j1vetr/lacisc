@@ -47,8 +47,8 @@ See `lib/db/src/schema/index.ts` and `lib/api-spec/openapi.yaml` for source-of-t
 
 ## Architecture (one-liners — see `docs/ARCHITECTURE.md` for detail)
 
-- Two sources unified: Satcom (Playwright) + Tototheo Starlink (HTTP). DB-backed source detection via `GET /api/station/kits/:kitNo/source` (Starlink wins on conflict).
-- Single 30-min cron (`scheduler.ts`) runs Starlink → Satcom (`forceFull`); manual sync uses the same orchestrator.
+- Three sources unified: Satcom (Playwright), Tototheo Starlink (HTTP) and Leo Bridge / Space Norway (HTTP). DB-backed source detection via `GET /api/station/kits/:kitNo/source`; priority `starlink > leobridge > satcom`.
+- Single 30-min cron (`scheduler.ts`) runs Starlink → Leo Bridge → Satcom (`forceFull`); manual sync uses the same orchestrator.
 - Multi-account Satcom portals; all data tables `credential_id` FK + cascade.
 - Auth: httpOnly cookie + per-`jti` `admin_sessions` (instant revoke) + CSRF double-submit. Roles `owner > admin > viewer > customer`.
 - Customer scope via `customer_kit_assignments`; unassigned KITs return 404.
@@ -71,6 +71,8 @@ See `lib/db/src/schema/index.ts` and `lib/api-spec/openapi.yaml` for source-of-t
 - Eski tablolar (CDR records, daily snapshots) tamamen silindi — geriye dönük migration yok
 
 ## Gotchas
+
+- **Leo Bridge (Norway)**: HTTP/JSON Django portal — login is CSRF token + session cookie. Always send same-origin `Referer` on API GETs; on 401/403 the client re-logs in once and retries. Norway KIT detail must NOT show plan/price (spec). Settings GET is `viewer`-readable (parity with Starlink) so dashboard/kits can detect activity for non-admin operators.
 
 - Never run `pnpm dev` at workspace root — use `restart_workflow`.
 - Scraper requires Playwright Chromium; `pnpm approve-builds` may be needed.
