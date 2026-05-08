@@ -1,0 +1,153 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+.kr-theme {
+  --kr-bg: #f7f7f4;
+  --kr-surface: #ffffff;
+  --kr-soft: #fafaf7;
+  --kr-ink: #26251e;
+  --kr-muted: #807d72;
+  --kr-hairline: #e6e5e0;
+  --kr-hairline-strong: #d8d6cf;
+  --kr-orange: #f54e00;
+  --kr-success: #1f8a65;
+
+  --kr-satcom: #a4400a;
+  --kr-satcom-bg: #fde0d0;
+  --kr-tototheo: #2563a6;
+  --kr-tototheo-bg: #dde9f7;
+  --kr-norway: #3a3aa6;
+  --kr-norway-bg: #dde2f7;
+
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--kr-bg);
+  color: var(--kr-ink);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv11', 'ss01';
+}
+.kr-theme *, .kr-theme *::before, .kr-theme *::after { box-sizing: border-box; }
+
+.kr-theme .kr-mono {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.kr-theme .kr-tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+.kr-theme .kr-eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--kr-muted);
+  font-weight: 500;
+}
+
+.kr-theme .kr-card {
+  background-color: var(--kr-surface);
+  border: 1px solid var(--kr-hairline);
+  border-radius: 12px;
+}
+
+.kr-theme .kr-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--kr-hairline);
+  background-color: var(--kr-surface);
+  color: var(--kr-ink);
+}
+.kr-theme .kr-search input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  color: var(--kr-ink);
+  font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+}
+.kr-theme .kr-search input::placeholder { color: var(--kr-muted); }
+
+.kr-theme .kr-row {
+  transition: background-color 120ms ease;
+  cursor: pointer;
+}
+.kr-theme .kr-row:hover {
+  background-color: rgba(38, 37, 30, 0.035);
+}
+.kr-theme .kr-row:hover .kr-arrow {
+  opacity: 1;
+  transform: translateX(0);
+  color: var(--kr-orange);
+}
+.kr-theme .kr-arrow {
+  transition: transform 160ms ease, opacity 160ms ease, color 160ms ease;
+  opacity: 0;
+  transform: translateX(-4px);
+  color: var(--kr-muted);
+}
+
+.kr-theme .kr-source-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  display: inline-block;
+}
+.kr-theme .kr-source-dot.satcom    { background-color: var(--kr-satcom); }
+.kr-theme .kr-source-dot.tototheo  { background-color: var(--kr-tototheo); }
+.kr-theme .kr-source-dot.norway    { background-color: var(--kr-norway); }
+
+.kr-theme .kr-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+.kr-theme .kr-pill.satcom {
+  color: var(--kr-satcom); background: var(--kr-satcom-bg); border-color: #f4b896;
+}
+.kr-theme .kr-pill.tototheo {
+  color: var(--kr-tototheo); background: var(--kr-tototheo-bg); border-color: #9fbbe0;
+}
+.kr-theme .kr-pill.norway {
+  color: var(--kr-norway); background: var(--kr-norway-bg); border-color: #a6a6dd;
+}
+
+.kr-theme .kr-bar-track {
+  height: 3px;
+  width: 100%;
+  background-color: var(--kr-hairline);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.kr-theme .kr-bar-fill {
+  height: 100%;
+  background-color: var(--kr-ink);
+  border-radius: 999px;
+}
+.kr-theme .kr-bar-fill.warn { background-color: var(--kr-orange); }
+
+.kr-theme .kr-divider {
+  height: 1px;
+  width: 100%;
+  background-color: var(--kr-hairline);
+}
+
+.kr-theme .kr-status-dot {
+  width: 7px; height: 7px; border-radius: 999px; display: inline-block;
+}
+.kr-theme .kr-status-dot.online    { background-color: var(--kr-success); }
+.kr-theme .kr-status-dot.degraded  { background-color: #c08532; }
+.kr-theme .kr-status-dot.offline   { background-color: #9a9a93; }
