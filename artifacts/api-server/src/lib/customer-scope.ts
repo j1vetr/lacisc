@@ -3,10 +3,13 @@ import {
   customerKitAssignments,
   starlinkTerminals,
   stationKits,
+  stationKitPeriodTotal,
   leobridgeTerminals,
 } from "@workspace/db";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, max } from "drizzle-orm";
 import type { Role } from "../middlewares/auth";
+
+export type KitSource = "satcom" | "starlink" | "leobridge";
 
 export interface AssignedKits {
   satcom: string[];
@@ -50,72 +53,128 @@ export async function getAssignedKits(userId: number): Promise<AssignedKits> {
   };
 }
 
+// T002 — multi-account: bir KIT birden fazla hesapta (ve kaynakta) bulunabilir.
+// Aynı KIT için en son güncellenen kayıt hangi kaynaktaysa onu döndür.
+// Beraberlikte sıralama starlink > leobridge > satcom (canlı API'ler önce).
+const SOURCE_PRIO: Record<KitSource, number> = {
+  starlink: 3,
+  leobridge: 2,
+  satcom: 1,
+};
+
+interface Candidate {
+  src: KitSource;
+  ts: number;
+}
+
+function pickWinner(cands: Candidate[]): KitSource | null {
+  if (cands.length === 0) return null;
+  cands.sort(
+    (a, b) => b.ts - a.ts || SOURCE_PRIO[b.src] - SOURCE_PRIO[a.src],
+  );
+  return cands[0].src;
+}
+
 /**
- * Authoritative DB-backed classifier. Looks the KIT up in `starlink_terminals`
- * first (most reliable since Tototheo serials may also start with `KITP\d`).
- * Falls back to Satcom when only `station_kits` knows it, or `unknown` when
- * neither table has a row (caller decides what to do).
- *
- * Returns `unknown` only when neither source has the KIT registered yet — the
- * KIT-source endpoint surfaces this as a 404. The synchronous prefix-based
- * helper below remains as a last-resort fallback for code paths that cannot
- * await DB I/O.
+ * Authoritative DB-backed classifier with MAX(updated_at) priority.
+ * Returns `unknown` only when neither source has the KIT registered yet.
  */
 export async function classifyKitDb(
   kitNo: string,
-): Promise<"satcom" | "starlink" | "leobridge" | "unknown"> {
-  // Priority: starlink (Tototheo) > leobridge (Space Norway) > satcom.
-  // The two Starlink resellers share KIT serial format with Satcom; live tables
-  // are authoritative over the stale Satcom prefix guess.
-  const [starRow] = await db
-    .select({ k: starlinkTerminals.kitSerialNumber })
-    .from(starlinkTerminals)
-    .where(eq(starlinkTerminals.kitSerialNumber, kitNo))
-    .limit(1);
-  if (starRow) return "starlink";
-  const [leoRow] = await db
-    .select({ k: leobridgeTerminals.kitSerialNumber })
-    .from(leobridgeTerminals)
-    .where(eq(leobridgeTerminals.kitSerialNumber, kitNo))
-    .limit(1);
-  if (leoRow) return "leobridge";
-  const [satRow] = await db
-    .select({ k: stationKits.kitNo })
-    .from(stationKits)
-    .where(eq(stationKits.kitNo, kitNo))
-    .limit(1);
-  if (satRow) return "satcom";
-  return "unknown";
+): Promise<KitSource | "unknown"> {
+  const [starRow, leoRow, satRow, satMeta] = await Promise.all([
+    db
+      .select({ ts: max(starlinkTerminals.updatedAt) })
+      .from(starlinkTerminals)
+      .where(eq(starlinkTerminals.kitSerialNumber, kitNo)),
+    db
+      .select({ ts: max(leobridgeTerminals.updatedAt) })
+      .from(leobridgeTerminals)
+      .where(eq(leobridgeTerminals.kitSerialNumber, kitNo)),
+    db
+      .select({ ts: max(stationKitPeriodTotal.scrapedAt) })
+      .from(stationKitPeriodTotal)
+      .where(eq(stationKitPeriodTotal.kitNo, kitNo)),
+    db
+      .select({ k: stationKits.kitNo })
+      .from(stationKits)
+      .where(eq(stationKits.kitNo, kitNo))
+      .limit(1),
+  ]);
+
+  const cands: Candidate[] = [];
+  if (starRow[0]?.ts)
+    cands.push({ src: "starlink", ts: starRow[0].ts.getTime() });
+  if (leoRow[0]?.ts)
+    cands.push({ src: "leobridge", ts: leoRow[0].ts.getTime() });
+  if (satRow[0]?.ts)
+    cands.push({ src: "satcom", ts: satRow[0].ts.getTime() });
+  else if (satMeta.length > 0)
+    // station_kits satırı var ama henüz period_total yok — yine de Satcom say.
+    cands.push({ src: "satcom", ts: 0 });
+
+  return pickWinner(cands) ?? "unknown";
 }
 
 /**
  * Bulk variant — single round-trip per source. Returns a Map<kitNo, source>.
- * Unknown kits are simply absent from the map.
+ * Aynı KIT için MAX(updated_at) öncelikli kaynak seçilir.
  */
 export async function classifyKitsDb(
   kitNos: string[],
-): Promise<Map<string, "satcom" | "starlink" | "leobridge">> {
-  const out = new Map<string, "satcom" | "starlink" | "leobridge">();
+): Promise<Map<string, KitSource>> {
+  const out = new Map<string, KitSource>();
   if (kitNos.length === 0) return out;
-  const [satRows, starRows, leoRows] = await Promise.all([
+
+  const [starRows, leoRows, satRows, satMetaRows] = await Promise.all([
+    db
+      .select({
+        k: starlinkTerminals.kitSerialNumber,
+        ts: max(starlinkTerminals.updatedAt),
+      })
+      .from(starlinkTerminals)
+      .where(inArray(starlinkTerminals.kitSerialNumber, kitNos))
+      .groupBy(starlinkTerminals.kitSerialNumber),
+    db
+      .select({
+        k: leobridgeTerminals.kitSerialNumber,
+        ts: max(leobridgeTerminals.updatedAt),
+      })
+      .from(leobridgeTerminals)
+      .where(inArray(leobridgeTerminals.kitSerialNumber, kitNos))
+      .groupBy(leobridgeTerminals.kitSerialNumber),
+    db
+      .select({
+        k: stationKitPeriodTotal.kitNo,
+        ts: max(stationKitPeriodTotal.scrapedAt),
+      })
+      .from(stationKitPeriodTotal)
+      .where(inArray(stationKitPeriodTotal.kitNo, kitNos))
+      .groupBy(stationKitPeriodTotal.kitNo),
     db
       .select({ k: stationKits.kitNo })
       .from(stationKits)
       .where(inArray(stationKits.kitNo, kitNos)),
-    db
-      .select({ k: starlinkTerminals.kitSerialNumber })
-      .from(starlinkTerminals)
-      .where(inArray(starlinkTerminals.kitSerialNumber, kitNos)),
-    db
-      .select({ k: leobridgeTerminals.kitSerialNumber })
-      .from(leobridgeTerminals)
-      .where(inArray(leobridgeTerminals.kitSerialNumber, kitNos)),
   ]);
-  for (const r of satRows) out.set(r.k, "satcom");
-  // Starlink wins on collision — Tototheo serials may share a `KITP\d` prefix
-  // with a stale Satcom row. Leo Bridge wins over Satcom too (live source).
-  for (const r of leoRows) out.set(r.k, "leobridge");
-  for (const r of starRows) out.set(r.k, "starlink");
+
+  const buckets = new Map<string, Candidate[]>();
+  const push = (k: string, c: Candidate) => {
+    if (!buckets.has(k)) buckets.set(k, []);
+    buckets.get(k)!.push(c);
+  };
+  for (const r of starRows) if (r.ts) push(r.k, { src: "starlink", ts: r.ts.getTime() });
+  for (const r of leoRows) if (r.ts) push(r.k, { src: "leobridge", ts: r.ts.getTime() });
+  for (const r of satRows) if (r.ts) push(r.k, { src: "satcom", ts: r.ts.getTime() });
+  // station_kits satırı var ama period_total yok → fallback satcom kandidatı
+  const satWithTotals = new Set(satRows.filter((r) => r.ts).map((r) => r.k));
+  for (const r of satMetaRows) {
+    if (!satWithTotals.has(r.k)) push(r.k, { src: "satcom", ts: 0 });
+  }
+
+  for (const [k, cands] of buckets) {
+    const w = pickWinner(cands);
+    if (w) out.set(k, w);
+  }
   return out;
 }
 

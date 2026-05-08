@@ -1,6 +1,7 @@
 import {
   db,
   leobridgeCredentials,
+  leobridgeSyncLogs,
   leobridgeTerminals,
   leobridgeTerminalDaily,
   leobridgeTerminalPeriodTotal,
@@ -143,12 +144,21 @@ export async function saveLeobridgeSettings(
 async function loadConfig(): Promise<LeobridgeConfig | null> {
   const row = await firstActiveCredential();
   if (!row || !row.isActive) return null;
+  return loadConfigForCredential(row);
+}
+
+function loadConfigForCredential(
+  row: LeobridgeCredentials,
+): LeobridgeConfig | null {
   if (!row.username || !row.encryptedPassword) return null;
   let password = "";
   try {
     password = decrypt(row.encryptedPassword);
   } catch (err) {
-    logger.error({ err }, "Leo Bridge şifre çözülemedi");
+    logger.error(
+      { err, credentialId: row.id },
+      "Leo Bridge şifre çözülemedi",
+    );
     return null;
   }
   return {
@@ -310,82 +320,194 @@ export async function runLeobridgeSync(): Promise<LeobridgeSyncResult> {
       failures: 0,
     };
   }
-  let failures = 0;
-  let processed = 0;
-  let total = 0;
-  let credentialId = 0;
   try {
-    const row = await firstActiveCredential();
-    const cfg = await loadConfig();
-    if (!cfg || !row) {
-      progress.startLeobridgePhase(0);
-      progress.finishLeobridgePhase(
-        "Leo Bridge devre dışı veya yapılandırılmamış.",
-        true,
-      );
-      return {
-        success: true,
-        message: "Leo Bridge devre dışı veya yapılandırılmamış.",
-        terminalCount: 0,
-        failures: 0,
-      };
-    }
-    credentialId = row.id;
-    const client = new LeobridgeClient(cfg);
-    await client.login();
-    const lines = await client.listServiceLines();
-    const tasks: { kit: string; sl: LeoServiceLine }[] = [];
-    for (const sl of lines) {
-      for (const t of sl.terminals ?? []) {
-        if (!t.kitSerialNumber) continue;
-        tasks.push({ kit: t.kitSerialNumber, sl });
-      }
-    }
-    total = tasks.length;
-    progress.startLeobridgePhase(total);
-
-    for (const { kit, sl } of tasks) {
-      processed += 1;
-      progress.startLeobridgeTerminal(kit, sl.nickname ?? null, processed);
-      try {
-        await persistTerminal(credentialId, kit, sl);
-        await persistUsage(client, credentialId, kit, sl);
-        progress.reportLeobridgeDone();
-      } catch (err) {
-        failures += 1;
-        progress.reportLeobridgeFailure(
-          kit,
-          (err as Error).message ?? "hata",
-        );
-        logger.error({ err, kit }, "Leo Bridge terminal sync hatası");
-      }
-    }
-
-    const ok = failures === 0;
-    await markCredential(credentialId, ok, ok ? null : `${failures} terminal başarısız`);
-    progress.finishLeobridgePhase(
-      ok
-        ? `Leo Bridge tamam: ${total} terminal güncellendi.`
-        : `Leo Bridge ${failures}/${total} terminal başarısız.`,
-      ok,
-    );
-    return {
-      success: ok,
-      message: ok
-        ? `${total} terminal güncellendi`
-        : `${failures} terminal başarısız`,
-      terminalCount: total,
-      failures,
-    };
-  } catch (err) {
-    const msg = (err as Error).message ?? "bilinmeyen hata";
-    logger.error({ err }, "Leo Bridge senkronizasyonu çöktü");
-    if (credentialId) await markCredential(credentialId, false, msg);
-    progress.finishLeobridgePhase(`Leo Bridge hata: ${msg}`, false);
-    return { success: false, message: msg, terminalCount: total, failures };
+    return await runLeobridgeInner();
   } finally {
     release();
   }
+}
+
+// T002 — tüm aktif credential'ları sırayla gezer; bir hesap düşerse
+// diğerleri devam eder. Her hesap için ayrı `leobridge_sync_logs` satırı.
+async function runLeobridgeInner(): Promise<LeobridgeSyncResult> {
+  const creds = await db
+    .select()
+    .from(leobridgeCredentials)
+    .where(eq(leobridgeCredentials.isActive, true))
+    .orderBy(asc(leobridgeCredentials.id));
+
+  if (creds.length === 0) {
+    progress.startLeobridgePhase(0);
+    progress.finishLeobridgePhase(
+      "Leo Bridge devre dışı veya yapılandırılmamış.",
+      true,
+    );
+    return {
+      success: true,
+      message: "Leo Bridge devre dışı veya yapılandırılmamış.",
+      terminalCount: 0,
+      failures: 0,
+    };
+  }
+
+  progress.startLeobridgePhase(0);
+
+  let totalTerminals = 0;
+  let totalFailures = 0;
+  let allSuccess = true;
+  let totalProcessed = 0;
+
+  for (const cred of creds) {
+    const credLabel = cred.label?.trim() || `#${cred.id}`;
+    const logId = await openLeobridgeSyncLog(cred.id);
+    progress.pushEvent("info", `Leo Bridge hesap "${credLabel}" başlatıldı.`);
+    try {
+      const r = await syncOneLeobridgeCredential(cred, totalProcessed);
+      totalTerminals += r.terminalCount;
+      totalFailures += r.failures;
+      totalProcessed += r.terminalCount;
+      if (!r.success) allSuccess = false;
+      await closeLeobridgeSyncLog(logId, {
+        success: r.success,
+        message: r.message,
+        terminalCount: r.terminalCount,
+      });
+    } catch (err) {
+      const msg = (err as Error).message ?? "bilinmeyen hata";
+      logger.error(
+        { err, credentialId: cred.id, label: credLabel },
+        "Leo Bridge credential sync crashed",
+      );
+      allSuccess = false;
+      await markCredential(cred.id, false, msg);
+      await closeLeobridgeSyncLog(logId, {
+        success: false,
+        message: msg,
+        terminalCount: 0,
+      });
+      progress.pushEvent("error", `Leo Bridge hesap "${credLabel}": ${msg}`);
+      // Diğer credential'lara devam — error isolation.
+    }
+  }
+
+  const summary =
+    totalFailures === 0
+      ? `Leo Bridge OK — ${creds.length} hesap, ${totalTerminals} terminal güncellendi.`
+      : allSuccess
+        ? `Leo Bridge kısmen — ${totalTerminals} terminal, ${totalFailures} hata.`
+        : `Leo Bridge başarısız — ${totalFailures} hata.`;
+
+  progress.finishLeobridgePhase(summary, allSuccess);
+  return {
+    success: allSuccess,
+    message: summary,
+    terminalCount: totalTerminals,
+    failures: totalFailures,
+  };
+}
+
+interface LeobridgeCredentialResult {
+  success: boolean;
+  message: string;
+  terminalCount: number;
+  failures: number;
+}
+
+async function syncOneLeobridgeCredential(
+  cred: LeobridgeCredentials,
+  indexOffset: number,
+): Promise<LeobridgeCredentialResult> {
+  const credLabel = cred.label?.trim() || `#${cred.id}`;
+  const cfg = loadConfigForCredential(cred);
+  if (!cfg) {
+    const msg = "Kullanıcı adı veya şifre eksik / çözülemedi.";
+    await markCredential(cred.id, false, msg);
+    return {
+      success: false,
+      message: `${credLabel}: ${msg}`,
+      terminalCount: 0,
+      failures: 0,
+    };
+  }
+  const client = new LeobridgeClient(cfg);
+  await client.login();
+  const lines = await client.listServiceLines();
+  const tasks: { kit: string; sl: LeoServiceLine }[] = [];
+  for (const sl of lines) {
+    for (const t of sl.terminals ?? []) {
+      if (!t.kitSerialNumber) continue;
+      tasks.push({ kit: t.kitSerialNumber, sl });
+    }
+  }
+  const total = tasks.length;
+  progress.bumpLeobridgePlan(total, credLabel);
+
+  let processed = 0;
+  let failures = 0;
+  for (const { kit, sl } of tasks) {
+    processed += 1;
+    progress.startLeobridgeTerminal(
+      kit,
+      sl.nickname ? `${sl.nickname} (${credLabel})` : credLabel,
+      indexOffset + processed,
+    );
+    try {
+      await persistTerminal(cred.id, kit, sl);
+      await persistUsage(client, cred.id, kit, sl);
+      progress.reportLeobridgeDone();
+    } catch (err) {
+      failures += 1;
+      progress.reportLeobridgeFailure(
+        kit,
+        (err as Error).message ?? "hata",
+      );
+      logger.error(
+        { err, credentialId: cred.id, kit },
+        "Leo Bridge terminal sync hatası",
+      );
+    }
+  }
+
+  const ok = failures === 0;
+  await markCredential(
+    cred.id,
+    ok,
+    ok ? null : `${failures} terminal başarısız`,
+  );
+  return {
+    success: ok,
+    message: ok
+      ? `${credLabel}: ${total} terminal güncellendi.`
+      : `${credLabel}: ${failures}/${total} terminal başarısız.`,
+    terminalCount: total,
+    failures,
+  };
+}
+
+async function openLeobridgeSyncLog(credentialId: number): Promise<number> {
+  const [row] = await db
+    .insert(leobridgeSyncLogs)
+    .values({
+      credentialId,
+      status: "running",
+    })
+    .returning({ id: leobridgeSyncLogs.id });
+  return row.id;
+}
+
+async function closeLeobridgeSyncLog(
+  logId: number,
+  result: { success: boolean; message: string; terminalCount: number },
+): Promise<void> {
+  await db
+    .update(leobridgeSyncLogs)
+    .set({
+      status: result.success ? "ok" : "error",
+      message: result.message,
+      recordsFound: result.terminalCount,
+      finishedAt: new Date(),
+    })
+    .where(eq(leobridgeSyncLogs.id, logId));
 }
 
 export async function testLeobridgeConnection(

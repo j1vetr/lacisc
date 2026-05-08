@@ -135,6 +135,10 @@ router.get("/starlink/terminals", requireAuth, async (req: AuthRequest, res): Pr
         sql`, `,
       )})`
     : sql``;
+  // T002 — aynı KIT birden fazla credential'da olabilir; en son güncellenen
+  // satırı al (DISTINCT ON kit_serial_number ORDER BY updated_at DESC).
+  // Period total join'i de aynı credential'a sabitlenir, böylece "current
+  // period" başka hesabın değerleri olmaz.
   const rows = await db.execute(sql`
     SELECT
       t.kit_serial_number    AS "kitSerialNumber",
@@ -158,9 +162,14 @@ router.get("/starlink/terminals", requireAuth, async (req: AuthRequest, res): Pr
       p.package_usage_gb     AS "currentPeriodPackageGb",
       p.priority_gb          AS "currentPeriodPriorityGb",
       p.overage_gb           AS "currentPeriodOverageGb"
-    FROM starlink_terminals t
+    FROM (
+      SELECT DISTINCT ON (kit_serial_number) *
+      FROM starlink_terminals
+      ORDER BY kit_serial_number, updated_at DESC
+    ) t
     LEFT JOIN starlink_terminal_period_total p
       ON p.kit_serial_number = t.kit_serial_number
+     AND p.credential_id = t.credential_id
      AND p.period = ${period}
     ${where}
     ORDER BY COALESCE(p.total_gb, 0) DESC
@@ -187,29 +196,28 @@ router.get(
       res.status(404).json({ error: "Starlink terminali bulunamadı." });
       return;
     }
+    // T002 — multi-credential: en son güncellenen terminal satırını al,
+    // dönem totalini AYNI credential'dan çek (cross-account karışmasın).
     const [t] = await db
       .select()
       .from(starlinkTerminals)
       .where(eq(starlinkTerminals.kitSerialNumber, kit))
+      .orderBy(desc(starlinkTerminals.updatedAt))
       .limit(1);
     if (!t) {
       res.status(404).json({ error: "Starlink terminali bulunamadı." });
       return;
     }
     const period = activePeriod();
-    const [pt] = await db
-      .select()
-      .from(starlinkTerminalPeriodTotal)
-      .where(eq(starlinkTerminalPeriodTotal.kitSerialNumber, kit))
-      .orderBy(desc(starlinkTerminalPeriodTotal.period))
-      .limit(1);
     const [currentPt] = await db
       .select()
       .from(starlinkTerminalPeriodTotal)
-      .where(eq(starlinkTerminalPeriodTotal.kitSerialNumber, kit))
+      .where(
+        sql`${starlinkTerminalPeriodTotal.kitSerialNumber} = ${kit}
+            AND ${starlinkTerminalPeriodTotal.credentialId} = ${t.credentialId}`,
+      )
       .orderBy(desc(starlinkTerminalPeriodTotal.period))
       .limit(1);
-    void pt;
     res.json({
       kitSerialNumber: t.kitSerialNumber,
       nickname: t.nickname,

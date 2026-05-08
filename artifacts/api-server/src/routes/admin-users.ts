@@ -460,21 +460,23 @@ router.get(
         })
         .from(stationKits)
         .orderBy(stationKits.kitNo),
-      db
-        .select({
-          kitSerialNumber: starlinkTerminals.kitSerialNumber,
-          nickname: starlinkTerminals.nickname,
-          assetName: starlinkTerminals.assetName,
-        })
-        .from(starlinkTerminals)
-        .orderBy(starlinkTerminals.kitSerialNumber),
-      db
-        .select({
-          kitSerialNumber: leobridgeTerminals.kitSerialNumber,
-          nickname: leobridgeTerminals.nickname,
-        })
-        .from(leobridgeTerminals)
-        .orderBy(leobridgeTerminals.kitSerialNumber),
+      // T002 — multi-credential: aynı KIT birden fazla hesapta olabilir;
+      // en son güncellenen satırı tut (DISTINCT ON kit_serial_number).
+      db.execute(sql`
+        SELECT DISTINCT ON (kit_serial_number)
+          kit_serial_number AS "kitSerialNumber",
+          nickname,
+          asset_name AS "assetName"
+        FROM starlink_terminals
+        ORDER BY kit_serial_number, updated_at DESC
+      `),
+      db.execute(sql`
+        SELECT DISTINCT ON (kit_serial_number)
+          kit_serial_number AS "kitSerialNumber",
+          nickname
+        FROM leobridge_terminals
+        ORDER BY kit_serial_number, updated_at DESC
+      `),
       // Aktif dönem GiB → opsiyonel sıralama yardımcısı (UI azalan göstermek
       // isterse). Tek sorgu ile her KIT için en son dönem GiB.
       db.execute(sql`
@@ -495,13 +497,23 @@ router.get(
       source: "satcom" as const,
       currentPeriodGib: gibByKit.get(r.kitNo) ?? null,
     }));
-    const starlink = starlinkRows.map((r) => ({
+    const starlinkRaw = (starlinkRows as unknown as {
+      rows: Array<{
+        kitSerialNumber: string;
+        nickname: string | null;
+        assetName: string | null;
+      }>;
+    }).rows;
+    const leobridgeRaw = (leobridgeRows as unknown as {
+      rows: Array<{ kitSerialNumber: string; nickname: string | null }>;
+    }).rows;
+    const starlink = starlinkRaw.map((r) => ({
       kitNo: r.kitSerialNumber,
       label: r.nickname ?? r.assetName,
       source: "starlink" as const,
       currentPeriodGib: null,
     }));
-    const leobridge = leobridgeRows.map((r) => ({
+    const leobridge = leobridgeRaw.map((r) => ({
       kitNo: r.kitSerialNumber,
       label: r.nickname,
       source: "leobridge" as const,

@@ -170,6 +170,17 @@ export function startLeobridgePhase(totalTerminals: number): void {
   );
 }
 
+// T002 — multi-account: her credential listing'i kümülatif olarak ekler.
+export function bumpLeobridgePlan(extraTerminals: number, label?: string): void {
+  state.leobridgeTotalTerminals += extraTerminals;
+  pushEvent(
+    "info",
+    label
+      ? `Leo Bridge hesap "${label}": +${extraTerminals} terminal.`
+      : `Leo Bridge: +${extraTerminals} terminal kuyruğa alındı.`
+  );
+}
+
 export function startLeobridgeTerminal(
   kitSerialNumber: string,
   label: string | null,
@@ -225,6 +236,18 @@ export function startStarlinkPhase(): void {
 export function setStarlinkPlan(totalTerminals: number): void {
   state.starlinkTotalTerminals = totalTerminals;
   pushEvent("info", `Starlink: ${totalTerminals} terminal kuyruğa alındı.`);
+}
+
+// T002 — multi-account: her credential listing'i kümülatif olarak ekler
+// (UI counter "X/Toplam" doğru kalır).
+export function bumpStarlinkPlan(extraTerminals: number, label?: string): void {
+  state.starlinkTotalTerminals += extraTerminals;
+  pushEvent(
+    "info",
+    label
+      ? `Starlink hesap "${label}": +${extraTerminals} terminal.`
+      : `Starlink: +${extraTerminals} terminal kuyruğa alındı.`
+  );
 }
 
 export function startStarlinkTerminal(

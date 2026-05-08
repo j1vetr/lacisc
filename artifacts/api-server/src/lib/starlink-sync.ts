@@ -1,12 +1,13 @@
 import {
   db,
   starlinkCredentials,
+  starlinkSyncLogs,
   starlinkTerminals,
   starlinkTerminalDaily,
   starlinkTerminalPeriodTotal,
   type StarlinkCredentials,
 } from "@workspace/db";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { decrypt, encrypt } from "./crypto";
 import { logger } from "./logger";
 import {
@@ -169,23 +170,92 @@ export async function runStarlinkSync(): Promise<StarlinkSyncResult> {
   }
 }
 
-// T001 shim — sadece ilk active credential üzerinde çalışır. T002'de tüm
-// active credentials için döngü + hesap-başına sync_log satırı ekleyeceğiz.
+// T002 — tüm aktif credential'ları sırayla gezer; bir hesap düşerse
+// diğerleri devam eder. Her hesap için ayrı `starlink_sync_logs` satırı.
 async function runInner(): Promise<StarlinkSyncResult> {
-  const row = await firstActiveCredential();
-  if (!row || !row.isActive) {
+  const creds = await db
+    .select()
+    .from(starlinkCredentials)
+    .where(eq(starlinkCredentials.isActive, true))
+    .orderBy(asc(starlinkCredentials.id));
+
+  if (creds.length === 0) {
     return {
       success: false,
-      message: "Starlink API yapılandırılmamış veya pasif.",
+      message: "Aktif Starlink hesabı yok.",
       terminalCount: 0,
       errors: [],
     };
   }
+
+  progress.startStarlinkPhase();
+
+  let totalTerminals = 0;
+  let totalProcessed = 0;
+  const allErrors: string[] = [];
+  let allSuccess = true;
+
+  for (const cred of creds) {
+    const credLabel = cred.label?.trim() || `#${cred.id}`;
+    const logId = await openSyncLog(cred.id);
+    progress.pushEvent("info", `Starlink hesap "${credLabel}" başlatıldı.`);
+    try {
+      const r = await syncOneCredential(cred, totalProcessed);
+      totalTerminals += r.terminalCount;
+      totalProcessed += r.terminalCount;
+      allErrors.push(...r.errors);
+      if (!r.success) allSuccess = false;
+      await closeSyncLog(logId, r);
+    } catch (err) {
+      const msg = (err as Error).message;
+      logger.error(
+        { err, credentialId: cred.id, label: credLabel },
+        "Starlink credential sync crashed",
+      );
+      allErrors.push(`${credLabel}: ${msg}`);
+      allSuccess = false;
+      await markCredentialFailure(cred.id, msg);
+      await closeSyncLog(logId, {
+        success: false,
+        message: msg,
+        terminalCount: 0,
+        errors: [msg],
+      });
+      progress.pushEvent("error", `Starlink hesap "${credLabel}": ${msg}`);
+      // Diğer credential'lara devam — error isolation.
+    }
+  }
+
+  const summary =
+    allErrors.length === 0
+      ? `Starlink OK — ${creds.length} hesap, ${totalTerminals} terminal güncellendi.`
+      : allSuccess
+        ? `Starlink kısmen — ${totalTerminals} terminal, ${allErrors.length} hata.`
+        : `Starlink başarısız — ${allErrors.length} hata.`;
+
+  progress.finishStarlinkPhase(summary, allSuccess);
+  return {
+    success: allSuccess,
+    message: summary,
+    terminalCount: totalTerminals,
+    errors: allErrors,
+  };
+}
+
+async function syncOneCredential(
+  cred: StarlinkCredentials,
+  indexOffset: number,
+): Promise<StarlinkSyncResult> {
+  const credLabel = cred.label?.trim() || `#${cred.id}`;
   let token: string;
   try {
-    token = decrypt(row.encryptedToken);
+    token = decrypt(cred.encryptedToken);
   } catch (err) {
-    logger.error({ err }, "Starlink token decrypt failed");
+    logger.error(
+      { err, credentialId: cred.id },
+      "Starlink token decrypt failed",
+    );
+    await markCredentialFailure(cred.id, "Token çözülemedi.");
     return {
       success: false,
       message: "Token çözülemedi.",
@@ -193,131 +263,157 @@ async function runInner(): Promise<StarlinkSyncResult> {
       errors: ["decrypt"],
     };
   }
-  const credentialId = row.id;
-  const client = new TototheoClient(row.apiBaseUrl, token);
+
+  const client = new TototheoClient(cred.apiBaseUrl, token);
   const errors: string[] = [];
+  const list = await client.getTerminalList();
+  progress.bumpStarlinkPlan(list.length, credLabel);
 
-  progress.startStarlinkPhase();
-  try {
-    const list = await client.getTerminalList();
-    progress.setStarlinkPlan(list.length);
+  const year = new Date().getUTCFullYear();
+  const today = new Date().toISOString().slice(0, 10);
 
-    const year = new Date().getUTCFullYear();
-    const today = new Date().toISOString().slice(0, 10);
-
-    let processed = 0;
-    let loggedShape = false;
-    for (const item of list) {
-      processed += 1;
-      const label = item.nickname || item.assetName || item.kitSerialNumber;
-      progress.startStarlinkTerminal(item.kitSerialNumber, label, processed);
-      try {
-        const detail = await client.getTerminalDetails({
-          kitSerialNumber: item.kitSerialNumber,
-          consumptionYear: year,
-        });
-        if (!detail) {
-          const msg = "detay bulunamadı";
-          errors.push(`${item.kitSerialNumber}: ${msg}`);
-          progress.reportStarlinkFailure(item.kitSerialNumber, msg);
-          continue;
-        }
-        if (!loggedShape) {
-          loggedShape = true;
-          logger.info(
-            {
-              kitSerialNumber: item.kitSerialNumber,
-              detailKeys: Object.keys(detail),
-            },
-            "Tototheo detail shape (first terminal of run)",
-          );
-        }
-        await persistTerminal(
-          credentialId,
-          detail,
-          item.kitSerialNumber,
-          today,
-        );
-        const monthsRaw = pickField<unknown>(
-          detail,
-          "poolPlanMonthlyUsage",
-          "pool_plan_monthly_usage",
-        );
-        await persistMonthlyTotals(
-          credentialId,
-          item.kitSerialNumber,
-          flattenMonths(monthsRaw),
-        );
-        const standard =
-          pickField<number>(
-            detail,
-            "standardTrafficSpent",
-            "standard_traffic_spent",
-          ) ?? 0;
-        const priority =
-          pickField<number>(
-            detail,
-            "priorityTrafficSpent",
-            "priority_traffic_spent",
-          ) ?? 0;
-        const overage =
-          pickField<number>(
-            detail,
-            "overageTrafficSpent",
-            "overage_traffic_spent",
-          ) ?? 0;
-        progress.reportStarlinkDone(
-          item.kitSerialNumber,
-          standard + priority + overage,
-        );
-      } catch (err) {
-        const msg = (err as Error).message;
+  let processed = 0;
+  let loggedShape = false;
+  for (const item of list) {
+    processed += 1;
+    const label = item.nickname || item.assetName || item.kitSerialNumber;
+    progress.startStarlinkTerminal(
+      item.kitSerialNumber,
+      `${label} (${credLabel})`,
+      indexOffset + processed,
+    );
+    try {
+      const detail = await client.getTerminalDetails({
+        kitSerialNumber: item.kitSerialNumber,
+        consumptionYear: year,
+      });
+      if (!detail) {
+        const msg = "detay bulunamadı";
         errors.push(`${item.kitSerialNumber}: ${msg}`);
-        logger.error(
-          { err, kitSerialNumber: item.kitSerialNumber },
-          "Starlink terminal sync failed",
-        );
         progress.reportStarlinkFailure(item.kitSerialNumber, msg);
+        continue;
       }
+      if (!loggedShape) {
+        loggedShape = true;
+        logger.info(
+          {
+            credentialId: cred.id,
+            kitSerialNumber: item.kitSerialNumber,
+            detailKeys: Object.keys(detail),
+          },
+          "Tototheo detail shape (first terminal of credential)",
+        );
+      }
+      await persistTerminal(cred.id, detail, item.kitSerialNumber, today);
+      const monthsRaw = pickField<unknown>(
+        detail,
+        "poolPlanMonthlyUsage",
+        "pool_plan_monthly_usage",
+      );
+      await persistMonthlyTotals(
+        cred.id,
+        item.kitSerialNumber,
+        flattenMonths(monthsRaw),
+      );
+      const standard =
+        pickField<number>(
+          detail,
+          "standardTrafficSpent",
+          "standard_traffic_spent",
+        ) ?? 0;
+      const priority =
+        pickField<number>(
+          detail,
+          "priorityTrafficSpent",
+          "priority_traffic_spent",
+        ) ?? 0;
+      const overage =
+        pickField<number>(
+          detail,
+          "overageTrafficSpent",
+          "overage_traffic_spent",
+        ) ?? 0;
+      progress.reportStarlinkDone(
+        item.kitSerialNumber,
+        standard + priority + overage,
+      );
+    } catch (err) {
+      const msg = (err as Error).message;
+      errors.push(`${item.kitSerialNumber}: ${msg}`);
+      logger.error(
+        { err, credentialId: cred.id, kitSerialNumber: item.kitSerialNumber },
+        "Starlink terminal sync failed",
+      );
+      progress.reportStarlinkFailure(item.kitSerialNumber, msg);
     }
-
-    const success = list.length > 0 && errors.length < list.length;
-    const summary =
-      errors.length === 0
-        ? `Starlink OK — ${list.length} terminal güncellendi.`
-        : success
-          ? `Starlink kısmen — ${list.length - errors.length}/${list.length} terminal başarılı.`
-          : `Starlink başarısız — ${errors.length} hata.`;
-
-    await db
-      .update(starlinkCredentials)
-      .set({
-        lastSuccessSyncAt: new Date(),
-        lastErrorMessage: errors.length > 0 ? errors[0] : null,
-        updatedAt: new Date(),
-      })
-      .where(eq(starlinkCredentials.id, credentialId));
-
-    progress.finishStarlinkPhase(summary, success);
-    return { success, message: summary, terminalCount: list.length, errors };
-  } catch (err) {
-    const msg = (err as Error).message;
-    await db
-      .update(starlinkCredentials)
-      .set({
-        lastErrorMessage: msg,
-        updatedAt: new Date(),
-      })
-      .where(eq(starlinkCredentials.id, credentialId));
-    progress.finishStarlinkPhase(`Starlink sync hata: ${msg}`, false);
-    return {
-      success: false,
-      message: msg,
-      terminalCount: 0,
-      errors: [msg],
-    };
   }
+
+  const success = list.length === 0 || errors.length < list.length;
+  const message =
+    errors.length === 0
+      ? `${credLabel}: ${list.length} terminal güncellendi.`
+      : success
+        ? `${credLabel}: ${list.length - errors.length}/${list.length} başarılı.`
+        : `${credLabel}: tüm terminal hataları.`;
+
+  await db
+    .update(starlinkCredentials)
+    .set({
+      lastSuccessSyncAt: success ? new Date() : cred.lastSuccessSyncAt,
+      lastErrorMessage: errors.length > 0 ? errors[0] : null,
+      updatedAt: new Date(),
+    })
+    .where(eq(starlinkCredentials.id, cred.id));
+
+  return {
+    success,
+    message,
+    terminalCount: list.length,
+    errors,
+  };
 }
+
+async function markCredentialFailure(
+  credentialId: number,
+  msg: string,
+): Promise<void> {
+  await db
+    .update(starlinkCredentials)
+    .set({
+      lastErrorMessage: msg,
+      updatedAt: new Date(),
+    })
+    .where(eq(starlinkCredentials.id, credentialId));
+}
+
+async function openSyncLog(credentialId: number): Promise<number> {
+  const [row] = await db
+    .insert(starlinkSyncLogs)
+    .values({
+      credentialId,
+      status: "running",
+    })
+    .returning({ id: starlinkSyncLogs.id });
+  return row.id;
+}
+
+async function closeSyncLog(
+  logId: number,
+  result: StarlinkSyncResult,
+): Promise<void> {
+  await db
+    .update(starlinkSyncLogs)
+    .set({
+      status: result.success ? "ok" : "error",
+      message: result.message,
+      recordsFound: result.terminalCount,
+      finishedAt: new Date(),
+    })
+    .where(eq(starlinkSyncLogs.id, logId));
+}
+
+// `and` helper kept for future per-credential filters in routes/starlink.ts.
+void and;
 
 async function persistTerminal(
   credentialId: number,
