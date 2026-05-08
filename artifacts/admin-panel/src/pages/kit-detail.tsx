@@ -125,15 +125,20 @@ export default function KitDetail() {
       </div>
     );
   }
+  // Route-prefix-aware fallback: when /source lookup errors, prefer the URL the
+  // user navigated to (/norway → leobridge, /starlink → starlink). Only falls
+  // back to "satcom" for the generic /kits/:kitNo path. This avoids misrouting
+  // Norway KITs to Starlink during transient backend errors, since Leo Bridge
+  // and Tototheo can both expose KITP* serials.
+  const routeHint: "satcom" | "starlink" | "leobridge" =
+    norwayParams ? "leobridge" : starlinkParams ? "starlink" : "satcom";
   const source: "satcom" | "starlink" | "leobridge" =
     srcData?.source === "starlink" ||
     srcData?.source === "satcom" ||
     srcData?.source === "leobridge"
       ? srcData.source
       : srcError
-        ? /^KITP\d/i.test(kitNo)
-          ? "satcom"
-          : "starlink"
+        ? routeHint
         : "satcom";
 
   if (source === "starlink") {
