@@ -356,6 +356,16 @@ export default function CustomerLayout({
             >
               {mounted && isDark ? <Sun size={14} /> : <Moon size={14} />}
             </button>
+
+            <button
+              type="button"
+              className="sd-icon-btn"
+              aria-label="Çıkış Yap"
+              title="Çıkış Yap"
+              onClick={handleLogout}
+            >
+              <LogOut size={14} />
+            </button>
           </header>
 
           <CustomerFleetProvider value={ctxValue}>

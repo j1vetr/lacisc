@@ -169,9 +169,6 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
             {kit}
           </span>
           <div className="ml-auto flex items-center gap-1.5 flex-wrap">
-            {!detailLoading && detail?.accountLabel && (
-              <Pill tone="info">Hesap: {detail.accountLabel}</Pill>
-            )}
             {!detailLoading && (
               <Pill tone={detail?.isOnline ? "ok" : "warn"}>
                 {detail?.isOnline ? (

@@ -232,7 +232,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 lg:space-y-10 animate-in fade-in duration-500">
       {/* KPI Cards */}
-      <div className="grid gap-3 sm:gap-6 grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-3 sm:gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
         <Card className="border border-border bg-card shadow-none rounded-xl">
           <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
             <CardTitle className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Toplam KIT</CardTitle>

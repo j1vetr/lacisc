@@ -304,9 +304,6 @@ export default function Kits() {
                     Dönem GB <SortIcon col="totalGib" />
                   </div>
                 </Head>
-                <Head className="w-[120px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">
-                  Kayıt / Uyarı
-                </Head>
                 <Head
                   className="w-[180px] text-right cursor-pointer hover:bg-secondary transition-colors group font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12 pr-4 sm:pr-8"
                   onClick={() => toggleSort("lastSeen")}
@@ -487,21 +484,6 @@ export default function Kits() {
                       </Cell>
                       <Cell className="text-right font-mono text-[13px] text-foreground">
                         {formatNumber(row.totalGib, 2)}
-                      </Cell>
-                      <Cell className="text-right font-mono text-xs text-muted-foreground">
-                        {isStar ? (
-                          row.rowCountOrAlerts > 0 ? (
-                            <span className="text-[#a4400a]">
-                              {row.rowCountOrAlerts} uyarı
-                            </span>
-                          ) : (
-                            "0 uyarı"
-                          )
-                        ) : isLeo ? (
-                          "—"
-                        ) : (
-                          formatNumber(row.rowCountOrAlerts, 0)
-                        )}
                       </Cell>
                       <Cell className="text-right pr-4 sm:pr-8">
                         <div className="flex items-center justify-end gap-3">

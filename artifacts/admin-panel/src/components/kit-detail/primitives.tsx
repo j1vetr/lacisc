@@ -58,15 +58,15 @@ export function QuotaStat({
     muted: "text-muted-foreground",
   };
   return (
-    <div className="rounded-lg border border-border bg-secondary/30 px-4 py-3.5">
-      <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-1.5">
+    <div className="rounded-lg border border-border bg-secondary/30 px-4 py-3.5 min-w-0 overflow-hidden">
+      <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-1.5 truncate">
         {label}
       </div>
-      <div className="flex items-baseline gap-1">
-        <span className={`font-mono text-2xl tabular-nums ${valueClass[tone]}`}>
+      <div className="flex items-baseline gap-1 min-w-0">
+        <span className={`font-mono text-xl sm:text-2xl tabular-nums truncate min-w-0 ${valueClass[tone]}`}>
           {value}
         </span>
-        {unit && <span className="text-xs text-muted-foreground">{unit}</span>}
+        {unit && <span className="text-xs text-muted-foreground shrink-0">{unit}</span>}
       </div>
     </div>
   );
@@ -97,20 +97,20 @@ export function MetricTile({
   };
   return (
     <div
-      className={`rounded-lg border border-border border-l-2 ${accents[tone]} bg-card px-3 py-2.5`}
+      className={`rounded-lg border border-border border-l-2 ${accents[tone]} bg-card px-3 py-2.5 min-w-0 overflow-hidden`}
     >
       <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1 min-w-0 truncate">
           {icon}
-          {label}
+          <span className="truncate">{label}</span>
         </span>
       </div>
-      <div className="mt-1 flex items-baseline gap-1">
-        <span className="font-mono text-base text-foreground">{value}</span>
-        {unit && <span className="text-[11px] text-muted-foreground">{unit}</span>}
+      <div className="mt-1 flex items-baseline gap-1 min-w-0">
+        <span className="font-mono text-base text-foreground truncate min-w-0">{value}</span>
+        {unit && <span className="text-[11px] text-muted-foreground shrink-0">{unit}</span>}
       </div>
       {hint && (
-        <div className="mt-0.5 text-[10px] font-mono text-muted-foreground">
+        <div className="mt-0.5 text-[10px] font-mono text-muted-foreground truncate">
           {hint}
         </div>
       )}
