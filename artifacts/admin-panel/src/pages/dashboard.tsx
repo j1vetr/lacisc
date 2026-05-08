@@ -309,7 +309,7 @@ export default function Dashboard() {
                   return (
                     <Link
                       key={`${row.source}:${row.kitNo}`}
-                      href={`/kits/${encodeURIComponent(row.kitNo)}`}
+                      href={`${isStar ? "/starlink" : isLeo ? "/norway" : "/kits"}/${encodeURIComponent(row.kitNo)}`}
                     >
                       <div className="flex items-center justify-between py-3 hover:bg-secondary/50 -mx-2 px-2 rounded-md cursor-pointer transition-colors group">
                         <div className="flex items-center gap-3 min-w-0">

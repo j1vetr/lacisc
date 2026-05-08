@@ -232,8 +232,10 @@ export default function Kits() {
     return <ChevronDown className="w-3 h-3 ml-1 text-primary" />;
   };
 
-  const handleRowClick = (kitNo: string) => {
-    setLocation(`/kits/${encodeURIComponent(kitNo)}`);
+  const handleRowClick = (kitNo: string, source: "satcom" | "starlink" | "leobridge") => {
+    const prefix =
+      source === "starlink" ? "/starlink" : source === "leobridge" ? "/norway" : "/kits";
+    setLocation(`${prefix}/${encodeURIComponent(kitNo)}`);
   };
 
   const satcomCount = unified.filter((r) => r.source === "satcom").length;
@@ -441,7 +443,7 @@ export default function Kits() {
                     <Row
                       key={`${row.source}:${row.kitNo}`}
                       className="hover:bg-secondary transition-all cursor-pointer group border-none h-14"
-                      onClick={() => handleRowClick(row.kitNo)}
+                      onClick={() => handleRowClick(row.kitNo, row.source)}
                     >
                       <Cell className="pl-4 sm:pl-8">
                         <div className="flex items-center gap-3">
