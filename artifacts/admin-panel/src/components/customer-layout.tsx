@@ -99,7 +99,8 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
         source: "satcom",
         kitNo: k.kitNo,
         shipName: (k.shipName?.trim() || "Adsız Gemi"),
-        currentPeriodGib: k.totalGib ?? 0,
+        // Satcom GiB → GB; Starlink zaten GB.
+        currentPeriodGib: (k.totalGib ?? 0) * 1.073741824,
         online: isOnlineSatcom(k.lastSyncedAt ?? null),
       });
     }

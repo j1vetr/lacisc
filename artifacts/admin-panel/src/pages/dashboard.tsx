@@ -35,7 +35,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { formatNumber, formatDate } from "@/lib/format";
+import { formatNumber, formatDate, gibToGb } from "@/lib/format";
 
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
@@ -128,7 +128,7 @@ export default function Dashboard() {
         source: "satcom",
         kitNo: k.kitNo,
         shipName: k.shipName ?? null,
-        totalGib: k.totalGib ?? 0,
+        totalGib: gibToGb(k.totalGib) ?? 0,
       });
     }
     for (const t of starlinkTerminals ?? []) {
@@ -177,7 +177,7 @@ export default function Dashboard() {
     (starlinkActive ? starlinkKitCount : 0) +
     (leobridgeActive ? leobridgeKitCount : 0);
   const totalGibCombined =
-    (summary?.totalGib ?? 0) +
+    (gibToGb(summary?.totalGib) ?? 0) +
     (starlinkActive ? starlinkTotalGib : 0) +
     (leobridgeActive ? leobridgeTotalGib : 0);
 
@@ -243,7 +243,7 @@ export default function Dashboard() {
                 </div>
                 {(starlinkActive || leobridgeActive) && (
                   <div className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1 font-mono">
-                    {formatNumber(summary?.totalGib ?? 0, 1)} satcom
+                    {formatNumber(gibToGb(summary?.totalGib) ?? 0, 1)} satcom
                     {starlinkActive
                       ? ` · ${formatNumber(starlinkTotalGib, 1)} tototheo`
                       : ""}

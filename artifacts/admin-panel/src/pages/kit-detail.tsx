@@ -49,7 +49,7 @@ import {
 } from "recharts";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatNumber, formatDate } from "@/lib/format";
+import { formatNumber, formatDate, formatGibAsGb, GIB_TO_GB } from "@/lib/format";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useIsCustomer } from "@/hooks/use-is-customer";
 import {
@@ -316,7 +316,8 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
     for (const r of daily ?? []) {
       const key = r.dayDate;
       const cur = byDay.get(key) ?? { day: formatDay(r.dayDate), gib: 0 };
-      cur.gib += r.volumeGib ?? 0;
+      // Satcom volumeGib → GB (UI birimi).
+      cur.gib += (r.volumeGib ?? 0) * GIB_TO_GB;
       byDay.set(key, cur);
     }
     return Array.from(byDay.entries())
@@ -638,9 +639,9 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="font-mono text-5xl tracking-tight tabular-nums">
-                  {formatNumber(used, 1)}
+                  {formatGibAsGb(used, 1)}
                 </span>
-                <span className="text-sm text-muted-foreground">GiB</span>
+                <span className="text-sm text-muted-foreground">GB</span>
                 <span className="ml-3 text-[11px] font-mono text-muted-foreground">
                   · {detail?.rowCount ?? 0} CDR satırı
                 </span>
@@ -654,12 +655,12 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                 </div>
                 <div className="flex items-baseline gap-2">
                   <span className="font-mono text-5xl tracking-tight tabular-nums">
-                    {formatNumber(used, 1)}
+                    {formatGibAsGb(used, 1)}
                   </span>
-                  <span className="text-sm text-muted-foreground">GiB</span>
+                  <span className="text-sm text-muted-foreground">GB</span>
                   {allowance != null && (
                     <span className="ml-2 text-sm font-mono text-muted-foreground">
-                      / {formatNumber(allowance, 0)} GiB
+                      / {formatGibAsGb(allowance, 0)} GB
                     </span>
                   )}
                 </div>
@@ -692,16 +693,16 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
               <div className="lg:col-span-7 grid grid-cols-3 gap-3">
                 <QuotaStat
                   label="Kullanılan"
-                  value={formatNumber(used, 1)}
-                  unit="GiB"
+                  value={formatGibAsGb(used, 1)}
+                  unit="GB"
                   tone="primary"
                 />
                 <QuotaStat
                   label="Opt-Out Eşiği"
                   value={
-                    optOutGib != null ? formatNumber(optOutGib, 0) : "—"
+                    optOutGib != null ? formatGibAsGb(optOutGib, 0) : "—"
                   }
-                  unit={optOutGib != null ? "GiB" : undefined}
+                  unit={optOutGib != null ? "GB" : undefined}
                   tone={
                     remaining != null &&
                     allowance != null &&
@@ -714,10 +715,10 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                   label="Adım Uyarısı"
                   value={
                     stepAlertGib != null
-                      ? formatNumber(stepAlertGib, 0)
+                      ? formatGibAsGb(stepAlertGib, 0)
                       : "—"
                   }
-                  unit={stepAlertGib != null ? "GiB" : undefined}
+                  unit={stepAlertGib != null ? "GB" : undefined}
                   tone="muted"
                 />
               </div>
@@ -898,7 +899,8 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                     fontSize: 12,
                   }}
                   formatter={(v: number) => [
-                    `${formatNumber(v, 2)} GiB`,
+                    // Daily byDay zaten GB cinsinden topluyor.
+                    `${formatNumber(v, 2)} GB`,
                     "Veri",
                   ]}
                 />
@@ -990,7 +992,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                     Dönem
                   </th>
                   <th className="h-9 text-right text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Toplam GiB
+                    Toplam GB
                   </th>
                   <th className="h-9 text-right text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                     Satır
@@ -1011,7 +1013,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                       {formatPeriodLabel(row.period)}
                     </td>
                     <td className="text-right font-mono">
-                      {formatNumber(row.totalGib, 2)}
+                      {formatGibAsGb(row.totalGib, 2)}
                     </td>
                     <td className="text-right font-mono">{row.rowCount}</td>
                     <td className="text-right pr-4 font-mono text-[11px] text-muted-foreground">

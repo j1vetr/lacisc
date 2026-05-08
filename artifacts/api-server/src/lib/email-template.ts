@@ -146,9 +146,9 @@ export interface AlertEmailInput {
   kitNo: string;
   credentialLabel: string;
   period: string; // YYYYMM
-  totalGib: number;
+  totalGb: number; // anlık tüketim, GB cinsinden (Satcom portali GiB→GB çevrildi)
   totalUsd: number | null;
-  crossedStep: number;
+  crossedStep: number; // GB cinsinden eşik
 }
 
 export function buildAlertEmail(input: AlertEmailInput): {
@@ -157,26 +157,26 @@ export function buildAlertEmail(input: AlertEmailInput): {
   html: string;
 } {
   const periodLabel = `${input.period.slice(0, 4)}-${input.period.slice(4)}`;
-  const subject = `[Lacivert SC] ${input.shipLabel} (${input.kitNo}) ${input.crossedStep} GiB'e ulaştı`;
+  const subject = `[Lacivert SC] ${input.shipLabel} (${input.kitNo}) ${input.crossedStep} GB'a ulaştı`;
 
-  const headline = `${input.shipLabel} terminali ${input.crossedStep} GiB eşiğini geçti.`;
+  const headline = `${input.shipLabel} terminali ${input.crossedStep} GB eşiğini geçti.`;
 
   const rows = [
     row("Hesap", input.credentialLabel),
     row("Terminal", input.kitNo, true),
     input.shipName ? row("Gemi", input.shipName) : "",
     row("Dönem", periodLabel, true),
-    row("Anlık tüketim", `${input.totalGib.toFixed(2)} GiB`, true),
+    row("Anlık tüketim", `${input.totalGb.toFixed(2)} GB`, true),
     input.totalUsd != null ? row("Dönem maliyeti", `$${input.totalUsd.toFixed(2)}`, true) : "",
   ]
     .filter(Boolean)
     .join("");
 
   const html = shell({
-    preheader: `${input.shipLabel} ${input.crossedStep} GiB eşiğini geçti — ${periodLabel}`,
+    preheader: `${input.shipLabel} ${input.crossedStep} GB eşiğini geçti — ${periodLabel}`,
     eyebrow: "Kullanım Eşiği Uyarısı",
     headline,
-    metric: { value: input.crossedStep.toLocaleString("tr-TR"), unit: "GiB eşiği aşıldı" },
+    metric: { value: input.crossedStep.toLocaleString("tr-TR"), unit: "GB eşiği aşıldı" },
     rowsHtml: rows,
     footnote:
       "Bu eşik için tek bir bildirim gönderilir. Yeni dönem başladığında sayaç sıfırlanır.",
@@ -189,7 +189,7 @@ export function buildAlertEmail(input: AlertEmailInput): {
     `Hesap:           ${input.credentialLabel}`,
     `Terminal:        ${input.kitNo}` + (input.shipName ? ` (${input.shipName})` : ""),
     `Dönem:           ${periodLabel}`,
-    `Anlık tüketim:   ${input.totalGib.toFixed(2)} GiB`,
+    `Anlık tüketim:   ${input.totalGb.toFixed(2)} GB`,
     input.totalUsd != null ? `Dönem maliyeti:  $${input.totalUsd.toFixed(2)}` : "",
     "",
     "— Station Satcom yönetim paneli",
@@ -222,7 +222,7 @@ export function buildTestEmail(opts: {
     row("SMTP sunucusu", opts.smtpHost, true),
     row("Gönderen", opts.fromAddress, true),
     row("Alıcı sayısı", String(opts.recipients.length)),
-    row("Eşik adımı", `${opts.thresholdStepGib} GiB`, true),
+    row("Eşik adımı", `${opts.thresholdStepGib} GB`, true),
     row("Gönderim", ts),
   ].join("");
 
@@ -241,7 +241,7 @@ export function buildTestEmail(opts: {
     `SMTP sunucusu:  ${opts.smtpHost}`,
     `Gönderen:       ${opts.fromAddress}`,
     `Alıcı sayısı:   ${opts.recipients.length}`,
-    `Eşik adımı:     ${opts.thresholdStepGib} GiB`,
+    `Eşik adımı:     ${opts.thresholdStepGib} GB`,
     `Gönderim:       ${ts}`,
     "",
     "— Station Satcom yönetim paneli",

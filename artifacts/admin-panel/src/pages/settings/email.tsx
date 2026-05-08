@@ -164,7 +164,7 @@ export default function EmailSettingsPage() {
             E-posta Uyarıları
           </CardTitle>
           <CardDescription className="mt-1 text-sm text-muted-foreground">
-            Bir KIT, aktif dönemde her N GiB'lik eşiği geçtiğinde alıcılara tek bir bildirim
+            Bir KIT, aktif dönemde her N GB'lık eşiği geçtiğinde alıcılara tek bir bildirim
             gider. Aynı eşik bir daha mail göndermez (her dönem otomatik sıfırlanır).
           </CardDescription>
         </CardHeader>
@@ -388,7 +388,7 @@ export default function EmailSettingsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                        Uyarı Eşik Adımı (GiB)
+                        Uyarı Eşik Adımı (GB)
                       </FormLabel>
                       <FormControl>
                         <Input
@@ -398,7 +398,7 @@ export default function EmailSettingsPage() {
                         />
                       </FormControl>
                       <FormDescription className="text-xs">
-                        Varsayılan 100 — KIT 100, 200, 300, ... GiB'i geçtiğinde mail gider.
+                        Varsayılan 100 — KIT 100, 200, 300, ... GB'ı geçtiğinde mail gider.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

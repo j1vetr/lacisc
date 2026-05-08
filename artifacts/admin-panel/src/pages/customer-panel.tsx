@@ -114,7 +114,8 @@ export default function CustomerPanel() {
         source: "satcom",
         kitNo: k.kitNo,
         shipName: (k.shipName?.trim() || "Adsız Gemi"),
-        currentPeriodGib: k.totalGib ?? 0,
+        // Satcom GiB → GB; Starlink zaten GB.
+        currentPeriodGib: (k.totalGib ?? 0) * 1.073741824,
         online: isOnlineSatcom(last),
         lastSeenAt: last,
       });
@@ -188,7 +189,8 @@ export default function CustomerPanel() {
       return pts.map((p, i) => ({ d: i, v: p.deltaPackageGb ?? 0 }));
     }
     const pts = (topSatcomDaily ?? []).slice(-14);
-    return pts.map((p, i) => ({ d: i, v: p.volumeGib ?? 0 }));
+    // Satcom volumeGib → GB.
+    return pts.map((p, i) => ({ d: i, v: (p.volumeGib ?? 0) * 1.073741824 }));
   }, [top, topIsStar, topSatcomDaily, topStarDaily]);
 
   const overPct = top

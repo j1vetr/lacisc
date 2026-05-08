@@ -314,9 +314,11 @@ export async function checkAndSendUsageAlert(opts: {
     if (!settings.enabled) return;
     const recipients = parseRecipients(settings.alertRecipients);
     if (recipients.length === 0) return;
+    // Eşik artık GB cinsinden yorumlanır (UI birimi). Satcom totalGib → GB.
+    // last_alert_threshold_gib column'unda da GB değeri saklanır (ad legacy).
     const step = Math.max(1, settings.thresholdStepGib);
-
-    const crossedStep = Math.floor(opts.totalGib / step) * step;
+    const totalGb = opts.totalGib * 1.073741824;
+    const crossedStep = Math.floor(totalGb / step) * step;
     if (crossedStep <= 0) return;
 
     // Atomic claim: only one worker wins this threshold. Concurrent fire-and-
@@ -360,9 +362,9 @@ export async function checkAndSendUsageAlert(opts: {
       kitNo: opts.kitNo,
       credentialLabel: opts.credentialLabel,
       period: opts.period,
-      totalGib: opts.totalGib,
+      totalGb, // GB cinsinden anlık tüketim
       totalUsd: opts.totalUsd ?? null,
-      crossedStep,
+      crossedStep, // GB
     });
 
     // Queue the actual SMTP send. The atomic claim above already ran, so

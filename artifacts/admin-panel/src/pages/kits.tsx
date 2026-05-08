@@ -40,7 +40,7 @@ import {
   TableHeader as Header,
   TableRow as Row,
 } from "@/components/ui/table";
-import { formatNumber, formatDate } from "@/lib/format";
+import { formatNumber, formatDate, gibToGb } from "@/lib/format";
 
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
@@ -151,7 +151,8 @@ export default function Kits() {
         source: "satcom",
         kitNo: k.kitNo,
         shipName: k.shipName ?? null,
-        totalGib: k.totalGib ?? null,
+        // Satcom GiB → GB; Starlink/Leo zaten GB döndürüyor.
+        totalGib: gibToGb(k.totalGib),
         rowCountOrAlerts: k.rowCount ?? 0,
         lastPeriod: k.lastPeriod ?? null,
         lastSyncedAt: k.lastSyncedAt ?? null,

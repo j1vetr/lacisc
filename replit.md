@@ -86,6 +86,8 @@ See `lib/db/src/schema/index.ts` and `lib/api-spec/openapi.yaml` for source-of-t
 - **First-full-sync flag**: `station_credentials.first_full_sync_at` set only after first successful walk. To re-walk history: `UPDATE station_credentials SET first_full_sync_at = NULL WHERE id = X;` then trigger sync.
 - **DevExpress 25-row default**: if a period has >25 CDRs, footer shows only the first page subtotal. Call `setGridPageSize(page, 200)` after every `selectPeriod()` and **before** `parseGrid()`. Footer only renders single-page, so 200 is safe headroom.
 
+- **Satcom GiB → GB (UI birimi)**: portal **GiB** (binary, 2^30) raporlar; UI tek tip **GB** (decimal, 10^9) gösterir. DB/scraper alan adları (`totalGib`, `volumeGib`, `optOutGib`, `stepAlertGib`, `last_alert_threshold_gib`) **legacy** — değerler GiB olarak yazılıp gösterimde `gibToGb()` (×1.073741824) uygulanır. Starlink/Leo Bridge zaten GB döndürür, onlara dönüşüm uygulanmaz. **E-posta eşik** mantığı (`thresholdStepGib`) artık **GB cinsinden** yorumlanır: `alerts.ts` Satcom totalGib'i GB'a çevirip karşılaştırır, `last_alert_threshold_gib` column'unda GB değer saklanır (ad legacy). Geçiş etkisi: önceki "100 (GiB)" eşik kayıtları artık "100 GB" olarak okunur — bir KIT 95 GiB (≈102 GB) iken last=0 ise yeni mantık 100 GB eşiğini geçilmiş sayar ve bir kerelik mail tetikleyebilir.
+
 ## Pointers
 
 - `docs/ARCHITECTURE.md` — current architecture detail
