@@ -1,0 +1,132 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+.dv-theme {
+  --dv-bg: #f7f7f4;
+  --dv-surface: #ffffff;
+  --dv-soft: #fafaf7;
+  --dv-ink: #26251e;
+  --dv-muted: #807d72;
+  --dv-hairline: #e6e5e0;
+  --dv-hairline-strong: #d8d6cf;
+  --dv-orange: #f54e00;
+  --dv-success: #1f8a65;
+
+  --dv-satcom: #a4400a;
+  --dv-satcom-bg: #fde0d0;
+  --dv-tototheo: #2563a6;
+  --dv-tototheo-bg: #dde9f7;
+  --dv-norway: #3a3aa6;
+  --dv-norway-bg: #dde2f7;
+
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--dv-bg);
+  color: var(--dv-ink);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv11', 'ss01';
+}
+.dv-theme *, .dv-theme *::before, .dv-theme *::after { box-sizing: border-box; }
+
+.dv-theme.dv-dark {
+  --dv-bg: #161512;
+  --dv-surface: #1c1b18;
+  --dv-soft: #1f1e1b;
+  --dv-ink: #ededec;
+  --dv-muted: #9e9b8f;
+  --dv-hairline: #2c2b27;
+  --dv-hairline-strong: #3a3934;
+  --dv-orange: #ff6b1f;
+  --dv-success: #34c08e;
+  --dv-satcom: #f4b896;
+  --dv-satcom-bg: #3a1f10;
+  --dv-tototheo: #9fbbe0;
+  --dv-tototheo-bg: #16263a;
+  --dv-norway: #a6a6dd;
+  --dv-norway-bg: #1d1d3a;
+  color-scheme: dark;
+}
+
+.dv-theme .dv-mono {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.dv-theme .dv-tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+.dv-theme .dv-eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dv-muted);
+  font-weight: 500;
+}
+.dv-theme .dv-card {
+  background-color: var(--dv-surface);
+  border: 1px solid var(--dv-hairline);
+  border-radius: 14px;
+}
+.dv-theme .dv-divider { height: 1px; background: var(--dv-hairline); }
+
+.dv-theme .dv-source-dot { width: 7px; height: 7px; border-radius: 999px; display: inline-block; }
+.dv-theme .dv-source-dot.satcom    { background-color: var(--dv-satcom); }
+.dv-theme .dv-source-dot.tototheo  { background-color: var(--dv-tototheo); }
+.dv-theme .dv-source-dot.norway    { background-color: var(--dv-norway); }
+
+.dv-theme .dv-bar-track {
+  height: 4px;
+  background-color: var(--dv-hairline);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.dv-theme .dv-bar-fill { height: 100%; border-radius: 999px; }
+
+.dv-theme .dv-row {
+  cursor: pointer;
+  transition: background-color 120ms ease;
+  border-radius: 8px;
+}
+.dv-theme .dv-row:hover { background-color: rgba(38, 37, 30, 0.04); }
+.dv-theme.dv-dark .dv-row:hover { background-color: rgba(255, 255, 255, 0.04); }
+
+.dv-theme .dv-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+.dv-theme .dv-pill.satcom   { color: var(--dv-satcom);   background: var(--dv-satcom-bg);   border-color: #f4b896; }
+.dv-theme .dv-pill.tototheo { color: var(--dv-tototheo); background: var(--dv-tototheo-bg); border-color: #9fbbe0; }
+.dv-theme .dv-pill.norway   { color: var(--dv-norway);   background: var(--dv-norway-bg);   border-color: #a6a6dd; }
+
+.dv-theme .dv-stat-num {
+  font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+  color: var(--dv-ink);
+  line-height: 1;
+}
+
+/* Hero radyal halka */
+.dv-theme .dv-ring {
+  position: relative;
+  display: inline-block;
+}
+.dv-theme .dv-ring svg { display: block; }
+.dv-theme .dv-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+}
