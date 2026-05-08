@@ -660,6 +660,7 @@ function AssignKitsDialog({
   });
   const satcom = filtered.filter((k) => k.source === "satcom");
   const starlink = filtered.filter((k) => k.source === "starlink");
+  const leobridge = filtered.filter((k) => k.source === "leobridge");
 
   const toggle = (kit: string) => {
     setTouched(true);
@@ -764,6 +765,15 @@ function AssignKitsDialog({
                   onToggle={toggle}
                 />
               )}
+              {leobridge.length > 0 && (
+                <KitGroup
+                  title="Norway"
+                  badgeClass="bg-[#dde2f7] text-[#3a3aa6] border-[#a6a6dd]"
+                  items={leobridge}
+                  selected={selected}
+                  onToggle={toggle}
+                />
+              )}
             </div>
           )}
         </ScrollArea>
@@ -826,6 +836,7 @@ function KitPickerInline({
   });
   const satcom = filtered.filter((k) => k.source === "satcom");
   const starlink = filtered.filter((k) => k.source === "starlink");
+  const leobridge = filtered.filter((k) => k.source === "leobridge");
 
   const toggle = (kit: string) => {
     const next = new Set(selected);
@@ -893,6 +904,15 @@ function KitPickerInline({
                 title="Tototheo"
                 badgeClass="bg-[#dde9f7] text-[#2563a6] border-[#9fbbe0]"
                 items={starlink}
+                selected={selected}
+                onToggle={toggle}
+              />
+            )}
+            {leobridge.length > 0 && (
+              <KitGroup
+                title="Norway"
+                badgeClass="bg-[#dde2f7] text-[#3a3aa6] border-[#a6a6dd]"
+                items={leobridge}
                 selected={selected}
                 onToggle={toggle}
               />

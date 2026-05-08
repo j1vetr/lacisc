@@ -58,12 +58,36 @@ export function SyncProgressPanel({ active = true }: SyncProgressPanelProps) {
     return null;
   }
 
+  const phase = (progress as { phase?: string }).phase ?? "idle";
   const acctTotal = progress.totalAccounts || 1;
   const acctIdx = progress.currentAccountIndex || 0;
   const periodTotal = progress.totalPeriods || 1;
   const periodIdx = progress.currentPeriodIndex || 0;
   const kitTotal = progress.totalKits || 1;
   const kitIdx = progress.currentKitIndex || 0;
+
+  const p = progress as typeof progress & {
+    starlinkTotalTerminals?: number;
+    starlinkProcessedTerminals?: number;
+    starlinkSuccessTerminals?: number;
+    starlinkFailures?: number;
+    currentTerminalKit?: string | null;
+    currentTerminalLabel?: string | null;
+    leobridgeTotalTerminals?: number;
+    leobridgeProcessedTerminals?: number;
+    leobridgeSuccessTerminals?: number;
+    leobridgeFailures?: number;
+    currentLeobridgeKit?: string | null;
+    currentLeobridgeLabel?: string | null;
+  };
+  const phaseLabel =
+    phase === "starlink"
+      ? "Tototheo"
+      : phase === "leobridge"
+      ? "Norway"
+      : phase === "satcom"
+      ? "Satcom"
+      : "Beklemede";
 
   // Composite percentage: each account contributes (1/totalAccounts) of the
   // bar; within an account, periods × kits gives a fine-grained sub-percent.
@@ -97,7 +121,7 @@ export function SyncProgressPanel({ active = true }: SyncProgressPanelProps) {
               </CardTitle>
               <CardDescription className="mt-0.5 text-xs">
                 {progress.running
-                  ? "Çalışıyor — her hesap sırayla işleniyor"
+                  ? `Faz: ${phaseLabel}`
                   : progress.lastMessage || "Beklemede"}
               </CardDescription>
             </div>
@@ -111,47 +135,112 @@ export function SyncProgressPanel({ active = true }: SyncProgressPanelProps) {
         {/* Progress bar + live coordinates */}
         <div className="space-y-3">
           <Progress value={overall} className="h-1.5 bg-border" />
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-md border border-border p-2">
-              <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Hesap
+          {phase === "starlink" || phase === "leobridge" ? (
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-md border border-border p-2">
+                <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Terminal
+                </div>
+                <div className="font-mono text-[13px] text-foreground tabular-nums mt-0.5">
+                  {phase === "starlink"
+                    ? `${p.starlinkProcessedTerminals ?? 0} / ${p.starlinkTotalTerminals ?? 0}`
+                    : `${p.leobridgeProcessedTerminals ?? 0} / ${p.leobridgeTotalTerminals ?? 0}`}
+                </div>
               </div>
-              <div className="font-mono text-[13px] text-foreground tabular-nums mt-0.5">
-                {acctIdx} / {progress.totalAccounts}
+              <div className="rounded-md border border-[#9fc9a2]/60 bg-[#9fc9a2]/10 p-2">
+                <div className="text-[9px] font-semibold uppercase tracking-widest text-foreground">
+                  Başarılı
+                </div>
+                <div className="font-mono text-[13px] text-foreground tabular-nums mt-0.5">
+                  {phase === "starlink"
+                    ? p.starlinkSuccessTerminals ?? 0
+                    : p.leobridgeSuccessTerminals ?? 0}
+                </div>
+              </div>
+              <div
+                className={`rounded-md border p-2 ${
+                  ((phase === "starlink" ? p.starlinkFailures : p.leobridgeFailures) ?? 0) > 0
+                    ? "border-[#cf2d56]/40 bg-[#cf2d56]/10"
+                    : "border-border"
+                }`}
+              >
+                <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Atlanan
+                </div>
+                <div className="font-mono text-[13px] text-foreground tabular-nums mt-0.5">
+                  {phase === "starlink"
+                    ? p.starlinkFailures ?? 0
+                    : p.leobridgeFailures ?? 0}
+                </div>
               </div>
             </div>
-            <div className="rounded-md border border-border p-2">
-              <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Dönem
+          ) : (
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-md border border-border p-2">
+                <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Hesap
+                </div>
+                <div className="font-mono text-[13px] text-foreground tabular-nums mt-0.5">
+                  {acctIdx} / {progress.totalAccounts}
+                </div>
               </div>
-              <div className="font-mono text-[13px] text-foreground tabular-nums mt-0.5">
-                {periodIdx} / {progress.totalPeriods}
+              <div className="rounded-md border border-border p-2">
+                <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Dönem
+                </div>
+                <div className="font-mono text-[13px] text-foreground tabular-nums mt-0.5">
+                  {periodIdx} / {progress.totalPeriods}
+                </div>
+              </div>
+              <div className="rounded-md border border-border p-2">
+                <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  KIT
+                </div>
+                <div className="font-mono text-[13px] text-foreground tabular-nums mt-0.5">
+                  {kitIdx} / {progress.totalKits}
+                </div>
               </div>
             </div>
-            <div className="rounded-md border border-border p-2">
-              <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
-                KIT
-              </div>
-              <div className="font-mono text-[13px] text-foreground tabular-nums mt-0.5">
-                {kitIdx} / {progress.totalKits}
-              </div>
-            </div>
-          </div>
+          )}
           {progress.running && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-secondary/60 border border-border text-[12px] flex-wrap">
               <Activity className="w-3.5 h-3.5 text-primary shrink-0" />
               <span className="text-muted-foreground">Şu an:</span>
-              <span className="font-medium text-foreground truncate">
-                {progress.currentAccountLabel || "—"}
-              </span>
-              <span className="text-muted-foreground">·</span>
-              <span className="font-mono text-foreground">
-                {progress.currentPeriod || "—"}
-              </span>
-              <span className="text-muted-foreground">·</span>
-              <span className="font-mono text-foreground truncate">
-                {progress.currentKit || "—"}
-              </span>
+              {phase === "starlink" ? (
+                <>
+                  <span className="font-medium text-foreground truncate">
+                    {p.currentTerminalLabel || "—"}
+                  </span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="font-mono text-foreground truncate">
+                    {p.currentTerminalKit || "—"}
+                  </span>
+                </>
+              ) : phase === "leobridge" ? (
+                <>
+                  <span className="font-medium text-foreground truncate">
+                    {p.currentLeobridgeLabel || "—"}
+                  </span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="font-mono text-foreground truncate">
+                    {p.currentLeobridgeKit || "—"}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="font-medium text-foreground truncate">
+                    {progress.currentAccountLabel || "—"}
+                  </span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="font-mono text-foreground">
+                    {progress.currentPeriod || "—"}
+                  </span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="font-mono text-foreground truncate">
+                    {progress.currentKit || "—"}
+                  </span>
+                </>
+              )}
             </div>
           )}
         </div>

@@ -516,3 +516,77 @@ export const starlinkTerminalPeriodTotal = pgTable(
     index("starlink_period_total_period_idx").on(t.period),
   ]
 );
+
+// ===========================================================================
+// Leo Bridge (Space Norway) reseller — Task #24
+// ===========================================================================
+// Reseller front-end is a Django site (session cookie auth) with REST endpoints
+// under /api/starlink/*. Per requirement, NO plan/price columns are stored;
+// only ship name + usage + location.
+
+export const leobridgeSettings = pgTable("leobridge_settings", {
+  id: integer("id").primaryKey(),
+  enabled: boolean("enabled").default(false).notNull(),
+  portalUrl: text("portal_url")
+    .default("https://leobridge.spacenorway.com")
+    .notNull(),
+  username: text("username"),
+  encryptedPassword: text("encrypted_password"),
+  lastSyncAt: timestamp("last_sync_at"),
+  lastErrorMessage: text("last_error_message"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export type LeobridgeSettingsRow = typeof leobridgeSettings.$inferSelect;
+
+export const leobridgeTerminals = pgTable("leobridge_terminals", {
+  kitSerialNumber: text("kit_serial_number").primaryKey(),
+  serviceLineNumber: text("service_line_number"),
+  nickname: text("nickname"),
+  addressLabel: text("address_label"),
+  lat: doublePrecision("lat"),
+  lng: doublePrecision("lng"),
+  isOnline: boolean("is_online"),
+  lastSeenAt: timestamp("last_seen_at"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export type LeobridgeTerminal = typeof leobridgeTerminals.$inferSelect;
+
+export const leobridgeTerminalDaily = pgTable(
+  "leobridge_terminal_daily",
+  {
+    kitSerialNumber: text("kit_serial_number")
+      .notNull()
+      .references(() => leobridgeTerminals.kitSerialNumber, {
+        onDelete: "cascade",
+      }),
+    dayDate: date("day_date").notNull(),
+    priorityGb: doublePrecision("priority_gb"),
+    standardGb: doublePrecision("standard_gb"),
+    totalGb: doublePrecision("total_gb"),
+    lastReadingAt: timestamp("last_reading_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("uq_leobridge_daily").on(t.kitSerialNumber, t.dayDate),
+    index("leobridge_daily_lookup_idx").on(t.kitSerialNumber, t.dayDate),
+  ]
+);
+
+export const leobridgeTerminalPeriodTotal = pgTable(
+  "leobridge_terminal_period_total",
+  {
+    kitSerialNumber: text("kit_serial_number")
+      .notNull()
+      .references(() => leobridgeTerminals.kitSerialNumber, {
+        onDelete: "cascade",
+      }),
+    period: text("period").notNull(), // YYYYMM
+    priorityGb: doublePrecision("priority_gb"),
+    standardGb: doublePrecision("standard_gb"),
+    totalGb: doublePrecision("total_gb"),
+    scrapedAt: timestamp("scraped_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("uq_leobridge_period_total").on(t.kitSerialNumber, t.period),
+    index("leobridge_period_total_period_idx").on(t.period),
+  ]
+);

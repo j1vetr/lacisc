@@ -7,7 +7,7 @@
 // starlink* fields are populated during the Starlink phase.
 
 export type SyncEventLevel = "info" | "warn" | "error" | "success";
-export type SyncPhase = "idle" | "starlink" | "satcom";
+export type SyncPhase = "idle" | "starlink" | "leobridge" | "satcom";
 
 export interface SyncEvent {
   ts: number;
@@ -58,6 +58,14 @@ export interface SyncProgress {
   currentTerminalKit: string | null;
   currentTerminalLabel: string | null;
 
+  // Leo Bridge phase counters (mirrors Starlink shape)
+  leobridgeTotalTerminals: number;
+  leobridgeProcessedTerminals: number;
+  leobridgeSuccessTerminals: number;
+  leobridgeFailures: number;
+  currentLeobridgeKit: string | null;
+  currentLeobridgeLabel: string | null;
+
   events: SyncEvent[];
   accountResults: AccountResult[];
   lastMessage: string | null;
@@ -93,6 +101,12 @@ function freshState(): SyncProgress {
     starlinkFailures: 0,
     currentTerminalKit: null,
     currentTerminalLabel: null,
+    leobridgeTotalTerminals: 0,
+    leobridgeProcessedTerminals: 0,
+    leobridgeSuccessTerminals: 0,
+    leobridgeFailures: 0,
+    currentLeobridgeKit: null,
+    currentLeobridgeLabel: null,
     events: [],
     accountResults: [],
     lastMessage: null,
@@ -133,6 +147,59 @@ export function finishCombinedRun(message: string, success: boolean): void {
   state.currentTerminalKit = null;
   state.currentTerminalLabel = null;
   pushEvent(success ? "success" : "error", message);
+}
+
+// ---------------------------------------------------------------------------
+// Leo Bridge phase
+// ---------------------------------------------------------------------------
+
+export function startLeobridgePhase(totalTerminals: number): void {
+  if (!state.running) {
+    state = { ...freshState(), running: true, startedAt: Date.now() };
+  }
+  state.phase = "leobridge";
+  state.leobridgeTotalTerminals = totalTerminals;
+  state.leobridgeProcessedTerminals = 0;
+  state.leobridgeSuccessTerminals = 0;
+  state.leobridgeFailures = 0;
+  state.currentLeobridgeKit = null;
+  state.currentLeobridgeLabel = null;
+  pushEvent(
+    "info",
+    `Leo Bridge (Space Norway) fazı başladı — ${totalTerminals} terminal.`
+  );
+}
+
+export function startLeobridgeTerminal(
+  kitSerialNumber: string,
+  label: string | null,
+  index: number
+): void {
+  state.currentLeobridgeKit = kitSerialNumber;
+  state.currentLeobridgeLabel = label;
+  state.leobridgeProcessedTerminals = index;
+}
+
+export function reportLeobridgeDone(): void {
+  state.leobridgeSuccessTerminals += 1;
+  if (state.currentLeobridgeKit) {
+    pushEvent("success", `${state.currentLeobridgeKit} güncellendi.`);
+  }
+}
+
+export function reportLeobridgeFailure(
+  kitSerialNumber: string,
+  reason: string
+): void {
+  state.leobridgeFailures += 1;
+  pushEvent("warn", `${kitSerialNumber} atlandı: ${reason}`);
+}
+
+export function finishLeobridgePhase(message: string, success: boolean): void {
+  pushEvent(success ? "success" : "error", message);
+  state.currentLeobridgeKit = null;
+  state.currentLeobridgeLabel = null;
+  // Don't flip running=false — Satcom may still follow.
 }
 
 // ---------------------------------------------------------------------------

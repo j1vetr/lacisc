@@ -7,6 +7,7 @@ import {
   customerKitAssignments,
   stationKits,
   starlinkTerminals,
+  leobridgeTerminals,
   stationKitPeriodTotal,
 } from "@workspace/db";
 import { and, eq, ne, count, sql, desc, inArray } from "drizzle-orm";
@@ -451,7 +452,7 @@ router.get(
   requireAuth,
   requireRole("admin"),
   async (_req: AuthRequest, res): Promise<void> => {
-    const [satcomRows, starlinkRows, latestPeriods] = await Promise.all([
+    const [satcomRows, starlinkRows, leobridgeRows, latestPeriods] = await Promise.all([
       db
         .select({
           kitNo: stationKits.kitNo,
@@ -467,6 +468,13 @@ router.get(
         })
         .from(starlinkTerminals)
         .orderBy(starlinkTerminals.kitSerialNumber),
+      db
+        .select({
+          kitSerialNumber: leobridgeTerminals.kitSerialNumber,
+          nickname: leobridgeTerminals.nickname,
+        })
+        .from(leobridgeTerminals)
+        .orderBy(leobridgeTerminals.kitSerialNumber),
       // Aktif dönem GiB → opsiyonel sıralama yardımcısı (UI azalan göstermek
       // isterse). Tek sorgu ile her KIT için en son dönem GiB.
       db.execute(sql`
@@ -493,7 +501,13 @@ router.get(
       source: "starlink" as const,
       currentPeriodGib: null,
     }));
-    res.json({ kits: [...satcom, ...starlink] });
+    const leobridge = leobridgeRows.map((r) => ({
+      kitNo: r.kitSerialNumber,
+      label: r.nickname,
+      source: "leobridge" as const,
+      currentPeriodGib: null,
+    }));
+    res.json({ kits: [...satcom, ...starlink, ...leobridge] });
   }
 );
 
@@ -563,7 +577,7 @@ router.put(
     // KIT no'ları gerçekten var mı doğrula (yazım hatası ile fantom KIT
     // atanmasını engelle). Satcom + Starlink havuzları tek hamlede çekilir.
     if (requested.length > 0) {
-      const [satRows, starRows] = await Promise.all([
+      const [satRows, starRows, leoRows] = await Promise.all([
         db
           .select({ kitNo: stationKits.kitNo })
           .from(stationKits)
@@ -572,10 +586,15 @@ router.put(
           .select({ kitNo: starlinkTerminals.kitSerialNumber })
           .from(starlinkTerminals)
           .where(inArray(starlinkTerminals.kitSerialNumber, requested)),
+        db
+          .select({ kitNo: leobridgeTerminals.kitSerialNumber })
+          .from(leobridgeTerminals)
+          .where(inArray(leobridgeTerminals.kitSerialNumber, requested)),
       ]);
       const known = new Set([
         ...satRows.map((r) => r.kitNo),
         ...starRows.map((r) => r.kitNo),
+        ...leoRows.map((r) => r.kitNo),
       ]);
       const unknown = requested.filter((k) => !known.has(k));
       if (unknown.length > 0) {

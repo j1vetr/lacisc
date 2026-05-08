@@ -7,6 +7,7 @@ import auditLogsRouter from "./audit-logs";
 import stationRouter from "./station";
 import recordsRouter from "./records";
 import starlinkRouter from "./starlink";
+import leobridgeRouter from "./leobridge";
 import clientErrorsRouter from "./client-errors";
 
 const router: IRouter = Router();
@@ -19,6 +20,7 @@ router.use(auditLogsRouter);
 router.use(stationRouter);
 router.use(recordsRouter);
 router.use(starlinkRouter);
+router.use(leobridgeRouter);
 router.use(clientErrorsRouter);
 
 export default router;

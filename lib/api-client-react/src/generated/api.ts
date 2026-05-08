@@ -33,6 +33,7 @@ import type {
   GetKitDailyParams,
   GetKitTelemetryHourlyParams,
   GetKitsParams,
+  GetLeobridgeTerminalDailyParams,
   GetStarlinkTerminalDailyParams,
   GetSyncLogsParams,
   HealthStatus,
@@ -44,6 +45,13 @@ import type {
   KitSubscription,
   KitSummary,
   KitTelemetryHourlyPoint,
+  LeobridgeDailyPoint,
+  LeobridgeMonthlyPoint,
+  LeobridgeSettings,
+  LeobridgeSettingsUpdate,
+  LeobridgeTerminalDetail,
+  LeobridgeTerminalSummary,
+  LeobridgeTestResult,
   ListAuditLogsParams,
   ListSessions200Item,
   LoginBody,
@@ -60,6 +68,7 @@ import type {
   StarlinkTestResult,
   StationAccount,
   StationSettings,
+  SyncLeobridgeNow200,
   SyncLogsResponse,
   SyncProgress,
   SyncResponse,
@@ -3409,6 +3418,697 @@ export function useGetStarlinkTerminalDaily<
     params,
     options,
   );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Leo Bridge (Space Norway) ayarlarını döner (şifre gizli).
+ */
+export const getGetLeobridgeSettingsUrl = () => {
+  return `/api/leobridge/settings`;
+};
+
+export const getLeobridgeSettings = async (
+  options?: RequestInit,
+): Promise<LeobridgeSettings> => {
+  return customFetch<LeobridgeSettings>(getGetLeobridgeSettingsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetLeobridgeSettingsQueryKey = () => {
+  return [`/api/leobridge/settings`] as const;
+};
+
+export const getGetLeobridgeSettingsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLeobridgeSettings>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getLeobridgeSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetLeobridgeSettingsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getLeobridgeSettings>>
+  > = ({ signal }) => getLeobridgeSettings({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLeobridgeSettings>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetLeobridgeSettingsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLeobridgeSettings>>
+>;
+export type GetLeobridgeSettingsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Leo Bridge (Space Norway) ayarlarını döner (şifre gizli).
+ */
+
+export function useGetLeobridgeSettings<
+  TData = Awaited<ReturnType<typeof getLeobridgeSettings>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getLeobridgeSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLeobridgeSettingsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Leo Bridge ayarlarını günceller.
+ */
+export const getUpdateLeobridgeSettingsUrl = () => {
+  return `/api/leobridge/settings`;
+};
+
+export const updateLeobridgeSettings = async (
+  leobridgeSettingsUpdate: LeobridgeSettingsUpdate,
+  options?: RequestInit,
+): Promise<LeobridgeSettings> => {
+  return customFetch<LeobridgeSettings>(getUpdateLeobridgeSettingsUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(leobridgeSettingsUpdate),
+  });
+};
+
+export const getUpdateLeobridgeSettingsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateLeobridgeSettings>>,
+    TError,
+    { data: BodyType<LeobridgeSettingsUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateLeobridgeSettings>>,
+  TError,
+  { data: BodyType<LeobridgeSettingsUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateLeobridgeSettings"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateLeobridgeSettings>>,
+    { data: BodyType<LeobridgeSettingsUpdate> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateLeobridgeSettings(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateLeobridgeSettingsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateLeobridgeSettings>>
+>;
+export type UpdateLeobridgeSettingsMutationBody =
+  BodyType<LeobridgeSettingsUpdate>;
+export type UpdateLeobridgeSettingsMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Leo Bridge ayarlarını günceller.
+ */
+export const useUpdateLeobridgeSettings = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateLeobridgeSettings>>,
+    TError,
+    { data: BodyType<LeobridgeSettingsUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateLeobridgeSettings>>,
+  TError,
+  { data: BodyType<LeobridgeSettingsUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateLeobridgeSettingsMutationOptions(options));
+};
+
+/**
+ * @summary Leo Bridge bağlantısını test eder.
+ */
+export const getTestLeobridgeConnectionUrl = () => {
+  return `/api/leobridge/test-connection`;
+};
+
+export const testLeobridgeConnection = async (
+  leobridgeSettingsUpdate?: LeobridgeSettingsUpdate,
+  options?: RequestInit,
+): Promise<LeobridgeTestResult> => {
+  return customFetch<LeobridgeTestResult>(getTestLeobridgeConnectionUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(leobridgeSettingsUpdate),
+  });
+};
+
+export const getTestLeobridgeConnectionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testLeobridgeConnection>>,
+    TError,
+    { data: BodyType<LeobridgeSettingsUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof testLeobridgeConnection>>,
+  TError,
+  { data: BodyType<LeobridgeSettingsUpdate> },
+  TContext
+> => {
+  const mutationKey = ["testLeobridgeConnection"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof testLeobridgeConnection>>,
+    { data: BodyType<LeobridgeSettingsUpdate> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return testLeobridgeConnection(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TestLeobridgeConnectionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof testLeobridgeConnection>>
+>;
+export type TestLeobridgeConnectionMutationBody =
+  BodyType<LeobridgeSettingsUpdate>;
+export type TestLeobridgeConnectionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Leo Bridge bağlantısını test eder.
+ */
+export const useTestLeobridgeConnection = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testLeobridgeConnection>>,
+    TError,
+    { data: BodyType<LeobridgeSettingsUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof testLeobridgeConnection>>,
+  TError,
+  { data: BodyType<LeobridgeSettingsUpdate> },
+  TContext
+> => {
+  return useMutation(getTestLeobridgeConnectionMutationOptions(options));
+};
+
+/**
+ * @summary Leo Bridge senkronizasyonunu manuel başlatır (fire-and-forget).
+ */
+export const getSyncLeobridgeNowUrl = () => {
+  return `/api/leobridge/sync-now`;
+};
+
+export const syncLeobridgeNow = async (
+  options?: RequestInit,
+): Promise<SyncLeobridgeNow200> => {
+  return customFetch<SyncLeobridgeNow200>(getSyncLeobridgeNowUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSyncLeobridgeNowMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncLeobridgeNow>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof syncLeobridgeNow>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["syncLeobridgeNow"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof syncLeobridgeNow>>,
+    void
+  > = () => {
+    return syncLeobridgeNow(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SyncLeobridgeNowMutationResult = NonNullable<
+  Awaited<ReturnType<typeof syncLeobridgeNow>>
+>;
+
+export type SyncLeobridgeNowMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Leo Bridge senkronizasyonunu manuel başlatır (fire-and-forget).
+ */
+export const useSyncLeobridgeNow = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncLeobridgeNow>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof syncLeobridgeNow>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getSyncLeobridgeNowMutationOptions(options));
+};
+
+/**
+ * @summary Leo Bridge terminalleri listesi.
+ */
+export const getGetLeobridgeTerminalsUrl = () => {
+  return `/api/leobridge/terminals`;
+};
+
+export const getLeobridgeTerminals = async (
+  options?: RequestInit,
+): Promise<LeobridgeTerminalSummary[]> => {
+  return customFetch<LeobridgeTerminalSummary[]>(
+    getGetLeobridgeTerminalsUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetLeobridgeTerminalsQueryKey = () => {
+  return [`/api/leobridge/terminals`] as const;
+};
+
+export const getGetLeobridgeTerminalsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLeobridgeTerminals>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getLeobridgeTerminals>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetLeobridgeTerminalsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getLeobridgeTerminals>>
+  > = ({ signal }) => getLeobridgeTerminals({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLeobridgeTerminals>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetLeobridgeTerminalsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLeobridgeTerminals>>
+>;
+export type GetLeobridgeTerminalsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Leo Bridge terminalleri listesi.
+ */
+
+export function useGetLeobridgeTerminals<
+  TData = Awaited<ReturnType<typeof getLeobridgeTerminals>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getLeobridgeTerminals>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLeobridgeTerminalsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetLeobridgeTerminalDetailUrl = (kit: string) => {
+  return `/api/leobridge/terminals/${kit}`;
+};
+
+export const getLeobridgeTerminalDetail = async (
+  kit: string,
+  options?: RequestInit,
+): Promise<LeobridgeTerminalDetail> => {
+  return customFetch<LeobridgeTerminalDetail>(
+    getGetLeobridgeTerminalDetailUrl(kit),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetLeobridgeTerminalDetailQueryKey = (kit: string) => {
+  return [`/api/leobridge/terminals/${kit}`] as const;
+};
+
+export const getGetLeobridgeTerminalDetailQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLeobridgeTerminalDetail>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  kit: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeobridgeTerminalDetail>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetLeobridgeTerminalDetailQueryKey(kit);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getLeobridgeTerminalDetail>>
+  > = ({ signal }) =>
+    getLeobridgeTerminalDetail(kit, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!kit,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLeobridgeTerminalDetail>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetLeobridgeTerminalDetailQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLeobridgeTerminalDetail>>
+>;
+export type GetLeobridgeTerminalDetailQueryError = ErrorType<ErrorResponse>;
+
+export function useGetLeobridgeTerminalDetail<
+  TData = Awaited<ReturnType<typeof getLeobridgeTerminalDetail>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  kit: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeobridgeTerminalDetail>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLeobridgeTerminalDetailQueryOptions(kit, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetLeobridgeTerminalDailyUrl = (
+  kit: string,
+  params?: GetLeobridgeTerminalDailyParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/leobridge/terminals/${kit}/daily?${stringifiedParams}`
+    : `/api/leobridge/terminals/${kit}/daily`;
+};
+
+export const getLeobridgeTerminalDaily = async (
+  kit: string,
+  params?: GetLeobridgeTerminalDailyParams,
+  options?: RequestInit,
+): Promise<LeobridgeDailyPoint[]> => {
+  return customFetch<LeobridgeDailyPoint[]>(
+    getGetLeobridgeTerminalDailyUrl(kit, params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetLeobridgeTerminalDailyQueryKey = (
+  kit: string,
+  params?: GetLeobridgeTerminalDailyParams,
+) => {
+  return [
+    `/api/leobridge/terminals/${kit}/daily`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetLeobridgeTerminalDailyQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLeobridgeTerminalDaily>>,
+  TError = ErrorType<unknown>,
+>(
+  kit: string,
+  params?: GetLeobridgeTerminalDailyParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeobridgeTerminalDaily>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetLeobridgeTerminalDailyQueryKey(kit, params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getLeobridgeTerminalDaily>>
+  > = ({ signal }) =>
+    getLeobridgeTerminalDaily(kit, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!kit,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLeobridgeTerminalDaily>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetLeobridgeTerminalDailyQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLeobridgeTerminalDaily>>
+>;
+export type GetLeobridgeTerminalDailyQueryError = ErrorType<unknown>;
+
+export function useGetLeobridgeTerminalDaily<
+  TData = Awaited<ReturnType<typeof getLeobridgeTerminalDaily>>,
+  TError = ErrorType<unknown>,
+>(
+  kit: string,
+  params?: GetLeobridgeTerminalDailyParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeobridgeTerminalDaily>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLeobridgeTerminalDailyQueryOptions(
+    kit,
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetLeobridgeTerminalMonthlyUrl = (kit: string) => {
+  return `/api/leobridge/terminals/${kit}/monthly`;
+};
+
+export const getLeobridgeTerminalMonthly = async (
+  kit: string,
+  options?: RequestInit,
+): Promise<LeobridgeMonthlyPoint[]> => {
+  return customFetch<LeobridgeMonthlyPoint[]>(
+    getGetLeobridgeTerminalMonthlyUrl(kit),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetLeobridgeTerminalMonthlyQueryKey = (kit: string) => {
+  return [`/api/leobridge/terminals/${kit}/monthly`] as const;
+};
+
+export const getGetLeobridgeTerminalMonthlyQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLeobridgeTerminalMonthly>>,
+  TError = ErrorType<unknown>,
+>(
+  kit: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeobridgeTerminalMonthly>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetLeobridgeTerminalMonthlyQueryKey(kit);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getLeobridgeTerminalMonthly>>
+  > = ({ signal }) =>
+    getLeobridgeTerminalMonthly(kit, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!kit,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLeobridgeTerminalMonthly>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetLeobridgeTerminalMonthlyQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLeobridgeTerminalMonthly>>
+>;
+export type GetLeobridgeTerminalMonthlyQueryError = ErrorType<unknown>;
+
+export function useGetLeobridgeTerminalMonthly<
+  TData = Awaited<ReturnType<typeof getLeobridgeTerminalMonthly>>,
+  TError = ErrorType<unknown>,
+>(
+  kit: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeobridgeTerminalMonthly>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLeobridgeTerminalMonthlyQueryOptions(kit, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

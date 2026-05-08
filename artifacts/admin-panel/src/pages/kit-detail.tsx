@@ -58,6 +58,7 @@ import {
   MetricTile,
 } from "@/components/kit-detail/primitives";
 import StarlinkDetail from "./starlink-detail";
+import NorwayDetail from "./norway-detail";
 
 const TerminalMap = lazy(() => import("@/components/terminal-map"));
 
@@ -121,8 +122,10 @@ export default function KitDetail() {
       </div>
     );
   }
-  const source: "satcom" | "starlink" =
-    srcData?.source === "starlink" || srcData?.source === "satcom"
+  const source: "satcom" | "starlink" | "leobridge" =
+    srcData?.source === "starlink" ||
+    srcData?.source === "satcom" ||
+    srcData?.source === "leobridge"
       ? srcData.source
       : srcError
         ? /^KITP\d/i.test(kitNo)
@@ -132,6 +135,9 @@ export default function KitDetail() {
 
   if (source === "starlink") {
     return <StarlinkDetail kit={kitNo} />;
+  }
+  if (source === "leobridge") {
+    return <NorwayDetail kit={kitNo} />;
   }
   return <SatcomKitDetail kitNo={kitNo} />;
 }

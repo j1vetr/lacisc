@@ -15,6 +15,7 @@ tags:
   - name: admin
   - name: audit
   - name: starlink
+  - name: leobridge
 
 paths:
   /healthz:
@@ -881,6 +882,175 @@ paths:
                 items:
                   $ref: "#/components/schemas/StarlinkDailyPoint"
 
+  /leobridge/settings:
+    get:
+      operationId: getLeobridgeSettings
+      tags: [leobridge]
+      summary: Leo Bridge (Space Norway) ayarlarını döner (şifre gizli).
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Leo Bridge settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeobridgeSettings"
+    put:
+      operationId: updateLeobridgeSettings
+      tags: [leobridge]
+      summary: Leo Bridge ayarlarını günceller.
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeobridgeSettingsUpdate"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeobridgeSettings"
+
+  /leobridge/test-connection:
+    post:
+      operationId: testLeobridgeConnection
+      tags: [leobridge]
+      summary: Leo Bridge bağlantısını test eder.
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeobridgeSettingsUpdate"
+      responses:
+        "200":
+          description: Test result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeobridgeTestResult"
+
+  /leobridge/sync-now:
+    post:
+      operationId: syncLeobridgeNow
+      tags: [leobridge]
+      summary: Leo Bridge senkronizasyonunu manuel başlatır (fire-and-forget).
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Started
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, message]
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+
+  /leobridge/terminals:
+    get:
+      operationId: getLeobridgeTerminals
+      tags: [leobridge]
+      summary: Leo Bridge terminalleri listesi.
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Terminal listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeobridgeTerminalSummary"
+
+  /leobridge/terminals/{kit}:
+    get:
+      operationId: getLeobridgeTerminalDetail
+      tags: [leobridge]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: kit
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Terminal detay
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeobridgeTerminalDetail"
+        "404":
+          description: Terminal not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /leobridge/terminals/{kit}/daily:
+    get:
+      operationId: getLeobridgeTerminalDaily
+      tags: [leobridge]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: kit
+          in: path
+          required: true
+          schema: { type: string }
+        - name: period
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Daily points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeobridgeDailyPoint"
+
+  /leobridge/terminals/{kit}/monthly:
+    get:
+      operationId: getLeobridgeTerminalMonthly
+      tags: [leobridge]
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: kit
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Monthly totals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeobridgeMonthlyPoint"
+
   /starlink/terminals/{kit}/monthly:
     get:
       operationId: getStarlinkTerminalMonthly
@@ -1179,7 +1349,7 @@ components:
       properties:
         kitNo: { type: string }
         label: { type: string, nullable: true }
-        source: { type: string, enum: [satcom, starlink] }
+        source: { type: string, enum: [satcom, starlink, leobridge] }
         currentPeriodGib: { type: number, nullable: true }
       required: [kitNo, source]
 
@@ -1195,7 +1365,7 @@ components:
       type: object
       properties:
         kitNo: { type: string }
-        source: { type: string, enum: [satcom, starlink] }
+        source: { type: string, enum: [satcom, starlink, leobridge] }
         assignedAt: { type: string, format: date-time }
         assignedByUserId: { type: integer, nullable: true }
       required: [kitNo, source, assignedAt]
@@ -1421,8 +1591,8 @@ components:
         running: { type: boolean }
         phase:
           type: string
-          enum: [idle, starlink, satcom]
-          description: "Mevcut faz — birleşik turda Starlink önce, Satcom sonra çalışır."
+          enum: [idle, starlink, leobridge, satcom]
+          description: "Mevcut faz — birleşik turda Starlink → Leo Bridge → Satcom sırasıyla çalışır."
         startedAt: { type: integer, nullable: true }
         finishedAt: { type: integer, nullable: true }
         totalAccounts: { type: integer }
@@ -1445,6 +1615,12 @@ components:
         starlinkFailures: { type: integer }
         currentTerminalKit: { type: string, nullable: true }
         currentTerminalLabel: { type: string, nullable: true }
+        leobridgeTotalTerminals: { type: integer }
+        leobridgeProcessedTerminals: { type: integer }
+        leobridgeSuccessTerminals: { type: integer }
+        leobridgeFailures: { type: integer }
+        currentLeobridgeKit: { type: string, nullable: true }
+        currentLeobridgeLabel: { type: string, nullable: true }
         events:
           type: array
           items:
@@ -1471,6 +1647,10 @@ components:
         - starlinkProcessedTerminals
         - starlinkSuccessTerminals
         - starlinkFailures
+        - leobridgeTotalTerminals
+        - leobridgeProcessedTerminals
+        - leobridgeSuccessTerminals
+        - leobridgeFailures
         - events
         - accountResults
 
@@ -1583,6 +1763,91 @@ components:
         overageGb: { type: number, nullable: true }
         scrapedAt: { type: string, format: date-time, nullable: true }
 
+    LeobridgeSettings:
+      type: object
+      required: [enabled, portalUrl, hasPassword, updatedAt]
+      properties:
+        enabled: { type: boolean }
+        portalUrl: { type: string }
+        username: { type: string, nullable: true }
+        hasPassword: { type: boolean }
+        lastSyncAt: { type: string, format: date-time, nullable: true }
+        lastErrorMessage: { type: string, nullable: true }
+        updatedAt: { type: string, format: date-time }
+
+    LeobridgeSettingsUpdate:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        portalUrl: { type: string }
+        username: { type: string, nullable: true }
+        password:
+          type: string
+          nullable: true
+          description: "undefined → değişmez, '' veya null → şifre temizlenir, dolu → yeni şifre."
+
+    LeobridgeTestResult:
+      type: object
+      required: [success, message, terminalCount]
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        terminalCount: { type: integer }
+
+    LeobridgeTerminalSummary:
+      type: object
+      required: [kitSerialNumber]
+      properties:
+        kitSerialNumber: { type: string }
+        serviceLineNumber: { type: string, nullable: true }
+        nickname: { type: string, nullable: true }
+        addressLabel: { type: string, nullable: true }
+        lat: { type: number, nullable: true }
+        lng: { type: number, nullable: true }
+        isOnline: { type: boolean, nullable: true }
+        lastSeenAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+        currentPeriod: { type: string, nullable: true }
+        currentPeriodTotalGb: { type: number, nullable: true }
+
+    LeobridgeTerminalDetail:
+      type: object
+      required: [kitSerialNumber]
+      properties:
+        kitSerialNumber: { type: string }
+        serviceLineNumber: { type: string, nullable: true }
+        nickname: { type: string, nullable: true }
+        addressLabel: { type: string, nullable: true }
+        lat: { type: number, nullable: true }
+        lng: { type: number, nullable: true }
+        isOnline: { type: boolean, nullable: true }
+        lastSeenAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+        currentPeriod: { type: string, nullable: true }
+        currentPeriodTotalGb: { type: number, nullable: true }
+        currentPeriodPriorityGb: { type: number, nullable: true }
+        currentPeriodStandardGb: { type: number, nullable: true }
+
+    LeobridgeDailyPoint:
+      type: object
+      required: [dayDate]
+      properties:
+        dayDate: { type: string, description: "YYYY-MM-DD" }
+        priorityGb: { type: number, nullable: true }
+        standardGb: { type: number, nullable: true }
+        totalGb: { type: number, nullable: true }
+        lastReadingAt: { type: string, format: date-time, nullable: true }
+
+    LeobridgeMonthlyPoint:
+      type: object
+      required: [period]
+      properties:
+        period: { type: string }
+        totalGb: { type: number, nullable: true }
+        priorityGb: { type: number, nullable: true }
+        standardGb: { type: number, nullable: true }
+        scrapedAt: { type: string, format: date-time, nullable: true }
+
     EmailSettings:
       type: object
       required:
@@ -1629,7 +1894,7 @@ components:
         kitNo: { type: string }
         source:
           type: string
-          enum: [satcom, starlink, unknown]
+          enum: [satcom, starlink, leobridge, unknown]
       required: [kitNo, source]
 
     KitSummary:

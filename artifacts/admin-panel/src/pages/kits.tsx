@@ -9,6 +9,10 @@ import {
   getGetStarlinkTerminalsQueryKey,
   useGetStarlinkSettings,
   getGetStarlinkSettingsQueryKey,
+  useGetLeobridgeTerminals,
+  getGetLeobridgeTerminalsQueryKey,
+  useGetLeobridgeSettings,
+  getGetLeobridgeSettingsQueryKey,
   useGetMe,
   getGetMeQueryKey,
 } from "@workspace/api-client-react";
@@ -21,6 +25,7 @@ import {
   Server,
   Plus,
   Satellite,
+  Globe,
 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -42,7 +47,7 @@ import { useDocumentTitle } from "@/hooks/use-document-title";
 // Unified row type that covers both Satcom (CDR-aggregated) and Starlink
 // (snapshot from Tototheo). `source` drives the badge + the column meanings.
 type UnifiedRow = {
-  source: "satcom" | "starlink";
+  source: "satcom" | "starlink" | "leobridge";
   kitNo: string;
   shipName: string | null;
   totalGib: number | null;
@@ -103,6 +108,27 @@ export default function Kits() {
       },
     });
 
+  // Leo Bridge (Space Norway) — 3rd source. Same customer-tolerance as Starlink:
+  // settings ping is operator-only; terminal listing is for everyone (backend
+  // scopes to assigned KITs and returns []).
+  const { data: leobridgeSettings } = useGetLeobridgeSettings({
+    query: {
+      queryKey: getGetLeobridgeSettingsQueryKey(),
+      staleTime: 60_000,
+      enabled: !isCustomer,
+    },
+  });
+  const leobridgeActive = isCustomer
+    ? true
+    : !!leobridgeSettings?.enabled && !!leobridgeSettings?.hasPassword;
+  const { data: leobridgeTerminals, isLoading: leobridgeLoading } =
+    useGetLeobridgeTerminals({
+      query: {
+        queryKey: getGetLeobridgeTerminalsQueryKey(),
+        enabled: leobridgeActive,
+      },
+    });
+
   // /station/accounts customer için 403 → sadece operatör çağırsın. Customer
   // hesap bilgisi görmüyor; "hesap yok" boş durum CTA'sı zaten gizleniyor.
   const { data: accounts } = useListStationAccounts({
@@ -143,6 +169,17 @@ export default function Kits() {
         lastSyncedAt: t.updatedAt ?? null,
       });
     }
+    for (const t of leobridgeTerminals ?? []) {
+      out.push({
+        source: "leobridge",
+        kitNo: t.kitSerialNumber,
+        shipName: t.nickname ?? null,
+        totalGib: t.currentPeriodTotalGb ?? null,
+        rowCountOrAlerts: 0,
+        lastPeriod: t.currentPeriod ?? null,
+        lastSyncedAt: t.updatedAt ?? null,
+      });
+    }
     // Apply search filter to merged list (Satcom is already server-filtered;
     // Starlink filtered client-side here so the search box covers both).
     const q = debouncedSearch.trim().toLowerCase();
@@ -163,10 +200,12 @@ export default function Kits() {
       return (b.totalGib ?? 0) - (a.totalGib ?? 0);
     });
     return filtered;
-  }, [satcomKits, starlinkTerminals, debouncedSearch, sortBy]);
+  }, [satcomKits, starlinkTerminals, leobridgeTerminals, debouncedSearch, sortBy]);
 
   const isLoading =
-    satcomLoading || (starlinkActive && starlinkLoading);
+    satcomLoading ||
+    (starlinkActive && starlinkLoading) ||
+    (leobridgeActive && leobridgeLoading);
   const hasFilter = debouncedSearch.trim().length > 0;
   // Customer için "kaynak var mı" kavramı yok: backend zaten atanmış
   // KIT'leri filtreliyor. "Hiç atama yok" boş durumunu ayrı ele alıyoruz
@@ -174,13 +213,15 @@ export default function Kits() {
   // hesap eklenmemiş + Starlink kapalı.
   const hasAnySource = isCustomer
     ? true
-    : hasSatcomAccounts || starlinkActive;
+    : hasSatcomAccounts || starlinkActive || leobridgeActive;
   const customerHasNoAssignments =
     isCustomer &&
     !satcomLoading &&
     !starlinkLoading &&
+    !leobridgeLoading &&
     (satcomKits?.length ?? 0) === 0 &&
-    (starlinkTerminals?.length ?? 0) === 0;
+    (starlinkTerminals?.length ?? 0) === 0 &&
+    (leobridgeTerminals?.length ?? 0) === 0;
 
   const toggleSort = (col: "totalGib" | "lastSeen") => setSortBy(col);
   const SortIcon = ({ col }: { col: string }) => {
@@ -197,6 +238,7 @@ export default function Kits() {
 
   const satcomCount = unified.filter((r) => r.source === "satcom").length;
   const starlinkCount = unified.filter((r) => r.source === "starlink").length;
+  const leobridgeCount = unified.filter((r) => r.source === "leobridge").length;
 
   return (
     <div className="space-y-6 lg:space-y-8 flex flex-col lg:h-[calc(100vh-8rem)] animate-in fade-in duration-500">
@@ -229,6 +271,11 @@ export default function Kits() {
           {starlinkActive && (
             <Badge className="bg-[#dde9f7] text-[#2563a6] border-[#9fbbe0] hover:bg-[#dde9f7] uppercase tracking-widest text-[10px] font-semibold">
               Tototheo · {starlinkCount}
+            </Badge>
+          )}
+          {leobridgeActive && (
+            <Badge className="bg-[#dde2f7] text-[#3a3aa6] border-[#a6a6dd] hover:bg-[#dde2f7] uppercase tracking-widest text-[10px] font-semibold">
+              Norway · {leobridgeCount}
             </Badge>
           )}
         </div>
@@ -389,6 +436,7 @@ export default function Kits() {
               ) : (
                 unified.map((row) => {
                   const isStar = row.source === "starlink";
+                  const isLeo = row.source === "leobridge";
                   return (
                     <Row
                       key={`${row.source}:${row.kitNo}`}
@@ -400,6 +448,8 @@ export default function Kits() {
                           <div className="p-1.5 rounded-md bg-secondary text-muted-foreground">
                             {isStar ? (
                               <Satellite className="w-4 h-4" />
+                            ) : isLeo ? (
+                              <Globe className="w-4 h-4" />
                             ) : (
                               <Terminal className="w-4 h-4" />
                             )}
@@ -422,6 +472,10 @@ export default function Kits() {
                           <Badge className="bg-[#dde9f7] text-[#2563a6] border-[#9fbbe0] hover:bg-[#dde9f7] uppercase tracking-widest text-[9px] font-semibold">
                             Tototheo
                           </Badge>
+                        ) : isLeo ? (
+                          <Badge className="bg-[#dde2f7] text-[#3a3aa6] border-[#a6a6dd] hover:bg-[#dde2f7] uppercase tracking-widest text-[9px] font-semibold">
+                            Norway
+                          </Badge>
                         ) : (
                           <Badge className="bg-[#fde0d0] text-[#a4400a] border-[#f4b896] hover:bg-[#fde0d0] uppercase tracking-widest text-[9px] font-semibold">
                             Satcom
@@ -440,6 +494,8 @@ export default function Kits() {
                           ) : (
                             "0 uyarı"
                           )
+                        ) : isLeo ? (
+                          "—"
                         ) : (
                           formatNumber(row.rowCountOrAlerts, 0)
                         )}

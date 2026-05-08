@@ -281,9 +281,9 @@ export const SyncNowResponse = zod.object({
 export const GetSyncProgressResponse = zod.object({
   running: zod.boolean(),
   phase: zod
-    .enum(["idle", "starlink", "satcom"])
+    .enum(["idle", "starlink", "leobridge", "satcom"])
     .describe(
-      "Mevcut faz — birleşik turda Starlink önce, Satcom sonra çalışır.",
+      "Mevcut faz — birleşik turda Starlink → Leo Bridge → Satcom sırasıyla çalışır.",
     ),
   startedAt: zod.number().nullish(),
   finishedAt: zod.number().nullish(),
@@ -307,6 +307,12 @@ export const GetSyncProgressResponse = zod.object({
   starlinkFailures: zod.number(),
   currentTerminalKit: zod.string().nullish(),
   currentTerminalLabel: zod.string().nullish(),
+  leobridgeTotalTerminals: zod.number(),
+  leobridgeProcessedTerminals: zod.number(),
+  leobridgeSuccessTerminals: zod.number(),
+  leobridgeFailures: zod.number(),
+  currentLeobridgeKit: zod.string().nullish(),
+  currentLeobridgeLabel: zod.string().nullish(),
   events: zod.array(
     zod.object({
       ts: zod.number().describe("Unix epoch ms"),
@@ -452,7 +458,7 @@ export const GetKitSourceParams = zod.object({
 
 export const GetKitSourceResponse = zod.object({
   kitNo: zod.string(),
-  source: zod.enum(["satcom", "starlink", "unknown"]),
+  source: zod.enum(["satcom", "starlink", "leobridge", "unknown"]),
 });
 
 export const GetKitDetailParams = zod.object({
@@ -775,6 +781,147 @@ export const GetStarlinkTerminalDailyResponse = zod.array(
   GetStarlinkTerminalDailyResponseItem,
 );
 
+/**
+ * @summary Leo Bridge (Space Norway) ayarlarını döner (şifre gizli).
+ */
+export const GetLeobridgeSettingsResponse = zod.object({
+  enabled: zod.boolean(),
+  portalUrl: zod.string(),
+  username: zod.string().nullish(),
+  hasPassword: zod.boolean(),
+  lastSyncAt: zod.coerce.date().nullish(),
+  lastErrorMessage: zod.string().nullish(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Leo Bridge ayarlarını günceller.
+ */
+export const UpdateLeobridgeSettingsBody = zod.object({
+  enabled: zod.boolean().optional(),
+  portalUrl: zod.string().optional(),
+  username: zod.string().nullish(),
+  password: zod
+    .string()
+    .nullish()
+    .describe(
+      "undefined → değişmez, '' veya null → şifre temizlenir, dolu → yeni şifre.",
+    ),
+});
+
+export const UpdateLeobridgeSettingsResponse = zod.object({
+  enabled: zod.boolean(),
+  portalUrl: zod.string(),
+  username: zod.string().nullish(),
+  hasPassword: zod.boolean(),
+  lastSyncAt: zod.coerce.date().nullish(),
+  lastErrorMessage: zod.string().nullish(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Leo Bridge bağlantısını test eder.
+ */
+export const TestLeobridgeConnectionBody = zod.object({
+  enabled: zod.boolean().optional(),
+  portalUrl: zod.string().optional(),
+  username: zod.string().nullish(),
+  password: zod
+    .string()
+    .nullish()
+    .describe(
+      "undefined → değişmez, '' veya null → şifre temizlenir, dolu → yeni şifre.",
+    ),
+});
+
+export const TestLeobridgeConnectionResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string(),
+  terminalCount: zod.number(),
+});
+
+/**
+ * @summary Leo Bridge senkronizasyonunu manuel başlatır (fire-and-forget).
+ */
+export const SyncLeobridgeNowResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string(),
+});
+
+/**
+ * @summary Leo Bridge terminalleri listesi.
+ */
+export const GetLeobridgeTerminalsResponseItem = zod.object({
+  kitSerialNumber: zod.string(),
+  serviceLineNumber: zod.string().nullish(),
+  nickname: zod.string().nullish(),
+  addressLabel: zod.string().nullish(),
+  lat: zod.number().nullish(),
+  lng: zod.number().nullish(),
+  isOnline: zod.boolean().nullish(),
+  lastSeenAt: zod.coerce.date().nullish(),
+  updatedAt: zod.coerce.date().nullish(),
+  currentPeriod: zod.string().nullish(),
+  currentPeriodTotalGb: zod.number().nullish(),
+});
+export const GetLeobridgeTerminalsResponse = zod.array(
+  GetLeobridgeTerminalsResponseItem,
+);
+
+export const GetLeobridgeTerminalDetailParams = zod.object({
+  kit: zod.coerce.string(),
+});
+
+export const GetLeobridgeTerminalDetailResponse = zod.object({
+  kitSerialNumber: zod.string(),
+  serviceLineNumber: zod.string().nullish(),
+  nickname: zod.string().nullish(),
+  addressLabel: zod.string().nullish(),
+  lat: zod.number().nullish(),
+  lng: zod.number().nullish(),
+  isOnline: zod.boolean().nullish(),
+  lastSeenAt: zod.coerce.date().nullish(),
+  updatedAt: zod.coerce.date().nullish(),
+  currentPeriod: zod.string().nullish(),
+  currentPeriodTotalGb: zod.number().nullish(),
+  currentPeriodPriorityGb: zod.number().nullish(),
+  currentPeriodStandardGb: zod.number().nullish(),
+});
+
+export const GetLeobridgeTerminalDailyParams = zod.object({
+  kit: zod.coerce.string(),
+});
+
+export const GetLeobridgeTerminalDailyQueryParams = zod.object({
+  period: zod.coerce.string().optional(),
+});
+
+export const GetLeobridgeTerminalDailyResponseItem = zod.object({
+  dayDate: zod.string().describe("YYYY-MM-DD"),
+  priorityGb: zod.number().nullish(),
+  standardGb: zod.number().nullish(),
+  totalGb: zod.number().nullish(),
+  lastReadingAt: zod.coerce.date().nullish(),
+});
+export const GetLeobridgeTerminalDailyResponse = zod.array(
+  GetLeobridgeTerminalDailyResponseItem,
+);
+
+export const GetLeobridgeTerminalMonthlyParams = zod.object({
+  kit: zod.coerce.string(),
+});
+
+export const GetLeobridgeTerminalMonthlyResponseItem = zod.object({
+  period: zod.string(),
+  totalGb: zod.number().nullish(),
+  priorityGb: zod.number().nullish(),
+  standardGb: zod.number().nullish(),
+  scrapedAt: zod.coerce.date().nullish(),
+});
+export const GetLeobridgeTerminalMonthlyResponse = zod.array(
+  GetLeobridgeTerminalMonthlyResponseItem,
+);
+
 export const GetStarlinkTerminalMonthlyParams = zod.object({
   kit: zod.coerce.string(),
 });
@@ -863,7 +1010,7 @@ export const ListAssignableKitsResponse = zod.object({
     zod.object({
       kitNo: zod.string(),
       label: zod.string().nullish(),
-      source: zod.enum(["satcom", "starlink"]),
+      source: zod.enum(["satcom", "starlink", "leobridge"]),
       currentPeriodGib: zod.number().nullish(),
     }),
   ),
@@ -877,7 +1024,7 @@ export const GetAssignedKitsResponse = zod.object({
   assignments: zod.array(
     zod.object({
       kitNo: zod.string(),
-      source: zod.enum(["satcom", "starlink"]),
+      source: zod.enum(["satcom", "starlink", "leobridge"]),
       assignedAt: zod.coerce.date(),
       assignedByUserId: zod.number().nullish(),
     }),

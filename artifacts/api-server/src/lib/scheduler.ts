@@ -5,6 +5,7 @@ import {
   tryClaimRun,
 } from "./sync-orchestrator";
 import { runStarlinkSync, isStarlinkSyncRunning } from "./starlink-sync";
+import { runLeobridgeSync, isLeobridgeSyncRunning } from "./leobridge-sync";
 import * as progress from "./sync-progress";
 
 let schedulerTimer: ReturnType<typeof setTimeout> | null = null;
@@ -52,14 +53,19 @@ function scheduleNext(): void {
 // parallel: live progress UI is single-stream, and back-to-back keeps the
 // status line readable for operators.
 async function runScheduledTick(): Promise<void> {
-  if (isOrchestratorRunning() || isStarlinkSyncRunning()) {
+  if (
+    isOrchestratorRunning() ||
+    isStarlinkSyncRunning() ||
+    isLeobridgeSyncRunning()
+  ) {
     logger.debug("Sync already running, skipping scheduled tick");
     return;
   }
   // Boot a combined run-state envelope so /sync-progress shows a single
-  // continuous run wrapping both phases.
+  // continuous run wrapping all phases (Starlink → Leo Bridge → Satcom).
   progress.startCombinedRun();
   let starlinkOk = true;
+  let leobridgeOk = true;
   let satcomOk = true;
 
   try {
@@ -76,6 +82,23 @@ async function runScheduledTick(): Promise<void> {
     logger.error({ err }, "Scheduled Starlink phase crashed");
     progress.finishStarlinkPhase(
       `Starlink hata: ${(err as Error).message}`,
+      false
+    );
+  }
+
+  try {
+    logger.info("Scheduled Leo Bridge phase starting");
+    const r = await runLeobridgeSync();
+    if (!r.success && r.terminalCount === 0) {
+      leobridgeOk = true;
+    } else {
+      leobridgeOk = r.success;
+    }
+  } catch (err) {
+    leobridgeOk = false;
+    logger.error({ err }, "Scheduled Leo Bridge phase crashed");
+    progress.finishLeobridgePhase(
+      `Leo Bridge hata: ${(err as Error).message}`,
       false
     );
   }
@@ -100,10 +123,10 @@ async function runScheduledTick(): Promise<void> {
     logger.error({ err }, "Scheduled Satcom phase crashed");
   }
 
-  const ok = starlinkOk && satcomOk;
+  const ok = starlinkOk && leobridgeOk && satcomOk;
   progress.finishCombinedRun(
     ok
-      ? "Otomatik tur tamamlandı (Starlink + Satcom)."
+      ? "Otomatik tur tamamlandı (Starlink + Leo Bridge + Satcom)."
       : "Otomatik tur kısmen tamamlandı (bir veya daha fazla faz başarısız).",
     ok
   );

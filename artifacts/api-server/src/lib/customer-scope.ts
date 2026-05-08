@@ -3,6 +3,7 @@ import {
   customerKitAssignments,
   starlinkTerminals,
   stationKits,
+  leobridgeTerminals,
 } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
 import type { Role } from "../middlewares/auth";
@@ -10,10 +11,16 @@ import type { Role } from "../middlewares/auth";
 export interface AssignedKits {
   satcom: string[];
   starlink: string[];
+  leobridge: string[];
   all: string[];
 }
 
-export const EMPTY_SCOPE: AssignedKits = { satcom: [], starlink: [], all: [] };
+export const EMPTY_SCOPE: AssignedKits = {
+  satcom: [],
+  starlink: [],
+  leobridge: [],
+  all: [],
+};
 
 export function isCustomer(role?: Role | string | null): boolean {
   return role === "customer";
@@ -29,11 +36,18 @@ export async function getAssignedKits(userId: number): Promise<AssignedKits> {
     .where(eq(customerKitAssignments.userId, userId));
   const satcom: string[] = [];
   const starlink: string[] = [];
+  const leobridge: string[] = [];
   for (const r of rows) {
     if (r.source === "starlink") starlink.push(r.kitNo);
+    else if (r.source === "leobridge") leobridge.push(r.kitNo);
     else satcom.push(r.kitNo);
   }
-  return { satcom, starlink, all: [...satcom, ...starlink] };
+  return {
+    satcom,
+    starlink,
+    leobridge,
+    all: [...satcom, ...starlink, ...leobridge],
+  };
 }
 
 /**
@@ -49,13 +63,22 @@ export async function getAssignedKits(userId: number): Promise<AssignedKits> {
  */
 export async function classifyKitDb(
   kitNo: string,
-): Promise<"satcom" | "starlink" | "unknown"> {
+): Promise<"satcom" | "starlink" | "leobridge" | "unknown"> {
+  // Priority: starlink (Tototheo) > leobridge (Space Norway) > satcom.
+  // The two Starlink resellers share KIT serial format with Satcom; live tables
+  // are authoritative over the stale Satcom prefix guess.
   const [starRow] = await db
     .select({ k: starlinkTerminals.kitSerialNumber })
     .from(starlinkTerminals)
     .where(eq(starlinkTerminals.kitSerialNumber, kitNo))
     .limit(1);
   if (starRow) return "starlink";
+  const [leoRow] = await db
+    .select({ k: leobridgeTerminals.kitSerialNumber })
+    .from(leobridgeTerminals)
+    .where(eq(leobridgeTerminals.kitSerialNumber, kitNo))
+    .limit(1);
+  if (leoRow) return "leobridge";
   const [satRow] = await db
     .select({ k: stationKits.kitNo })
     .from(stationKits)
@@ -71,10 +94,10 @@ export async function classifyKitDb(
  */
 export async function classifyKitsDb(
   kitNos: string[],
-): Promise<Map<string, "satcom" | "starlink">> {
-  const out = new Map<string, "satcom" | "starlink">();
+): Promise<Map<string, "satcom" | "starlink" | "leobridge">> {
+  const out = new Map<string, "satcom" | "starlink" | "leobridge">();
   if (kitNos.length === 0) return out;
-  const [satRows, starRows] = await Promise.all([
+  const [satRows, starRows, leoRows] = await Promise.all([
     db
       .select({ k: stationKits.kitNo })
       .from(stationKits)
@@ -83,10 +106,15 @@ export async function classifyKitsDb(
       .select({ k: starlinkTerminals.kitSerialNumber })
       .from(starlinkTerminals)
       .where(inArray(starlinkTerminals.kitSerialNumber, kitNos)),
+    db
+      .select({ k: leobridgeTerminals.kitSerialNumber })
+      .from(leobridgeTerminals)
+      .where(inArray(leobridgeTerminals.kitSerialNumber, kitNos)),
   ]);
   for (const r of satRows) out.set(r.k, "satcom");
   // Starlink wins on collision — Tototheo serials may share a `KITP\d` prefix
-  // with a stale Satcom row, and the live terminal table is authoritative.
+  // with a stale Satcom row. Leo Bridge wins over Satcom too (live source).
+  for (const r of leoRows) out.set(r.k, "leobridge");
   for (const r of starRows) out.set(r.k, "starlink");
   return out;
 }

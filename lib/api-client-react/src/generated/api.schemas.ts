@@ -110,6 +110,7 @@ export type AssignableKitSource =
 export const AssignableKitSource = {
   satcom: "satcom",
   starlink: "starlink",
+  leobridge: "leobridge",
 } as const;
 
 export interface AssignableKit {
@@ -129,6 +130,7 @@ export type KitAssignmentSource =
 export const KitAssignmentSource = {
   satcom: "satcom",
   starlink: "starlink",
+  leobridge: "leobridge",
 } as const;
 
 export interface KitAssignment {
@@ -302,7 +304,7 @@ export interface AccountResult {
 }
 
 /**
- * Mevcut faz — birleşik turda Starlink önce, Satcom sonra çalışır.
+ * Mevcut faz — birleşik turda Starlink → Leo Bridge → Satcom sırasıyla çalışır.
  */
 export type SyncProgressPhase =
   (typeof SyncProgressPhase)[keyof typeof SyncProgressPhase];
@@ -310,12 +312,13 @@ export type SyncProgressPhase =
 export const SyncProgressPhase = {
   idle: "idle",
   starlink: "starlink",
+  leobridge: "leobridge",
   satcom: "satcom",
 } as const;
 
 export interface SyncProgress {
   running: boolean;
-  /** Mevcut faz — birleşik turda Starlink önce, Satcom sonra çalışır. */
+  /** Mevcut faz — birleşik turda Starlink → Leo Bridge → Satcom sırasıyla çalışır. */
   phase: SyncProgressPhase;
   startedAt?: number | null;
   finishedAt?: number | null;
@@ -339,6 +342,12 @@ export interface SyncProgress {
   starlinkFailures: number;
   currentTerminalKit?: string | null;
   currentTerminalLabel?: string | null;
+  leobridgeTotalTerminals: number;
+  leobridgeProcessedTerminals: number;
+  leobridgeSuccessTerminals: number;
+  leobridgeFailures: number;
+  currentLeobridgeKit?: string | null;
+  currentLeobridgeLabel?: string | null;
   events: SyncEvent[];
   accountResults: AccountResult[];
   lastMessage?: string | null;
@@ -440,6 +449,77 @@ export interface StarlinkMonthlyPoint {
   scrapedAt?: string | null;
 }
 
+export interface LeobridgeSettings {
+  enabled: boolean;
+  portalUrl: string;
+  username?: string | null;
+  hasPassword: boolean;
+  lastSyncAt?: string | null;
+  lastErrorMessage?: string | null;
+  updatedAt: string;
+}
+
+export interface LeobridgeSettingsUpdate {
+  enabled?: boolean;
+  portalUrl?: string;
+  username?: string | null;
+  /** undefined → değişmez, '' veya null → şifre temizlenir, dolu → yeni şifre. */
+  password?: string | null;
+}
+
+export interface LeobridgeTestResult {
+  success: boolean;
+  message: string;
+  terminalCount: number;
+}
+
+export interface LeobridgeTerminalSummary {
+  kitSerialNumber: string;
+  serviceLineNumber?: string | null;
+  nickname?: string | null;
+  addressLabel?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  isOnline?: boolean | null;
+  lastSeenAt?: string | null;
+  updatedAt?: string | null;
+  currentPeriod?: string | null;
+  currentPeriodTotalGb?: number | null;
+}
+
+export interface LeobridgeTerminalDetail {
+  kitSerialNumber: string;
+  serviceLineNumber?: string | null;
+  nickname?: string | null;
+  addressLabel?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  isOnline?: boolean | null;
+  lastSeenAt?: string | null;
+  updatedAt?: string | null;
+  currentPeriod?: string | null;
+  currentPeriodTotalGb?: number | null;
+  currentPeriodPriorityGb?: number | null;
+  currentPeriodStandardGb?: number | null;
+}
+
+export interface LeobridgeDailyPoint {
+  /** YYYY-MM-DD */
+  dayDate: string;
+  priorityGb?: number | null;
+  standardGb?: number | null;
+  totalGb?: number | null;
+  lastReadingAt?: string | null;
+}
+
+export interface LeobridgeMonthlyPoint {
+  period: string;
+  totalGb?: number | null;
+  priorityGb?: number | null;
+  standardGb?: number | null;
+  scrapedAt?: string | null;
+}
+
 export interface EmailSettings {
   enabled: boolean;
   smtpHost?: string | null;
@@ -484,6 +564,7 @@ export type KitSourceResponseSource =
 export const KitSourceResponseSource = {
   satcom: "satcom",
   starlink: "starlink",
+  leobridge: "leobridge",
   unknown: "unknown",
 } as const;
 
@@ -683,6 +764,15 @@ export type TestStarlinkConnectionBody = {
 };
 
 export type GetStarlinkTerminalDailyParams = {
+  period?: string;
+};
+
+export type SyncLeobridgeNow200 = {
+  success: boolean;
+  message: string;
+};
+
+export type GetLeobridgeTerminalDailyParams = {
   period?: string;
 };
 
