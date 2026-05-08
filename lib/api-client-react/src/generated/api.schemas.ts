@@ -459,6 +459,8 @@ export interface StarlinkTerminalDetail {
   currentPeriodPackageGb?: number | null;
   currentPeriodPriorityGb?: number | null;
   currentPeriodOverageGb?: number | null;
+  accountId?: number | null;
+  accountLabel?: string | null;
 }
 
 export interface StarlinkDailyPoint {
@@ -565,6 +567,8 @@ export interface LeobridgeTerminalDetail {
   currentPeriodTotalGb?: number | null;
   currentPeriodPriorityGb?: number | null;
   currentPeriodStandardGb?: number | null;
+  accountId?: number | null;
+  accountLabel?: string | null;
 }
 
 export interface LeobridgeDailyPoint {

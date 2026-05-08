@@ -6,7 +6,7 @@ import {
   leobridgeTerminalDaily,
   leobridgeTerminalPeriodTotal,
 } from "@workspace/db";
-import { asc, count, desc, eq, inArray } from "drizzle-orm";
+import { asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
 import { audit } from "../lib/audit";
 import { encrypt, decrypt } from "../lib/crypto";
@@ -515,11 +515,25 @@ router.get(
       res.status(404).json({ error: "Terminal bulunamadı." });
       return;
     }
+    // T005 — multi-account: dönem toplamı aynı credential'dan gelsin
+    // (rozet "Hesap A" derken total "Hesap B"den gelmesin).
     const [latest] = await db
       .select()
       .from(leobridgeTerminalPeriodTotal)
-      .where(eq(leobridgeTerminalPeriodTotal.kitSerialNumber, kit))
+      .where(
+        sql`${leobridgeTerminalPeriodTotal.kitSerialNumber} = ${kit}
+            AND ${leobridgeTerminalPeriodTotal.credentialId} = ${row.credentialId}`,
+      )
       .orderBy(desc(leobridgeTerminalPeriodTotal.period))
+      .limit(1);
+    // T005 — KIT detayında "Hesap: <label>" rozeti için credential meta.
+    const [acc] = await db
+      .select({
+        id: leobridgeCredentials.id,
+        label: leobridgeCredentials.label,
+      })
+      .from(leobridgeCredentials)
+      .where(eq(leobridgeCredentials.id, row.credentialId))
       .limit(1);
     res.json({
       kitSerialNumber: row.kitSerialNumber,
@@ -535,6 +549,8 @@ router.get(
       currentPeriodTotalGb: latest?.totalGb ?? null,
       currentPeriodPriorityGb: latest?.priorityGb ?? null,
       currentPeriodStandardGb: latest?.standardGb ?? null,
+      accountId: acc?.id ?? null,
+      accountLabel: acc?.label ?? null,
     });
   },
 );

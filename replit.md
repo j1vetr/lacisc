@@ -47,9 +47,9 @@ See `lib/db/src/schema/index.ts` and `lib/api-spec/openapi.yaml` for source-of-t
 
 ## Architecture (one-liners — see `docs/ARCHITECTURE.md` for detail)
 
-- Three sources unified: Satcom (Playwright), Tototheo Starlink (HTTP) and Leo Bridge / Space Norway (HTTP). DB-backed source detection via `GET /api/station/kits/:kitNo/source`; priority `starlink > leobridge > satcom`.
+- Three sources unified: Satcom (Playwright), Tototheo Starlink (HTTP) and Leo Bridge / Space Norway (HTTP). DB-backed source detection via `GET /api/station/kits/:kitNo/source`; priority `starlink > leobridge > satcom`. Same-source / same-KIT collisions resolved by `MAX(updated_at)` (latest credential wins); detail endpoints also pin the period-total query to that credential.
 - Single 30-min cron (`scheduler.ts`) runs Starlink → Leo Bridge → Satcom (`forceFull`); manual sync uses the same orchestrator.
-- Multi-account Satcom portals; all data tables `credential_id` FK + cascade.
+- **All three sources are multi-account** (Task #27): `station_credentials`, `starlink_credentials`, `leobridge_credentials`. Every data table carries `credential_id` FK + cascade; orchestrators iterate active credentials with per-account isolation. CRUD UI parity: `/settings` (Satcom), `/settings/starlink` (Tototheo), `/settings/norway` (Norway) — all are list + dialog with Sync/Test/Düzenle/Sil. KIT detail header shows "Hesap: <label>" Pill via `accountLabel` on `StarlinkTerminalDetail` / `LeobridgeTerminalDetail`.
 - Auth: httpOnly cookie + per-`jti` `admin_sessions` (instant revoke) + CSRF double-submit. Roles `owner > admin > viewer > customer`.
 - Customer scope via `customer_kit_assignments`; unassigned KITs return 404.
 - Storage: per-CDR daily rows + portal-footer monthly totals (no row-sum drift). AES-256-GCM for portal/Tototheo/SMTP secrets.
@@ -71,6 +71,10 @@ See `lib/db/src/schema/index.ts` and `lib/api-spec/openapi.yaml` for source-of-t
 - Eski tablolar (CDR records, daily snapshots) tamamen silindi — geriye dönük migration yok
 
 ## Gotchas
+
+- **Multi-account UI (Task #27)**: Starlink + Norway artık Satcom paritesinde liste + dialog. Düzenleme'de boş token/şifre alanı **mevcut sırrı korur** (NOT NULL kolonu zedelenmesin diye backend açık değer beklemiyor — `null/undefined` = no-op). Hesap silme cascade ile bağlı tüm terminal/daily/period_total/sync_logs satırlarını temizler — onay dialog'u zorunlu.
+- **Singleton `/starlink/settings` + `/leobridge/settings` GET endpoint'leri** geriye dönük uyum için duruyor (Dashboard'ın "lastSyncAt" rozeti hâlâ okuyor). UI artık yeni hesap işlemleri için yalnız `/api/{starlink,leobridge}/accounts` CRUD'unu kullanıyor; ileride bu endpoint'ler kaldırılabilir.
+- **Same-KIT, multi-account**: aynı KIT birden fazla credential'da görünebilir. Detail endpoint'leri en son güncellenen satırı seçer **ve** dönem-totalini aynı credential'a bağlar (yoksa rozet "Hesap A" derken total "Hesap B"den gelirdi). `starlink-detail.tsx` ve `norway-detail.tsx` `accountLabel` Pill'i gösterir.
 
 - **Leo Bridge (Norway)**: HTTP/JSON Django portal — login is CSRF token + session cookie. Always send same-origin `Referer` on API GETs; on 401/403 the client re-logs in once and retries. Norway KIT detail must NOT show plan/price (spec). Settings GET is `viewer`-readable (parity with Starlink) so dashboard/kits can detect activity for non-admin operators.
 

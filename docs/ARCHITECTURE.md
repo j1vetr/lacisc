@@ -4,9 +4,9 @@ Detaylı "şu an nasıl çalışıyor" referansı. Hızlı operatör özeti içi
 
 ## Data sources & sync
 
-- **Two data sources, one panel**: Satcom (Playwright scrape) + Tototheo Starlink (HTTP API). Source detection is **DB-backed** via `GET /api/station/kits/:kitNo/source` — no prefix guessing. Conflicts: Starlink wins.
-- **Unified 30-min cron** (`scheduler.ts`): `:00`/`:30` UTC tick runs Starlink first then Satcom (`forceFull: true`). Manual "Şimdi Senkronize Et" goes through the same orchestrator.
-- **Multi-account portals**: `station_credentials` holds N Satcom accounts; all data tables carry `credential_id` FK with cascade delete and partitioned unique indexes. `station_sync_logs.credential_id NULL` = aggregate wrap row.
+- **Three data sources, one panel**: Satcom (Playwright scrape) + Tototheo Starlink (HTTP API) + Leo Bridge / Space Norway (HTTP). Source detection is **DB-backed** via `GET /api/station/kits/:kitNo/source` — no prefix guessing. Priority `starlink > leobridge > satcom`; same KIT across accounts within a source resolves by `MAX(updated_at)`.
+- **Unified 30-min cron** (`scheduler.ts`): `:00`/`:30` UTC tick runs Starlink → Leo Bridge → Satcom (`forceFull: true`). Manual "Şimdi Senkronize Et" goes through the same orchestrator.
+- **Multi-account, all three sources**: `station_credentials`, `starlink_credentials`, `leobridge_credentials` each hold N accounts (label, encrypted secret, isActive, lastSync, lastError, syncIntervalMinutes). All data tables carry `credential_id` FK with cascade delete and partitioned unique indexes; PK `(credentialId, kitSerialNumber[, period])`. Per-source `*_sync_logs.credential_id NULL` = aggregate wrap row. Orchestrators (`starlink-sync.ts`, `leobridge-sync.ts`, `sync-orchestrator.ts`) iterate active credentials with hard error isolation — one account failure does not block the others.
 - **Live progress** (`sync-progress.ts`): in-memory snapshot with `phase: idle|starlink|satcom` + per-phase counters. `GET /station/sync-progress` polled at 1.5s by `SyncProgressPanel`; global `SyncCompletionToast` polls at 3s and surfaces the result on any page.
 - **Two-tier sync**: first sync (`firstFullSyncAt` null) walks **202601** → current; scheduled syncs only touch current + previous. Manual button always passes `forceFull: true`.
 - **Per-(KIT × dönem) FV scrape**: bare `RatedCdrs.aspx` is server-capped, so each KIT is fetched separately via `?FC=ICCID&FV=KITPxxxx` to get an accurate footer.
@@ -50,9 +50,10 @@ Detaylı "şu an nasıl çalışıyor" referansı. Hızlı operatör özeti içi
 - Yönetici girişi (JWT, httpOnly cookie)
 - Panel: canlı sync paneli + KPI'lar (Toplam KIT / Toplam GiB / Aktif Dönem) + terminaller listesi + sistem sağlığı + manuel sync
 - Terminaller: aktif dönem GiB'e göre sıralı; Satcom (turuncu) / Tototheo (mavi) rozetleri; satır → KIT detayı
-- KIT detayı (`/kits/:kitNo`): kaynağa göre Satcom CDR tasarımı veya Tototheo zengin terminal tasarımı
-- Senkronizasyon kayıtları: per-account + aggregate satırlar, durum rozetleri
-- Ayarlar: `/settings` (Satcom hesaplar), `/settings/starlink` (Tototheo), `/settings/email` (SMTP), `/settings/danger` (wipe). Ortak `SettingsLayout` chrome.
+- KIT detayı (`/kits/:kitNo`, `/starlink/:kit`, `/norway/:kit`): kaynağa göre Satcom CDR / Tototheo / Norway tasarımı. Tototheo + Norway header'larında "Hesap: <label>" Pill rozeti (`accountLabel` detail response'unda) — multi-account ayrımı tek bakışta.
+- Senkronizasyon kayıtları: per-account + aggregate satırlar, durum rozetleri (üç kaynak için ayrı log akışı, hepsi aynı sayfa).
+- Ayarlar: `/settings` (Satcom hesaplar), `/settings/starlink` (Tototheo hesaplar — liste + dialog), `/settings/norway` (Norway hesaplar — liste + dialog), `/settings/email` (SMTP), `/settings/danger` (wipe). Üçü de aynı Satcom UX kalıbı: kart + sağ üst "Yeni Hesap" + satır aksiyonları (Sync/Test/Düzenle/Sil). Düzenleme'de boş şifre/token alanı = mevcut sırrı koru.
+- Dashboard "Sistem Sağlığı" kartı her kaynak satırında "N hesap" Badge'i gösterir (`useListStationAccounts`/`useListStarlinkAccounts`/`useListLeobridgeAccounts`; customer rolünde devre dışı).
 - Yöneticiler: `/admin-users` rol-filtreli kullanıcı CRUD, müşteri rolünde inline KIT picker, ayrı `AssignKitsDialog`. `/audit-logs` filtreli sayfalı liste.
 - Müşteri görünümü: yalnız Panel + Terminaller + Profilim; sadece atanmış KIT'leri görür.
 - Komut paleti `Cmd/Ctrl+K`, kısayol yardımı `?`, `G P / G T / G S` iki-vuruşlu navigasyon.

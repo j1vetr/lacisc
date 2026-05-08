@@ -26,6 +26,12 @@ import {
   getGetLeobridgeTerminalsQueryKey,
   useGetLeobridgeSettings,
   getGetLeobridgeSettingsQueryKey,
+  useListStationAccounts,
+  getListStationAccountsQueryKey,
+  useListStarlinkAccounts,
+  getListStarlinkAccountsQueryKey,
+  useListLeobridgeAccounts,
+  getListLeobridgeAccountsQueryKey,
   useGetMe,
   getGetMeQueryKey,
 } from "@workspace/api-client-react";
@@ -117,6 +123,33 @@ export default function Dashboard() {
         refetchInterval: customerRefetch,
       },
     });
+
+  // T005 — Sistem Sağlığı kartında her kaynağın hesap sayısını göster
+  // (operatör için; müşteri scope'unda accounts endpoint'leri 403 döner).
+  const { data: stationAccounts } = useListStationAccounts({
+    query: {
+      queryKey: getListStationAccountsQueryKey(),
+      staleTime: 60_000,
+      enabled: !isCustomer,
+    },
+  });
+  const { data: starlinkAccounts } = useListStarlinkAccounts({
+    query: {
+      queryKey: getListStarlinkAccountsQueryKey(),
+      staleTime: 60_000,
+      enabled: !isCustomer,
+    },
+  });
+  const { data: leobridgeAccounts } = useListLeobridgeAccounts({
+    query: {
+      queryKey: getListLeobridgeAccountsQueryKey(),
+      staleTime: 60_000,
+      enabled: !isCustomer,
+    },
+  });
+  const stationAccountCount = stationAccounts?.length ?? 0;
+  const starlinkAccountCount = starlinkAccounts?.length ?? 0;
+  const leobridgeAccountCount = leobridgeAccounts?.length ?? 0;
 
   const queryClient = useQueryClient();
 
@@ -414,11 +447,16 @@ export default function Dashboard() {
                      summary?.lastSyncStatus === 'running' ? <RefreshCw className="w-4 h-4 animate-spin" /> :
                      <Clock className="w-4 h-4" />}
                   </div>
-                  <div className="min-w-0">
-                    <div className="text-[13px] font-medium text-foreground leading-tight">
-                      {summary?.lastSyncStatus === 'success' ? 'Başarılı' :
-                       summary?.lastSyncStatus === 'failed' ? 'Başarısız' :
-                       summary?.lastSyncStatus === 'running' ? 'Çalışıyor' : 'Bekliyor'}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-medium text-foreground leading-tight flex items-center gap-2">
+                      <span>
+                        {summary?.lastSyncStatus === 'success' ? 'Başarılı' :
+                         summary?.lastSyncStatus === 'failed' ? 'Başarısız' :
+                         summary?.lastSyncStatus === 'running' ? 'Çalışıyor' : 'Bekliyor'}
+                      </span>
+                      <Badge variant="outline" className="text-[9px] font-mono uppercase tracking-widest border-border text-muted-foreground shrink-0">
+                        {stationAccountCount} hesap
+                      </Badge>
                     </div>
                     <div className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate">
                       Satcom: {summary?.lastSuccessSyncAt ? formatDate(summary.lastSuccessSyncAt) : "İlk sync bekleniyor"}
@@ -431,9 +469,12 @@ export default function Dashboard() {
                     <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-[#9fbbe0] text-foreground">
                       <Satellite className="w-4 h-4" />
                     </div>
-                    <div className="min-w-0">
-                      <div className="text-[13px] font-medium text-foreground leading-tight">
-                        Tototheo
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-medium text-foreground leading-tight flex items-center gap-2">
+                        <span>Tototheo</span>
+                        <Badge variant="outline" className="text-[9px] font-mono uppercase tracking-widest border-[#9fbbe0] text-[#2563a6] shrink-0">
+                          {starlinkAccountCount} hesap
+                        </Badge>
                       </div>
                       <div className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate">
                         {starlinkSettings?.lastSyncAt
@@ -449,9 +490,12 @@ export default function Dashboard() {
                     <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-[#a6a6dd] text-foreground">
                       <Globe className="w-4 h-4" />
                     </div>
-                    <div className="min-w-0">
-                      <div className="text-[13px] font-medium text-foreground leading-tight">
-                        Norway
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-medium text-foreground leading-tight flex items-center gap-2">
+                        <span>Norway</span>
+                        <Badge variant="outline" className="text-[9px] font-mono uppercase tracking-widest border-[#a6a6dd] text-[#3a3aa6] shrink-0">
+                          {leobridgeAccountCount} hesap
+                        </Badge>
                       </div>
                       <div className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate">
                         {leobridgeSettings?.lastSyncAt

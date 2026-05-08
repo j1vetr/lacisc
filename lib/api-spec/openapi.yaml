@@ -2054,6 +2054,8 @@ components:
         currentPeriodPackageGb: { type: number, nullable: true }
         currentPeriodPriorityGb: { type: number, nullable: true }
         currentPeriodOverageGb: { type: number, nullable: true }
+        accountId: { type: integer, nullable: true }
+        accountLabel: { type: string, nullable: true }
 
     StarlinkDailyPoint:
       type: object
@@ -2189,6 +2191,8 @@ components:
         currentPeriodTotalGb: { type: number, nullable: true }
         currentPeriodPriorityGb: { type: number, nullable: true }
         currentPeriodStandardGb: { type: number, nullable: true }
+        accountId: { type: integer, nullable: true }
+        accountLabel: { type: string, nullable: true }
 
     LeobridgeDailyPoint:
       type: object

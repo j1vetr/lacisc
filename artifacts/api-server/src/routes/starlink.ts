@@ -465,6 +465,12 @@ router.get(
       )
       .orderBy(desc(starlinkTerminalPeriodTotal.period))
       .limit(1);
+    // T005 — KIT detayında "Hesap: <label>" rozeti için credential meta.
+    const [acc] = await db
+      .select({ id: starlinkCredentials.id, label: starlinkCredentials.label })
+      .from(starlinkCredentials)
+      .where(eq(starlinkCredentials.id, t.credentialId))
+      .limit(1);
     res.json({
       kitSerialNumber: t.kitSerialNumber,
       nickname: t.nickname,
@@ -493,6 +499,8 @@ router.get(
       currentPeriodPackageGb: currentPt?.packageUsageGb ?? null,
       currentPeriodPriorityGb: currentPt?.priorityGb ?? null,
       currentPeriodOverageGb: currentPt?.overageGb ?? null,
+      accountId: acc?.id ?? null,
+      accountLabel: acc?.label ?? null,
     });
   }
 );

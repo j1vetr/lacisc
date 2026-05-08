@@ -864,6 +864,8 @@ export const GetStarlinkTerminalDetailResponse = zod.object({
   currentPeriodPackageGb: zod.number().nullish(),
   currentPeriodPriorityGb: zod.number().nullish(),
   currentPeriodOverageGb: zod.number().nullish(),
+  accountId: zod.number().nullish(),
+  accountLabel: zod.string().nullish(),
 });
 
 export const GetStarlinkTerminalDailyParams = zod.object({
@@ -1096,6 +1098,8 @@ export const GetLeobridgeTerminalDetailResponse = zod.object({
   currentPeriodTotalGb: zod.number().nullish(),
   currentPeriodPriorityGb: zod.number().nullish(),
   currentPeriodStandardGb: zod.number().nullish(),
+  accountId: zod.number().nullish(),
+  accountLabel: zod.string().nullish(),
 });
 
 export const GetLeobridgeTerminalDailyParams = zod.object({
