@@ -1,20 +1,20 @@
 import { Router, type IRouter } from "express";
 import {
   db,
-  leobridgeSettings,
   leobridgeTerminals,
   leobridgeTerminalDaily,
   leobridgeTerminalPeriodTotal,
 } from "@workspace/db";
 import { desc, eq, inArray } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
-import { encrypt, decrypt } from "../lib/crypto";
 import { isCustomer, getAssignedKits } from "../lib/customer-scope";
 import {
   runLeobridgeSync,
   testLeobridgeConnection,
-  ensureLeobridgeSettingsRow,
   isLeobridgeSyncRunning,
+  getLeobridgeSettingsView,
+  saveLeobridgeSettings,
+  getActiveLeobridgeDecryptedPassword,
 } from "../lib/leobridge-sync";
 import {
   startCombinedRun,
@@ -24,36 +24,18 @@ import {
 
 const router: IRouter = Router();
 
-async function loadSettingsRow() {
-  await ensureLeobridgeSettingsRow();
-  const [row] = await db
-    .select()
-    .from(leobridgeSettings)
-    .where(eq(leobridgeSettings.id, 1))
-    .limit(1);
-  return row!;
-}
-
-function publicSettings(row: Awaited<ReturnType<typeof loadSettingsRow>>) {
-  return {
-    enabled: row.enabled,
-    portalUrl: row.portalUrl,
-    username: row.username ?? null,
-    hasPassword: Boolean(row.encryptedPassword),
-    lastSyncAt: row.lastSyncAt ? row.lastSyncAt.toISOString() : null,
-    lastErrorMessage: row.lastErrorMessage ?? null,
-    updatedAt: row.updatedAt.toISOString(),
-  };
-}
+// ---------------------------------------------------------------------------
+// Settings (T001 shim — singleton API'sini koruyarak ilk active credential
+// üzerinde okur/yazar). T004'te çoklu hesap UI ile değişecek.
+// ---------------------------------------------------------------------------
 
 router.get(
   "/leobridge/settings",
   requireAuth,
   requireRole("viewer"),
   async (_req: AuthRequest, res): Promise<void> => {
-    const row = await loadSettingsRow();
-    res.json(publicSettings(row));
-  }
+    res.json(await getLeobridgeSettingsView());
+  },
 );
 
 router.put(
@@ -63,27 +45,20 @@ router.put(
   async (req: AuthRequest, res): Promise<void> => {
     const { enabled, portalUrl, username, password } =
       (req.body ?? {}) as Record<string, unknown>;
-    const patch: Partial<typeof leobridgeSettings.$inferInsert> = {
-      updatedAt: new Date(),
-    };
-    if (typeof enabled === "boolean") patch.enabled = enabled;
-    if (typeof portalUrl === "string" && portalUrl.trim()) {
-      patch.portalUrl = portalUrl.trim().replace(/\/+$/, "");
-    }
-    if (typeof username === "string") patch.username = username.trim() || null;
-    if (password === null || password === "") {
-      patch.encryptedPassword = null;
-    } else if (typeof password === "string") {
-      patch.encryptedPassword = encrypt(password);
-    }
-    await ensureLeobridgeSettingsRow();
-    await db
-      .update(leobridgeSettings)
-      .set(patch)
-      .where(eq(leobridgeSettings.id, 1));
-    const row = await loadSettingsRow();
-    res.json(publicSettings(row));
-  }
+    const updated = await saveLeobridgeSettings({
+      enabled: typeof enabled === "boolean" ? enabled : undefined,
+      portalUrl: typeof portalUrl === "string" ? portalUrl : undefined,
+      username:
+        typeof username === "string" ? username : (username === null ? null : undefined),
+      password:
+        typeof password === "string"
+          ? password
+          : password === null
+            ? null
+            : undefined,
+    });
+    res.json(updated);
+  },
 );
 
 router.post(
@@ -95,24 +70,21 @@ router.post(
       string,
       unknown
     >;
-    const row = await loadSettingsRow();
+    const view = await getLeobridgeSettingsView();
     const useUrl =
       typeof portalUrl === "string" && portalUrl.trim()
         ? portalUrl.trim().replace(/\/+$/, "")
-        : row.portalUrl;
+        : view.portalUrl;
     const useUser =
       typeof username === "string" && username.trim()
         ? username.trim()
-        : (row.username ?? "");
+        : (view.username ?? "");
     let usePass = "";
     if (typeof password === "string" && password.length > 0) {
       usePass = password;
-    } else if (row.encryptedPassword) {
-      try {
-        usePass = decrypt(row.encryptedPassword);
-      } catch {
-        /* ignore — will fail below */
-      }
+    } else {
+      const stored = await getActiveLeobridgeDecryptedPassword();
+      if (stored) usePass = stored;
     }
     if (!useUser || !usePass) {
       res.json({
@@ -128,7 +100,7 @@ router.post(
       password: usePass,
     });
     res.json(result);
-  }
+  },
 );
 
 router.post(
@@ -140,8 +112,6 @@ router.post(
       res.status(409).json({ error: "Bir senkronizasyon zaten çalışıyor." });
       return;
     }
-    // Wrap with combined-run lifecycle so /sync-progress correctly flips
-    // running=false even when Leo runs standalone.
     startCombinedRun();
     void (async () => {
       try {
@@ -150,23 +120,23 @@ router.post(
           result.success
             ? `Leo Bridge: ${result.message}`
             : `Leo Bridge başarısız: ${result.message}`,
-          result.success
+          result.success,
         );
       } catch (err) {
         finishCombinedRun(
           `Leo Bridge senkronizasyonu başarısız: ${
             err instanceof Error ? err.message : String(err)
           }`,
-          false
+          false,
         );
       }
     })();
     res.json({ success: true, message: "Leo Bridge senkronizasyonu başlatıldı." });
-  }
+  },
 );
 
 async function customerLeobridgeScope(
-  req: AuthRequest
+  req: AuthRequest,
 ): Promise<string[] | null> {
   if (!isCustomer(req.userRole)) return null;
   const scope = await getAssignedKits(req.userId!);
@@ -182,12 +152,20 @@ router.get(
       .select()
       .from(leobridgeTerminals)
       .orderBy(leobridgeTerminals.kitSerialNumber);
-    const filtered = scope
-      ? rows.filter((r) => scope.includes(r.kitSerialNumber))
-      : rows;
-    // Attach current period total (latest period in period_total).
+    // De-dup: aynı KIT birden fazla credential'da olabilir; en son güncellenen
+    // satırı tutuyoruz (T002'de source detection MAX(updatedAt)).
+    const byKit = new Map<string, (typeof rows)[number]>();
+    for (const r of rows) {
+      const cur = byKit.get(r.kitSerialNumber);
+      if (!cur || r.updatedAt > cur.updatedAt) {
+        byKit.set(r.kitSerialNumber, r);
+      }
+    }
+    const filtered = Array.from(byKit.values()).filter((r) =>
+      scope ? scope.includes(r.kitSerialNumber) : true,
+    );
     const kits = filtered.map((r) => r.kitSerialNumber);
-    let totals = new Map<string, { period: string; totalGb: number | null }>();
+    const totals = new Map<string, { period: string; totalGb: number | null }>();
     if (kits.length > 0) {
       const all = await db
         .select()
@@ -216,14 +194,14 @@ router.get(
         updatedAt: r.updatedAt.toISOString(),
         currentPeriod: totals.get(r.kitSerialNumber)?.period ?? null,
         currentPeriodTotalGb: totals.get(r.kitSerialNumber)?.totalGb ?? null,
-      }))
+      })),
     );
-  }
+  },
 );
 
 async function ensureLeobridgeKitVisible(
   req: AuthRequest,
-  kit: string
+  kit: string,
 ): Promise<boolean> {
   const scope = await customerLeobridgeScope(req);
   if (scope === null) return true;
@@ -239,11 +217,14 @@ router.get(
       res.status(404).json({ error: "Terminal bulunamadı." });
       return;
     }
-    const [row] = await db
+    // En son güncellenen satırı al (multi-account preferred row).
+    const rows = await db
       .select()
       .from(leobridgeTerminals)
       .where(eq(leobridgeTerminals.kitSerialNumber, kit))
+      .orderBy(desc(leobridgeTerminals.updatedAt))
       .limit(1);
+    const row = rows[0];
     if (!row) {
       res.status(404).json({ error: "Terminal bulunamadı." });
       return;
@@ -269,7 +250,7 @@ router.get(
       currentPeriodPriorityGb: latest?.priorityGb ?? null,
       currentPeriodStandardGb: latest?.standardGb ?? null,
     });
-  }
+  },
 );
 
 router.get(
@@ -302,9 +283,9 @@ router.get(
         lastReadingAt: r.lastReadingAt
           ? r.lastReadingAt.toISOString()
           : null,
-      }))
+      })),
     );
-  }
+  },
 );
 
 router.get(
@@ -328,9 +309,9 @@ router.get(
         priorityGb: r.priorityGb,
         standardGb: r.standardGb,
         scrapedAt: r.scrapedAt ? r.scrapedAt.toISOString() : null,
-      }))
+      })),
     );
-  }
+  },
 );
 
 export default router;

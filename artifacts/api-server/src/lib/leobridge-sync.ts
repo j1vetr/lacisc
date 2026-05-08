@@ -1,12 +1,13 @@
 import {
   db,
-  leobridgeSettings,
+  leobridgeCredentials,
   leobridgeTerminals,
   leobridgeTerminalDaily,
   leobridgeTerminalPeriodTotal,
+  type LeobridgeCredentials,
 } from "@workspace/db";
-import { eq } from "drizzle-orm";
-import { decrypt } from "./crypto";
+import { asc, eq } from "drizzle-orm";
+import { decrypt, encrypt } from "./crypto";
 import { logger } from "./logger";
 import {
   LeobridgeClient,
@@ -39,13 +40,109 @@ export interface LeobridgeSyncResult {
   failures: number;
 }
 
-async function loadConfig(): Promise<LeobridgeConfig | null> {
+export interface LeobridgeSettingsView {
+  enabled: boolean;
+  portalUrl: string;
+  username: string | null;
+  hasPassword: boolean;
+  lastSyncAt: string | null;
+  lastErrorMessage: string | null;
+  updatedAt: string;
+}
+
+export interface LeobridgeSettingsPatch {
+  enabled?: boolean;
+  portalUrl?: string;
+  username?: string | null;
+  // undefined = keep, null/'' = clear (pasifleştir, sil değil),
+  // string = set new
+  password?: string | null;
+}
+
+const DEFAULT_PORTAL_URL = "https://leobridge.spacenorway.com";
+
+// T001 shim — frontend `useGetLeobridgeSettings` halen tek-hesap formatı
+// bekliyor; T004'te yeni "Hesaplar" sayfası gelene kadar ilk active
+// credential'ı singleton gibi sunuyoruz.
+async function firstActiveCredential(): Promise<LeobridgeCredentials | null> {
   const [row] = await db
     .select()
-    .from(leobridgeSettings)
-    .where(eq(leobridgeSettings.id, 1))
+    .from(leobridgeCredentials)
+    .orderBy(asc(leobridgeCredentials.id))
     .limit(1);
-  if (!row || !row.enabled) return null;
+  return row ?? null;
+}
+
+export async function getLeobridgeSettingsView(): Promise<LeobridgeSettingsView> {
+  const row = await firstActiveCredential();
+  if (!row) {
+    return {
+      enabled: false,
+      portalUrl: DEFAULT_PORTAL_URL,
+      username: null,
+      hasPassword: false,
+      lastSyncAt: null,
+      lastErrorMessage: null,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+  return {
+    enabled: row.isActive,
+    portalUrl: row.portalUrl,
+    username: row.username ?? null,
+    hasPassword: !!row.encryptedPassword,
+    lastSyncAt: row.lastSuccessSyncAt
+      ? row.lastSuccessSyncAt.toISOString()
+      : null,
+    lastErrorMessage: row.lastErrorMessage,
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+export async function saveLeobridgeSettings(
+  patch: LeobridgeSettingsPatch,
+): Promise<LeobridgeSettingsView> {
+  const row = await firstActiveCredential();
+  if (row) {
+    const update: Record<string, unknown> = { updatedAt: new Date() };
+    if (patch.enabled !== undefined) update.isActive = patch.enabled;
+    if (patch.portalUrl !== undefined) {
+      update.portalUrl =
+        patch.portalUrl.trim().replace(/\/+$/, "") || DEFAULT_PORTAL_URL;
+    }
+    if (patch.username !== undefined && patch.username !== null) {
+      const u = patch.username.trim();
+      if (u) update.username = u;
+    }
+    if (typeof patch.password === "string" && patch.password.length > 0) {
+      update.encryptedPassword = encrypt(patch.password);
+    }
+    await db
+      .update(leobridgeCredentials)
+      .set(update)
+      .where(eq(leobridgeCredentials.id, row.id));
+  } else if (
+    typeof patch.username === "string" &&
+    patch.username.trim() &&
+    typeof patch.password === "string" &&
+    patch.password.length > 0
+  ) {
+    // İlk kez kuruluyor.
+    await db.insert(leobridgeCredentials).values({
+      label: "Varsayılan",
+      portalUrl:
+        patch.portalUrl?.trim().replace(/\/+$/, "") || DEFAULT_PORTAL_URL,
+      username: patch.username.trim(),
+      encryptedPassword: encrypt(patch.password),
+      isActive: patch.enabled ?? true,
+    });
+  }
+  return getLeobridgeSettingsView();
+}
+
+async function loadConfig(): Promise<LeobridgeConfig | null> {
+  const row = await firstActiveCredential();
+  if (!row || !row.isActive) return null;
   if (!row.username || !row.encryptedPassword) return null;
   let password = "";
   try {
@@ -65,8 +162,6 @@ function pickLatLng(sl: LeoServiceLine): {
   lat: number | null;
   lng: number | null;
 } {
-  // Prefer the live H3 cell center (current position) over the static service
-  // address — terminals are mobile, so H3 reflects "where the ship is now".
   const t = sl.terminals?.find((t) => t.currentH3Cell);
   if (
     t?.currentH3Cell &&
@@ -75,7 +170,6 @@ function pickLatLng(sl: LeoServiceLine): {
   ) {
     return { lat: t.currentH3Cell.centerLat, lng: t.currentH3Cell.centerLon };
   }
-  // Fallback to the static service address coordinates.
   if (
     sl.address &&
     typeof sl.address.latitude === "number" &&
@@ -87,8 +181,9 @@ function pickLatLng(sl: LeoServiceLine): {
 }
 
 async function persistTerminal(
+  credentialId: number,
   kitSerialNumber: string,
-  sl: LeoServiceLine
+  sl: LeoServiceLine,
 ): Promise<void> {
   const { lat, lng } = pickLatLng(sl);
   const isOnline = sl.terminals?.some((t) => t.active === true) ?? null;
@@ -96,6 +191,7 @@ async function persistTerminal(
   await db
     .insert(leobridgeTerminals)
     .values({
+      credentialId,
       kitSerialNumber,
       serviceLineNumber: sl.serviceLineNumber,
       nickname: sl.nickname,
@@ -107,7 +203,10 @@ async function persistTerminal(
       updatedAt: now,
     })
     .onConflictDoUpdate({
-      target: leobridgeTerminals.kitSerialNumber,
+      target: [
+        leobridgeTerminals.credentialId,
+        leobridgeTerminals.kitSerialNumber,
+      ],
       set: {
         serviceLineNumber: sl.serviceLineNumber,
         nickname: sl.nickname,
@@ -123,8 +222,9 @@ async function persistTerminal(
 
 async function persistUsage(
   client: LeobridgeClient,
+  credentialId: number,
   kitSerialNumber: string,
-  sl: LeoServiceLine
+  sl: LeoServiceLine,
 ): Promise<void> {
   const periods = await client.getDataUsage(sl.serviceLineNumber);
   for (const p of periods) {
@@ -134,6 +234,7 @@ async function persistUsage(
     await db
       .insert(leobridgeTerminalPeriodTotal)
       .values({
+        credentialId,
         kitSerialNumber,
         period: periodKey,
         priorityGb: p.totalPriorityGb,
@@ -143,6 +244,7 @@ async function persistUsage(
       })
       .onConflictDoUpdate({
         target: [
+          leobridgeTerminalPeriodTotal.credentialId,
           leobridgeTerminalPeriodTotal.kitSerialNumber,
           leobridgeTerminalPeriodTotal.period,
         ],
@@ -159,6 +261,7 @@ async function persistUsage(
       await db
         .insert(leobridgeTerminalDaily)
         .values({
+          credentialId,
           kitSerialNumber,
           dayDate: d.date,
           priorityGb: d.priorityGb,
@@ -168,6 +271,7 @@ async function persistUsage(
         })
         .onConflictDoUpdate({
           target: [
+            leobridgeTerminalDaily.credentialId,
             leobridgeTerminalDaily.kitSerialNumber,
             leobridgeTerminalDaily.dayDate,
           ],
@@ -182,18 +286,19 @@ async function persistUsage(
   }
 }
 
-async function markSettings(
+async function markCredential(
+  credentialId: number,
   ok: boolean,
-  message?: string | null
+  message?: string | null,
 ): Promise<void> {
   await db
-    .update(leobridgeSettings)
+    .update(leobridgeCredentials)
     .set({
-      lastSyncAt: new Date(),
+      lastSuccessSyncAt: new Date(),
       lastErrorMessage: ok ? null : (message ?? "bilinmeyen hata"),
       updatedAt: new Date(),
     })
-    .where(eq(leobridgeSettings.id, 1));
+    .where(eq(leobridgeCredentials.id, credentialId));
 }
 
 export async function runLeobridgeSync(): Promise<LeobridgeSyncResult> {
@@ -208,13 +313,15 @@ export async function runLeobridgeSync(): Promise<LeobridgeSyncResult> {
   let failures = 0;
   let processed = 0;
   let total = 0;
+  let credentialId = 0;
   try {
+    const row = await firstActiveCredential();
     const cfg = await loadConfig();
-    if (!cfg) {
+    if (!cfg || !row) {
       progress.startLeobridgePhase(0);
       progress.finishLeobridgePhase(
         "Leo Bridge devre dışı veya yapılandırılmamış.",
-        true
+        true,
       );
       return {
         success: true,
@@ -223,11 +330,10 @@ export async function runLeobridgeSync(): Promise<LeobridgeSyncResult> {
         failures: 0,
       };
     }
+    credentialId = row.id;
     const client = new LeobridgeClient(cfg);
     await client.login();
     const lines = await client.listServiceLines();
-    // Each service line maps to (potentially several) terminals; we treat every
-    // active terminal as its own row keyed by KIT serial.
     const tasks: { kit: string; sl: LeoServiceLine }[] = [];
     for (const sl of lines) {
       for (const t of sl.terminals ?? []) {
@@ -242,26 +348,26 @@ export async function runLeobridgeSync(): Promise<LeobridgeSyncResult> {
       processed += 1;
       progress.startLeobridgeTerminal(kit, sl.nickname ?? null, processed);
       try {
-        await persistTerminal(kit, sl);
-        await persistUsage(client, kit, sl);
+        await persistTerminal(credentialId, kit, sl);
+        await persistUsage(client, credentialId, kit, sl);
         progress.reportLeobridgeDone();
       } catch (err) {
         failures += 1;
         progress.reportLeobridgeFailure(
           kit,
-          (err as Error).message ?? "hata"
+          (err as Error).message ?? "hata",
         );
         logger.error({ err, kit }, "Leo Bridge terminal sync hatası");
       }
     }
 
     const ok = failures === 0;
-    await markSettings(ok, ok ? null : `${failures} terminal başarısız`);
+    await markCredential(credentialId, ok, ok ? null : `${failures} terminal başarısız`);
     progress.finishLeobridgePhase(
       ok
         ? `Leo Bridge tamam: ${total} terminal güncellendi.`
         : `Leo Bridge ${failures}/${total} terminal başarısız.`,
-      ok
+      ok,
     );
     return {
       success: ok,
@@ -274,7 +380,7 @@ export async function runLeobridgeSync(): Promise<LeobridgeSyncResult> {
   } catch (err) {
     const msg = (err as Error).message ?? "bilinmeyen hata";
     logger.error({ err }, "Leo Bridge senkronizasyonu çöktü");
-    await markSettings(false, msg);
+    if (credentialId) await markCredential(credentialId, false, msg);
     progress.finishLeobridgePhase(`Leo Bridge hata: ${msg}`, false);
     return { success: false, message: msg, terminalCount: total, failures };
   } finally {
@@ -283,7 +389,7 @@ export async function runLeobridgeSync(): Promise<LeobridgeSyncResult> {
 }
 
 export async function testLeobridgeConnection(
-  cfg: LeobridgeConfig
+  cfg: LeobridgeConfig,
 ): Promise<{ success: boolean; message: string; terminalCount: number }> {
   try {
     const client = new LeobridgeClient(cfg);
@@ -291,7 +397,7 @@ export async function testLeobridgeConnection(
     const lines = await client.listServiceLines();
     const terminalCount = lines.reduce(
       (n, l) => n + (l.terminals?.length ?? 0),
-      0
+      0,
     );
     return {
       success: true,
@@ -307,10 +413,22 @@ export async function testLeobridgeConnection(
   }
 }
 
-// Used by /healthz dashboards to confirm the singleton row exists.
+// Kept for backwards compatibility: dashboard healthz checks still call this
+// to ensure the singleton row exists. With multi-account it's a no-op (we
+// never auto-create an empty credential row — the operator must add one
+// via the Hesaplar page).
 export async function ensureLeobridgeSettingsRow(): Promise<void> {
-  await db
-    .insert(leobridgeSettings)
-    .values({ id: 1 })
-    .onConflictDoNothing({ target: leobridgeSettings.id });
+  // intentionally no-op (T001 shim)
+}
+
+// Decrypt the stored password for the active credential — used by the
+// "Test Bağlantı" flow when the operator hits Test without re-entering it.
+export async function getActiveLeobridgeDecryptedPassword(): Promise<string | null> {
+  const row = await firstActiveCredential();
+  if (!row?.encryptedPassword) return null;
+  try {
+    return decrypt(row.encryptedPassword);
+  } catch {
+    return null;
+  }
 }

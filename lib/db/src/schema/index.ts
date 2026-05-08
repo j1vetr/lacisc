@@ -415,72 +415,82 @@ export type InsertSyncLog = z.infer<typeof insertSyncLogSchema>;
 export type SyncLog = typeof stationSyncLogs.$inferSelect;
 
 // ===========================================================================
-// Tototheo TM Starlink integration
+// Tototheo TM Starlink — multi-account (Task #27)
 // ===========================================================================
 
-// Singleton (id=1) holding the Tototheo API token (AES-256-GCM encrypted)
-// + sync state. Mirrors the email_settings pattern; UI never returns the
-// token, only a `hasToken` flag.
-export const starlinkSettings = pgTable("starlink_settings", {
-  id: integer("id").primaryKey(),
-  enabled: boolean("enabled").default(false).notNull(),
+// One row per Tototheo API hesabı. Mirrors station_credentials kalıbı:
+// label + secret + sync state. UI never returns the encrypted token.
+export const starlinkCredentials = pgTable("starlink_credentials", {
+  id: serial("id").primaryKey(),
+  label: text("label"),
   apiBaseUrl: text("api_base_url")
     .default("https://starlink.tototheo.com")
     .notNull(),
-  tokenEncrypted: text("token_encrypted"),
-  lastSyncAt: timestamp("last_sync_at"),
+  encryptedToken: text("encrypted_token").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  syncIntervalMinutes: integer("sync_interval_minutes").default(30).notNull(),
+  lastSuccessSyncAt: timestamp("last_success_sync_at"),
   lastErrorMessage: text("last_error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
-export type StarlinkSettingsRow = typeof starlinkSettings.$inferSelect;
+export type StarlinkCredentials = typeof starlinkCredentials.$inferSelect;
+export const insertStarlinkCredentialsSchema = createInsertSchema(
+  starlinkCredentials
+).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertStarlinkCredentials = z.infer<
+  typeof insertStarlinkCredentialsSchema
+>;
 
-// One row per terminal (kitSerialNumber is globally unique in Tototheo).
-// Snapshot only — every sync overwrites with the latest values; we don't
-// keep historical telemetry rows here. Daily + monthly history live in the
-// dedicated tables below.
-export const starlinkTerminals = pgTable("starlink_terminals", {
-  kitSerialNumber: text("kit_serial_number").primaryKey(),
-  nickname: text("nickname"),
-  assetName: text("asset_name"),
-  isOnline: boolean("is_online"),
-  activated: boolean("activated"),
-  blocked: boolean("blocked"),
-  signalQuality: integer("signal_quality"),
-  latency: integer("latency"),
-  obstruction: doublePrecision("obstruction"),
-  downloadSpeed: doublePrecision("download_speed"),
-  uploadSpeed: doublePrecision("upload_speed"),
-  lat: doublePrecision("lat"),
-  lng: doublePrecision("lng"),
-  lastFixAt: timestamp("last_fix_at"),
-  activeAlertsCount: integer("active_alerts_count").default(0).notNull(),
-  // Tototheo `lastUpdated` (when the terminal last reported home).
-  lastSeenAt: timestamp("last_seen_at"),
-  // Plan & quota fields (May 2026 — surfaced for Plan ve Kota card).
-  plan: text("plan"),
-  planAllowanceGb: doublePrecision("plan_allowance_gb"),
-  ipv4: text("ipv4"),
-  optIn: boolean("opt_in"),
-  pingDropRate: doublePrecision("ping_drop_rate"),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+// One row per (credential, terminal). Aynı KIT teorik olarak iki ayrı
+// Tototheo hesabında görünebilir; PK kompozit (credentialId, kitSerialNumber)
+// böyle durumları izole eder. Source detection en son güncellenen kaydı
+// öncelikli kabul eder (bkz. /station/kits/:kitNo/source).
+export const starlinkTerminals = pgTable(
+  "starlink_terminals",
+  {
+    credentialId: integer("credential_id")
+      .notNull()
+      .references(() => starlinkCredentials.id, { onDelete: "cascade" }),
+    kitSerialNumber: text("kit_serial_number").notNull(),
+    nickname: text("nickname"),
+    assetName: text("asset_name"),
+    isOnline: boolean("is_online"),
+    activated: boolean("activated"),
+    blocked: boolean("blocked"),
+    signalQuality: integer("signal_quality"),
+    latency: integer("latency"),
+    obstruction: doublePrecision("obstruction"),
+    downloadSpeed: doublePrecision("download_speed"),
+    uploadSpeed: doublePrecision("upload_speed"),
+    lat: doublePrecision("lat"),
+    lng: doublePrecision("lng"),
+    lastFixAt: timestamp("last_fix_at"),
+    activeAlertsCount: integer("active_alerts_count").default(0).notNull(),
+    // Tototheo `lastUpdated` (when the terminal last reported home).
+    lastSeenAt: timestamp("last_seen_at"),
+    // Plan & quota fields (May 2026 — surfaced for Plan ve Kota card).
+    plan: text("plan"),
+    planAllowanceGb: doublePrecision("plan_allowance_gb"),
+    ipv4: text("ipv4"),
+    optIn: boolean("opt_in"),
+    pingDropRate: doublePrecision("ping_drop_rate"),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.credentialId, t.kitSerialNumber] }),
+    index("starlink_terminals_kit_idx").on(t.kitSerialNumber),
+  ]
+);
 export type StarlinkTerminal = typeof starlinkTerminals.$inferSelect;
 
-// Per-day cumulative cycle usage. Each ~30-min sync UPSERTS the row for
-// today with the latest cumulative `package_usage_gb` (= standard + priority
-// + overage) reading. The last UPSERT of the day naturally captures that
-// day's end-of-day value. Day-over-day delta is computed at read time:
-// `today.cumulative - yesterday.cumulative`. On cycle reset (1st of month)
-// the counter goes back to 0, so the delta for the 1st = today.cumulative
-// (vs implicit 0). The compound PK enforces idempotent upserts.
 export const starlinkTerminalDaily = pgTable(
   "starlink_terminal_daily",
   {
-    kitSerialNumber: text("kit_serial_number")
+    credentialId: integer("credential_id")
       .notNull()
-      .references(() => starlinkTerminals.kitSerialNumber, {
-        onDelete: "cascade",
-      }),
+      .references(() => starlinkCredentials.id, { onDelete: "cascade" }),
+    kitSerialNumber: text("kit_serial_number").notNull(),
     dayDate: date("day_date").notNull(), // YYYY-MM-DD UTC
     packageUsageGb: doublePrecision("package_usage_gb"),
     priorityGb: doublePrecision("priority_gb"),
@@ -488,22 +498,26 @@ export const starlinkTerminalDaily = pgTable(
     lastReadingAt: timestamp("last_reading_at").defaultNow().notNull(),
   },
   (t) => [
-    uniqueIndex("uq_starlink_daily").on(t.kitSerialNumber, t.dayDate),
-    index("starlink_daily_lookup_idx").on(t.kitSerialNumber, t.dayDate),
+    uniqueIndex("uq_starlink_daily").on(
+      t.credentialId,
+      t.kitSerialNumber,
+      t.dayDate
+    ),
+    index("starlink_daily_lookup_idx").on(
+      t.credentialId,
+      t.kitSerialNumber,
+      t.dayDate
+    ),
   ]
 );
 
-// Authoritative monthly totals — from Tototheo's `poolPlanMonthlyUsage` array
-// (returned when `consumptionYear=YYYY` is passed). Source of truth for
-// per-month totals; avoids drift from summing daily snapshots.
 export const starlinkTerminalPeriodTotal = pgTable(
   "starlink_terminal_period_total",
   {
-    kitSerialNumber: text("kit_serial_number")
+    credentialId: integer("credential_id")
       .notNull()
-      .references(() => starlinkTerminals.kitSerialNumber, {
-        onDelete: "cascade",
-      }),
+      .references(() => starlinkCredentials.id, { onDelete: "cascade" }),
+    kitSerialNumber: text("kit_serial_number").notNull(),
     period: text("period").notNull(), // YYYYMM
     packageUsageGb: doublePrecision("package_usage_gb"),
     priorityGb: doublePrecision("priority_gb"),
@@ -512,53 +526,100 @@ export const starlinkTerminalPeriodTotal = pgTable(
     scrapedAt: timestamp("scraped_at").defaultNow().notNull(),
   },
   (t) => [
-    uniqueIndex("uq_starlink_period_total").on(t.kitSerialNumber, t.period),
+    uniqueIndex("uq_starlink_period_total").on(
+      t.credentialId,
+      t.kitSerialNumber,
+      t.period
+    ),
     index("starlink_period_total_period_idx").on(t.period),
   ]
 );
 
+// One log row per (credential, sync run). NULL credentialId == aggregate
+// "all accounts" run (mirrors station_sync_logs).
+export const starlinkSyncLogs = pgTable(
+  "starlink_sync_logs",
+  {
+    id: serial("id").primaryKey(),
+    credentialId: integer("credential_id").references(
+      () => starlinkCredentials.id,
+      { onDelete: "set null" }
+    ),
+    status: text("status").notNull(),
+    message: text("message"),
+    recordsFound: integer("records_found"),
+    recordsInserted: integer("records_inserted"),
+    recordsUpdated: integer("records_updated"),
+    startedAt: timestamp("started_at").defaultNow().notNull(),
+    finishedAt: timestamp("finished_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("starlink_sync_logs_started_at_idx").on(t.startedAt),
+    index("starlink_sync_logs_credential_idx").on(t.credentialId),
+  ]
+);
+
 // ===========================================================================
-// Leo Bridge (Space Norway) reseller — Task #24
+// Leo Bridge (Space Norway) — multi-account (Task #27)
 // ===========================================================================
 // Reseller front-end is a Django site (session cookie auth) with REST endpoints
 // under /api/starlink/*. Per requirement, NO plan/price columns are stored;
 // only ship name + usage + location.
 
-export const leobridgeSettings = pgTable("leobridge_settings", {
-  id: integer("id").primaryKey(),
-  enabled: boolean("enabled").default(false).notNull(),
+export const leobridgeCredentials = pgTable("leobridge_credentials", {
+  id: serial("id").primaryKey(),
+  label: text("label"),
   portalUrl: text("portal_url")
     .default("https://leobridge.spacenorway.com")
     .notNull(),
-  username: text("username"),
-  encryptedPassword: text("encrypted_password"),
-  lastSyncAt: timestamp("last_sync_at"),
+  username: text("username").notNull(),
+  encryptedPassword: text("encrypted_password").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  syncIntervalMinutes: integer("sync_interval_minutes").default(30).notNull(),
+  lastSuccessSyncAt: timestamp("last_success_sync_at"),
   lastErrorMessage: text("last_error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
-export type LeobridgeSettingsRow = typeof leobridgeSettings.$inferSelect;
+export type LeobridgeCredentials = typeof leobridgeCredentials.$inferSelect;
+export const insertLeobridgeCredentialsSchema = createInsertSchema(
+  leobridgeCredentials
+).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertLeobridgeCredentials = z.infer<
+  typeof insertLeobridgeCredentialsSchema
+>;
 
-export const leobridgeTerminals = pgTable("leobridge_terminals", {
-  kitSerialNumber: text("kit_serial_number").primaryKey(),
-  serviceLineNumber: text("service_line_number"),
-  nickname: text("nickname"),
-  addressLabel: text("address_label"),
-  lat: doublePrecision("lat"),
-  lng: doublePrecision("lng"),
-  isOnline: boolean("is_online"),
-  lastSeenAt: timestamp("last_seen_at"),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const leobridgeTerminals = pgTable(
+  "leobridge_terminals",
+  {
+    credentialId: integer("credential_id")
+      .notNull()
+      .references(() => leobridgeCredentials.id, { onDelete: "cascade" }),
+    kitSerialNumber: text("kit_serial_number").notNull(),
+    serviceLineNumber: text("service_line_number"),
+    nickname: text("nickname"),
+    addressLabel: text("address_label"),
+    lat: doublePrecision("lat"),
+    lng: doublePrecision("lng"),
+    isOnline: boolean("is_online"),
+    lastSeenAt: timestamp("last_seen_at"),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.credentialId, t.kitSerialNumber] }),
+    index("leobridge_terminals_kit_idx").on(t.kitSerialNumber),
+  ]
+);
 export type LeobridgeTerminal = typeof leobridgeTerminals.$inferSelect;
 
 export const leobridgeTerminalDaily = pgTable(
   "leobridge_terminal_daily",
   {
-    kitSerialNumber: text("kit_serial_number")
+    credentialId: integer("credential_id")
       .notNull()
-      .references(() => leobridgeTerminals.kitSerialNumber, {
-        onDelete: "cascade",
-      }),
+      .references(() => leobridgeCredentials.id, { onDelete: "cascade" }),
+    kitSerialNumber: text("kit_serial_number").notNull(),
     dayDate: date("day_date").notNull(),
     priorityGb: doublePrecision("priority_gb"),
     standardGb: doublePrecision("standard_gb"),
@@ -566,19 +627,26 @@ export const leobridgeTerminalDaily = pgTable(
     lastReadingAt: timestamp("last_reading_at").defaultNow().notNull(),
   },
   (t) => [
-    uniqueIndex("uq_leobridge_daily").on(t.kitSerialNumber, t.dayDate),
-    index("leobridge_daily_lookup_idx").on(t.kitSerialNumber, t.dayDate),
+    uniqueIndex("uq_leobridge_daily").on(
+      t.credentialId,
+      t.kitSerialNumber,
+      t.dayDate
+    ),
+    index("leobridge_daily_lookup_idx").on(
+      t.credentialId,
+      t.kitSerialNumber,
+      t.dayDate
+    ),
   ]
 );
 
 export const leobridgeTerminalPeriodTotal = pgTable(
   "leobridge_terminal_period_total",
   {
-    kitSerialNumber: text("kit_serial_number")
+    credentialId: integer("credential_id")
       .notNull()
-      .references(() => leobridgeTerminals.kitSerialNumber, {
-        onDelete: "cascade",
-      }),
+      .references(() => leobridgeCredentials.id, { onDelete: "cascade" }),
+    kitSerialNumber: text("kit_serial_number").notNull(),
     period: text("period").notNull(), // YYYYMM
     priorityGb: doublePrecision("priority_gb"),
     standardGb: doublePrecision("standard_gb"),
@@ -586,7 +654,34 @@ export const leobridgeTerminalPeriodTotal = pgTable(
     scrapedAt: timestamp("scraped_at").defaultNow().notNull(),
   },
   (t) => [
-    uniqueIndex("uq_leobridge_period_total").on(t.kitSerialNumber, t.period),
+    uniqueIndex("uq_leobridge_period_total").on(
+      t.credentialId,
+      t.kitSerialNumber,
+      t.period
+    ),
     index("leobridge_period_total_period_idx").on(t.period),
+  ]
+);
+
+export const leobridgeSyncLogs = pgTable(
+  "leobridge_sync_logs",
+  {
+    id: serial("id").primaryKey(),
+    credentialId: integer("credential_id").references(
+      () => leobridgeCredentials.id,
+      { onDelete: "set null" }
+    ),
+    status: text("status").notNull(),
+    message: text("message"),
+    recordsFound: integer("records_found"),
+    recordsInserted: integer("records_inserted"),
+    recordsUpdated: integer("records_updated"),
+    startedAt: timestamp("started_at").defaultNow().notNull(),
+    finishedAt: timestamp("finished_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("leobridge_sync_logs_started_at_idx").on(t.startedAt),
+    index("leobridge_sync_logs_credential_idx").on(t.credentialId),
   ]
 );

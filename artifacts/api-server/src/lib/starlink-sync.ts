@@ -1,18 +1,18 @@
 import {
   db,
-  starlinkSettings,
+  starlinkCredentials,
   starlinkTerminals,
   starlinkTerminalDaily,
   starlinkTerminalPeriodTotal,
+  type StarlinkCredentials,
 } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { decrypt, encrypt } from "./crypto";
 import { logger } from "./logger";
 import {
   TototheoClient,
   pickField,
   type RawTototheoDetail,
-  type TototheoMonthlyUsage,
 } from "./tototheo";
 import * as progress from "./sync-progress";
 
@@ -46,11 +46,21 @@ export interface StarlinkSettingsView {
 
 const DEFAULT_BASE_URL = "https://starlink.tototheo.com";
 
-export async function getStarlinkSettingsView(): Promise<StarlinkSettingsView> {
+// T001 shim — singleton API'sini koruyarak çoklu hesap (credentials)
+// tablosuna yönlendiriyor. Frontend `useGetStarlinkSettings` halen tek
+// hesap formatı bekliyor; T004'te yeni "Hesaplar" sayfası gelene kadar bu
+// helper "ilk active credential"ı singleton gibi sunuyor.
+async function firstActiveCredential(): Promise<StarlinkCredentials | null> {
   const [row] = await db
     .select()
-    .from(starlinkSettings)
-    .where(eq(starlinkSettings.id, 1));
+    .from(starlinkCredentials)
+    .orderBy(asc(starlinkCredentials.id))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function getStarlinkSettingsView(): Promise<StarlinkSettingsView> {
+  const row = await firstActiveCredential();
   if (!row) {
     return {
       enabled: false,
@@ -62,10 +72,12 @@ export async function getStarlinkSettingsView(): Promise<StarlinkSettingsView> {
     };
   }
   return {
-    enabled: row.enabled,
+    enabled: row.isActive,
     apiBaseUrl: row.apiBaseUrl,
-    hasToken: !!row.tokenEncrypted,
-    lastSyncAt: row.lastSyncAt ? row.lastSyncAt.toISOString() : null,
+    hasToken: !!row.encryptedToken,
+    lastSyncAt: row.lastSuccessSyncAt
+      ? row.lastSuccessSyncAt.toISOString()
+      : null,
     lastErrorMessage: row.lastErrorMessage,
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -74,76 +86,62 @@ export async function getStarlinkSettingsView(): Promise<StarlinkSettingsView> {
 export interface StarlinkSettingsPatch {
   enabled?: boolean;
   apiBaseUrl?: string;
-  // undefined = keep, null/'' = clear, string = set new
+  // undefined = keep, null/'' = clear (no-op since encrypted_token NOT NULL),
+  // string = set new
   token?: string | null;
 }
 
 export async function saveStarlinkSettings(
-  patch: StarlinkSettingsPatch
+  patch: StarlinkSettingsPatch,
 ): Promise<StarlinkSettingsView> {
-  const update: Record<string, unknown> = { updatedAt: new Date() };
-  if (patch.enabled !== undefined) update.enabled = patch.enabled;
-  if (patch.apiBaseUrl !== undefined)
-    update.apiBaseUrl = patch.apiBaseUrl.trim() || DEFAULT_BASE_URL;
-  if (patch.token !== undefined) {
-    update.tokenEncrypted =
-      patch.token === null || patch.token === "" ? null : encrypt(patch.token);
+  const row = await firstActiveCredential();
+  if (row) {
+    const update: Record<string, unknown> = { updatedAt: new Date() };
+    if (patch.enabled !== undefined) update.isActive = patch.enabled;
+    if (patch.apiBaseUrl !== undefined) {
+      update.apiBaseUrl = patch.apiBaseUrl.trim() || DEFAULT_BASE_URL;
+    }
+    // encrypted_token NOT NULL — clear istenirse satırı pasifleştir, sil değil.
+    if (typeof patch.token === "string" && patch.token.length > 0) {
+      update.encryptedToken = encrypt(patch.token);
+    }
+    await db
+      .update(starlinkCredentials)
+      .set(update)
+      .where(eq(starlinkCredentials.id, row.id));
+  } else if (typeof patch.token === "string" && patch.token.length > 0) {
+    // İlk kez kuruluyor.
+    await db.insert(starlinkCredentials).values({
+      label: "Varsayılan",
+      apiBaseUrl: patch.apiBaseUrl?.trim() || DEFAULT_BASE_URL,
+      encryptedToken: encrypt(patch.token),
+      isActive: patch.enabled ?? true,
+    });
   }
-  await db
-    .insert(starlinkSettings)
-    .values({
-      id: 1,
-      enabled: (update.enabled as boolean | undefined) ?? false,
-      apiBaseUrl: (update.apiBaseUrl as string | undefined) ?? DEFAULT_BASE_URL,
-      tokenEncrypted:
-        (update.tokenEncrypted as string | null | undefined) ?? null,
-      updatedAt: new Date(),
-    })
-    .onConflictDoUpdate({ target: starlinkSettings.id, set: update });
   return getStarlinkSettingsView();
-}
-
-// Resolve the active token. Returns null if Starlink is disabled or unconfigured.
-async function resolveToken(): Promise<{
-  token: string;
-  baseUrl: string;
-} | null> {
-  const [row] = await db
-    .select()
-    .from(starlinkSettings)
-    .where(eq(starlinkSettings.id, 1));
-  if (!row || !row.enabled || !row.tokenEncrypted) return null;
-  try {
-    return { token: decrypt(row.tokenEncrypted), baseUrl: row.apiBaseUrl };
-  } catch (err) {
-    logger.error({ err }, "Starlink token decrypt failed");
-    return null;
-  }
 }
 
 export async function testStarlinkConnection(
   apiBaseUrl: string,
-  token: string | null
+  token: string | null,
 ): Promise<{ success: boolean; message: string; terminalCount?: number }> {
-  // If token is undefined/blank, fall back to the saved token so the operator
-  // can hit "Test" without re-entering it.
   let effectiveToken = token;
   if (!effectiveToken) {
-    const [row] = await db
-      .select()
-      .from(starlinkSettings)
-      .where(eq(starlinkSettings.id, 1));
-    if (!row?.tokenEncrypted) {
+    const row = await firstActiveCredential();
+    if (!row?.encryptedToken) {
       return { success: false, message: "Token kaydedilmemiş." };
     }
     try {
-      effectiveToken = decrypt(row.tokenEncrypted);
+      effectiveToken = decrypt(row.encryptedToken);
     } catch {
       return { success: false, message: "Kayıtlı token çözülemedi." };
     }
   }
   try {
-    const client = new TototheoClient(apiBaseUrl || DEFAULT_BASE_URL, effectiveToken);
+    const client = new TototheoClient(
+      apiBaseUrl || DEFAULT_BASE_URL,
+      effectiveToken,
+    );
     const list = await client.getTerminalList();
     return {
       success: true,
@@ -171,9 +169,11 @@ export async function runStarlinkSync(): Promise<StarlinkSyncResult> {
   }
 }
 
+// T001 shim — sadece ilk active credential üzerinde çalışır. T002'de tüm
+// active credentials için döngü + hesap-başına sync_log satırı ekleyeceğiz.
 async function runInner(): Promise<StarlinkSyncResult> {
-  const resolved = await resolveToken();
-  if (!resolved) {
+  const row = await firstActiveCredential();
+  if (!row || !row.isActive) {
     return {
       success: false,
       message: "Starlink API yapılandırılmamış veya pasif.",
@@ -181,7 +181,20 @@ async function runInner(): Promise<StarlinkSyncResult> {
       errors: [],
     };
   }
-  const client = new TototheoClient(resolved.baseUrl, resolved.token);
+  let token: string;
+  try {
+    token = decrypt(row.encryptedToken);
+  } catch (err) {
+    logger.error({ err }, "Starlink token decrypt failed");
+    return {
+      success: false,
+      message: "Token çözülemedi.",
+      terminalCount: 0,
+      errors: ["decrypt"],
+    };
+  }
+  const credentialId = row.id;
+  const client = new TototheoClient(row.apiBaseUrl, token);
   const errors: string[] = [];
 
   progress.startStarlinkPhase();
@@ -209,9 +222,6 @@ async function runInner(): Promise<StarlinkSyncResult> {
           progress.reportStarlinkFailure(item.kitSerialNumber, msg);
           continue;
         }
-        // One-shot per sync run: dump the keys (not values) of the first
-        // terminal detail we receive so operators can spot field-name shifts
-        // in Tototheo's response without leaking telemetry into the logs.
         if (!loggedShape) {
           loggedShape = true;
           logger.info(
@@ -219,29 +229,53 @@ async function runInner(): Promise<StarlinkSyncResult> {
               kitSerialNumber: item.kitSerialNumber,
               detailKeys: Object.keys(detail),
             },
-            "Tototheo detail shape (first terminal of run)"
+            "Tototheo detail shape (first terminal of run)",
           );
         }
-        await persistTerminal(detail, item.kitSerialNumber, today);
+        await persistTerminal(
+          credentialId,
+          detail,
+          item.kitSerialNumber,
+          today,
+        );
         const monthsRaw = pickField<unknown>(
           detail,
           "poolPlanMonthlyUsage",
-          "pool_plan_monthly_usage"
+          "pool_plan_monthly_usage",
         );
-        await persistMonthlyTotals(item.kitSerialNumber, flattenMonths(monthsRaw));
+        await persistMonthlyTotals(
+          credentialId,
+          item.kitSerialNumber,
+          flattenMonths(monthsRaw),
+        );
         const standard =
-          pickField<number>(detail, "standardTrafficSpent", "standard_traffic_spent") ?? 0;
+          pickField<number>(
+            detail,
+            "standardTrafficSpent",
+            "standard_traffic_spent",
+          ) ?? 0;
         const priority =
-          pickField<number>(detail, "priorityTrafficSpent", "priority_traffic_spent") ?? 0;
+          pickField<number>(
+            detail,
+            "priorityTrafficSpent",
+            "priority_traffic_spent",
+          ) ?? 0;
         const overage =
-          pickField<number>(detail, "overageTrafficSpent", "overage_traffic_spent") ?? 0;
-        progress.reportStarlinkDone(item.kitSerialNumber, standard + priority + overage);
+          pickField<number>(
+            detail,
+            "overageTrafficSpent",
+            "overage_traffic_spent",
+          ) ?? 0;
+        progress.reportStarlinkDone(
+          item.kitSerialNumber,
+          standard + priority + overage,
+        );
       } catch (err) {
         const msg = (err as Error).message;
         errors.push(`${item.kitSerialNumber}: ${msg}`);
         logger.error(
           { err, kitSerialNumber: item.kitSerialNumber },
-          "Starlink terminal sync failed"
+          "Starlink terminal sync failed",
         );
         progress.reportStarlinkFailure(item.kitSerialNumber, msg);
       }
@@ -256,26 +290,25 @@ async function runInner(): Promise<StarlinkSyncResult> {
           : `Starlink başarısız — ${errors.length} hata.`;
 
     await db
-      .update(starlinkSettings)
+      .update(starlinkCredentials)
       .set({
-        lastSyncAt: new Date(),
+        lastSuccessSyncAt: new Date(),
         lastErrorMessage: errors.length > 0 ? errors[0] : null,
         updatedAt: new Date(),
       })
-      .where(eq(starlinkSettings.id, 1));
+      .where(eq(starlinkCredentials.id, credentialId));
 
     progress.finishStarlinkPhase(summary, success);
     return { success, message: summary, terminalCount: list.length, errors };
   } catch (err) {
     const msg = (err as Error).message;
     await db
-      .update(starlinkSettings)
+      .update(starlinkCredentials)
       .set({
-        lastSyncAt: new Date(),
         lastErrorMessage: msg,
         updatedAt: new Date(),
       })
-      .where(eq(starlinkSettings.id, 1));
+      .where(eq(starlinkCredentials.id, credentialId));
     progress.finishStarlinkPhase(`Starlink sync hata: ${msg}`, false);
     return {
       success: false,
@@ -287,11 +320,10 @@ async function runInner(): Promise<StarlinkSyncResult> {
 }
 
 async function persistTerminal(
+  credentialId: number,
   d: RawTototheoDetail,
-  // Always trust the outer kitSerialNumber from the list endpoint — the
-  // detail payload may not echo it back, and we need a non-null PK either way.
   kitSerialNumber: string,
-  today: string
+  today: string,
 ): Promise<void> {
   const coords = pickField<{
     lat?: number;
@@ -312,10 +344,12 @@ async function persistTerminal(
     isOnline: pickField<boolean>(d, "isOnline", "is_online") ?? false,
     activated: pickField<boolean>(d, "activated") ?? false,
     blocked: pickField<boolean>(d, "blocked") ?? false,
-    signalQuality: pickField<number>(d, "signalQuality", "signal_quality") ?? null,
+    signalQuality:
+      pickField<number>(d, "signalQuality", "signal_quality") ?? null,
     latency: pickField<number>(d, "latency") ?? null,
     obstruction: pickField<number>(d, "obstruction") ?? null,
-    downloadSpeed: pickField<number>(d, "downloadSpeed", "download_speed") ?? null,
+    downloadSpeed:
+      pickField<number>(d, "downloadSpeed", "download_speed") ?? null,
     uploadSpeed: pickField<number>(d, "uploadSpeed", "upload_speed") ?? null,
     lat,
     lng,
@@ -324,31 +358,38 @@ async function persistTerminal(
     lastSeenAt,
     plan: pickField<string>(d, "plan") ?? null,
     planAllowanceGb:
-      pickField<number>(d, "planAllowanceGB", "plan_allowance_gb", "planAllowanceGb") ?? null,
+      pickField<number>(
+        d,
+        "planAllowanceGB",
+        "plan_allowance_gb",
+        "planAllowanceGb",
+      ) ?? null,
     ipv4: (() => {
-      // Tototheo returns ipv4 as string[] — normalize to a single string.
       const raw = pickField<unknown>(d, "ipv4");
       if (Array.isArray(raw)) {
-        return raw.filter((v) => typeof v === "string" && v.trim()).join(", ") || null;
+        return (
+          raw.filter((v) => typeof v === "string" && v.trim()).join(", ") ||
+          null
+        );
       }
       if (typeof raw === "string") return raw.trim() || null;
       return null;
     })(),
     optIn: pickField<boolean>(d, "optIn", "opt_in") ?? null,
-    pingDropRate:
-      pickField<number>(d, "pingDropRate", "ping_drop_rate") ?? null,
+    pingDropRate: pickField<number>(d, "pingDropRate", "ping_drop_rate") ?? null,
     updatedAt: new Date(),
   };
   await db
     .insert(starlinkTerminals)
-    .values({ kitSerialNumber, ...terminalRow })
+    .values({ credentialId, kitSerialNumber, ...terminalRow })
     .onConflictDoUpdate({
-      target: starlinkTerminals.kitSerialNumber,
+      target: [
+        starlinkTerminals.credentialId,
+        starlinkTerminals.kitSerialNumber,
+      ],
       set: terminalRow,
     });
 
-  // Daily snapshot — UPSERT today's row with cumulative cycle totals.
-  // Last write of the day naturally captures the day's end-of-day reading.
   const standard =
     pickField<number>(d, "standardTrafficSpent", "standard_traffic_spent") ?? 0;
   const priority =
@@ -360,6 +401,7 @@ async function persistTerminal(
   await db
     .insert(starlinkTerminalDaily)
     .values({
+      credentialId,
       kitSerialNumber,
       dayDate: today,
       packageUsageGb: packageUsage,
@@ -369,6 +411,7 @@ async function persistTerminal(
     })
     .onConflictDoUpdate({
       target: [
+        starlinkTerminalDaily.credentialId,
         starlinkTerminalDaily.kitSerialNumber,
         starlinkTerminalDaily.dayDate,
       ],
@@ -381,10 +424,6 @@ async function persistTerminal(
     });
 }
 
-// Tototheo returns `poolPlanMonthlyUsage` as a year-keyed object:
-//   { "2026": [{ month, year, usage: {...} }, ...] }
-// (Earlier draft assumed a flat array.) Accept both shapes — flatten any
-// object-of-arrays into one array, preserve direct arrays as-is.
 function flattenMonths(node: unknown): RawTototheoDetail[] {
   if (!node) return [];
   if (Array.isArray(node)) return node as RawTototheoDetail[];
@@ -399,8 +438,9 @@ function flattenMonths(node: unknown): RawTototheoDetail[] {
 }
 
 async function persistMonthlyTotals(
+  credentialId: number,
   kitSerialNumber: string,
-  months: RawTototheoDetail[]
+  months: RawTototheoDetail[],
 ): Promise<void> {
   for (const m of months) {
     const usage = pickField<RawTototheoDetail>(m, "usage");
@@ -409,9 +449,6 @@ async function persistMonthlyTotals(
     const month = pickField<number>(m, "month");
     if (year === undefined || month === undefined) continue;
     const period = `${year}${String(month).padStart(2, "0")}`;
-    // `package_usage_gb` is the authoritative monthly total per Tototheo's
-    // schema — priority/overage are sub-buckets that are already included in
-    // the package total. Summing them here would ~2× the dashboard figures.
     const pkg =
       pickField<number>(usage, "package_usage_gb", "packageUsageGb") ?? 0;
     const pri = pickField<number>(usage, "priority_gb", "priorityGb") ?? 0;
@@ -420,6 +457,7 @@ async function persistMonthlyTotals(
     await db
       .insert(starlinkTerminalPeriodTotal)
       .values({
+        credentialId,
         kitSerialNumber,
         period,
         packageUsageGb: pkg,
@@ -430,6 +468,7 @@ async function persistMonthlyTotals(
       })
       .onConflictDoUpdate({
         target: [
+          starlinkTerminalPeriodTotal.credentialId,
           starlinkTerminalPeriodTotal.kitSerialNumber,
           starlinkTerminalPeriodTotal.period,
         ],
