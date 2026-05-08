@@ -604,6 +604,11 @@ export const leobridgeTerminals = pgTable(
     lng: doublePrecision("lng"),
     isOnline: boolean("is_online"),
     lastSeenAt: timestamp("last_seen_at"),
+    // Aktif fatura döngüsündeki recurring data block'ların toplamı (GB,
+    // decimal). `recurringBlocksCurrentBillingCycle[]` üzerinden
+    // SUM(count × dataAmount) — birim TB ise ×1000. UI'da kullanım/kota
+    // ilerleme çubuğu için.
+    planAllowanceGb: doublePrecision("plan_allowance_gb"),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (t) => [

@@ -2191,6 +2191,10 @@ components:
         currentPeriodTotalGb: { type: number, nullable: true }
         currentPeriodPriorityGb: { type: number, nullable: true }
         currentPeriodStandardGb: { type: number, nullable: true }
+        planAllowanceGb:
+          type: number
+          nullable: true
+          description: "Aktif fatura döngüsündeki recurring data block'ların toplamı (decimal GB). UI'da kullanım/kota ilerleme çubuğu için."
         accountId: { type: integer, nullable: true }
         accountLabel: { type: string, nullable: true }
 
@@ -2297,6 +2301,10 @@ components:
         activeSubscriptionId: { type: string, nullable: true }
         optOutGib: { type: number, nullable: true }
         stepAlertGib: { type: number, nullable: true }
+        planAllowanceGb:
+          type: number
+          nullable: true
+          description: "Aktif plan adından regex ile çıkarılan kota (decimal GB). Örn: '1TB Pooling' → 1000, '500GB' → 500. Plan adı tanınamadıysa null."
         lastSessionStart: { type: string, format: date-time, nullable: true }
         lastSessionEnd: { type: string, format: date-time, nullable: true }
         lastSessionActive: { type: boolean, nullable: true }

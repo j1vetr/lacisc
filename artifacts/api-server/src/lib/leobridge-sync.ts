@@ -173,6 +173,16 @@ function pickLatLng(sl: LeoServiceLine): {
   lat: number | null;
   lng: number | null;
 } {
+  // Tercih: gerçek adres koordinatı (`address.latitude/longitude`).
+  // `currentH3Cell.centerLat/Lon` yalnızca H3 hücre merkezidir — terminalin
+  // gerçek konumu değil, kullanıldığında harita binlerce km sapabilir.
+  if (
+    sl.address &&
+    typeof sl.address.latitude === "number" &&
+    typeof sl.address.longitude === "number"
+  ) {
+    return { lat: sl.address.latitude, lng: sl.address.longitude };
+  }
   const t = sl.terminals?.find((t) => t.currentH3Cell);
   if (
     t?.currentH3Cell &&
@@ -181,14 +191,25 @@ function pickLatLng(sl: LeoServiceLine): {
   ) {
     return { lat: t.currentH3Cell.centerLat, lng: t.currentH3Cell.centerLon };
   }
-  if (
-    sl.address &&
-    typeof sl.address.latitude === "number" &&
-    typeof sl.address.longitude === "number"
-  ) {
-    return { lat: sl.address.latitude, lng: sl.address.longitude };
-  }
   return { lat: null, lng: null };
+}
+
+// `recurringBlocksCurrentBillingCycle` toplamı → GB (decimal). Tototheo
+// `planAllowanceGB` muadili. TB → ×1000, MB → ÷1000, GB veya boş → 1.
+function computePlanAllowanceGb(sl: LeoServiceLine): number | null {
+  const blocks = sl.recurringBlocksCurrentBillingCycle ?? [];
+  if (blocks.length === 0) return null;
+  let total = 0;
+  for (const b of blocks) {
+    const amt = Number(b?.dataAmount);
+    const cnt = Number(b?.count);
+    if (!Number.isFinite(amt) || amt <= 0) continue;
+    const count = Number.isFinite(cnt) && cnt > 0 ? cnt : 1;
+    const unit = (b?.dataUnitType ?? "GB").toUpperCase();
+    const factor = unit === "TB" ? 1000 : unit === "MB" ? 1 / 1000 : 1;
+    total += amt * count * factor;
+  }
+  return total > 0 ? total : null;
 }
 
 async function persistTerminal(
@@ -198,6 +219,7 @@ async function persistTerminal(
 ): Promise<void> {
   const { lat, lng } = pickLatLng(sl);
   const isOnline = sl.terminals?.some((t) => t.active === true) ?? null;
+  const planAllowanceGb = computePlanAllowanceGb(sl);
   const now = new Date();
   await db
     .insert(leobridgeTerminals)
@@ -211,6 +233,7 @@ async function persistTerminal(
       lng,
       isOnline,
       lastSeenAt: now,
+      planAllowanceGb,
       updatedAt: now,
     })
     .onConflictDoUpdate({
@@ -226,6 +249,7 @@ async function persistTerminal(
         lng,
         isOnline,
         lastSeenAt: now,
+        planAllowanceGb,
         updatedAt: now,
       },
     });

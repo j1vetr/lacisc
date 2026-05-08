@@ -549,6 +549,7 @@ router.get(
       currentPeriodTotalGb: latest?.totalGb ?? null,
       currentPeriodPriorityGb: latest?.priorityGb ?? null,
       currentPeriodStandardGb: latest?.standardGb ?? null,
+      planAllowanceGb: row.planAllowanceGb ?? null,
       accountId: acc?.id ?? null,
       accountLabel: acc?.label ?? null,
     });

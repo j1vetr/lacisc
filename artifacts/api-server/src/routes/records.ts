@@ -17,6 +17,18 @@ import {
   isCustomer,
   classifyKitDb,
 } from "../lib/customer-scope";
+
+// Satcom `active_plan_name` (CardDetails enrichment) içinden kota tahmini.
+// Plan adları "Mobile Priority 1TB Pooling Plan_TURKEY", "StellaKonnect 50GB"
+// gibi rakam + birim taşır; ilk eşleşmeyi alıyoruz. TB → ×1000.
+function parseSatcomPlanAllowanceGb(name?: string | null): number | null {
+  if (!name) return null;
+  const m = name.match(/(\d+(?:[.,]\d+)?)\s*(TB|GB)\b/i);
+  if (!m) return null;
+  const n = parseFloat(m[1].replace(",", "."));
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return m[2].toUpperCase() === "TB" ? n * 1000 : n;
+}
 import {
   GetKitLocationParams,
   GetKitLocationResponse,
@@ -207,6 +219,7 @@ router.get("/station/kits/:kitNo", requireAuth, async (req: AuthRequest, res): P
     activeSubscriptionId: kitMeta?.activeSubscriptionId ?? null,
     optOutGib: kitMeta?.optOutGib ?? null,
     stepAlertGib: kitMeta?.stepAlertGib ?? null,
+    planAllowanceGb: parseSatcomPlanAllowanceGb(kitMeta?.activePlanName ?? null),
     lastSessionStart: kitMeta?.lastSessionStart ?? null,
     lastSessionEnd: kitMeta?.lastSessionEnd ?? null,
     lastSessionActive: kitMeta?.lastSessionActive ?? null,

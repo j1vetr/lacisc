@@ -12,6 +12,13 @@ export interface LeoServiceLineTerminal {
   currentH3Cell?: { centerLat?: number; centerLon?: number } | null;
 }
 
+export interface LeoRecurringBlock {
+  productId?: string | null;
+  count?: number | null;
+  dataAmount?: number | null;
+  dataUnitType?: string | null; // "GB" | "TB" | "MB"
+}
+
 export interface LeoServiceLine {
   id: number;
   serviceLineNumber: string;
@@ -23,6 +30,9 @@ export interface LeoServiceLine {
     longitude?: number | null;
   } | null;
   terminals: LeoServiceLineTerminal[];
+  // Aktif fatura döngüsündeki recurring data block'lar — Tototheo
+  // `planAllowanceGB` muadili. SUM(count × dataAmount) ile toplam kota.
+  recurringBlocksCurrentBillingCycle?: LeoRecurringBlock[] | null;
 }
 
 export interface LeoDailyUsage {

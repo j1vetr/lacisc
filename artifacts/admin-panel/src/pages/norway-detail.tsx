@@ -136,6 +136,15 @@ export default function NorwayDetail({ kit }: { kit: string }) {
   const total = detail?.currentPeriodTotalGb ?? 0;
   const priority = detail?.currentPeriodPriorityGb ?? 0;
   const standard = detail?.currentPeriodStandardGb ?? 0;
+  // Aktif fatura döngüsü kotası (recurring data block toplamı, decimal GB).
+  // Tototheo `planAllowanceGB` muadili — varsa kullanım/kota progress.
+  const planAllowanceGb = detail?.planAllowanceGb ?? null;
+  const usedPct =
+    planAllowanceGb && planAllowanceGb > 0
+      ? Math.min((total / planAllowanceGb) * 100, 100)
+      : null;
+  const remainingGb =
+    planAllowanceGb != null ? Math.max(planAllowanceGb - total, 0) : null;
   const priorityPct =
     total > 0 ? Math.round((priority / total) * 100) : 0;
 
@@ -214,11 +223,42 @@ export default function NorwayDetail({ kit }: { kit: string }) {
             {detailLoading ? (
               <Skeleton className="h-20 w-2/3" />
             ) : (
-              <div className="flex items-baseline gap-3">
+              <div className="flex items-baseline gap-3 flex-wrap">
                 <span className="font-mono text-[56px] leading-none tracking-tight tabular-nums">
                   {formatNumber(total, 1)}
                 </span>
                 <span className="text-base text-muted-foreground">GB</span>
+                {planAllowanceGb != null && (
+                  <span className="text-sm font-mono text-muted-foreground">
+                    / {formatNumber(planAllowanceGb, 0)} GB
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Kullanım / Kota progress — yalnızca recurring data block toplamı varsa. */}
+            {!detailLoading && planAllowanceGb != null && (
+              <div className="mt-5">
+                <div className="relative h-2.5 bg-secondary rounded-full overflow-hidden">
+                  <div
+                    className={`absolute inset-y-0 left-0 rounded-full transition-[width] duration-500 ${
+                      (usedPct ?? 0) > 90
+                        ? "bg-[#f54e00]"
+                        : (usedPct ?? 0) > 75
+                          ? "bg-[#dfa88f]"
+                          : "bg-foreground"
+                    }`}
+                    style={{ width: `${usedPct ?? 0}%` }}
+                  />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[11px] font-mono text-muted-foreground">
+                  <span>%{formatNumber(usedPct ?? 0, 1)} dolu</span>
+                  {remainingGb != null && (
+                    <span>
+                      {formatNumber(remainingGb, 1)} GB kalan
+                    </span>
+                  )}
+                </div>
               </div>
             )}
 

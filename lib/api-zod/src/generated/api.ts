@@ -483,6 +483,12 @@ export const GetKitDetailResponse = zod.object({
   activeSubscriptionId: zod.string().nullish(),
   optOutGib: zod.number().nullish(),
   stepAlertGib: zod.number().nullish(),
+  planAllowanceGb: zod
+    .number()
+    .nullish()
+    .describe(
+      "Aktif plan adından regex ile çıkarılan kota (decimal GB). Örn: '1TB Pooling' → 1000, '500GB' → 500. Plan adı tanınamadıysa null.",
+    ),
   lastSessionStart: zod.coerce.date().nullish(),
   lastSessionEnd: zod.coerce.date().nullish(),
   lastSessionActive: zod.boolean().nullish(),
@@ -1098,6 +1104,12 @@ export const GetLeobridgeTerminalDetailResponse = zod.object({
   currentPeriodTotalGb: zod.number().nullish(),
   currentPeriodPriorityGb: zod.number().nullish(),
   currentPeriodStandardGb: zod.number().nullish(),
+  planAllowanceGb: zod
+    .number()
+    .nullish()
+    .describe(
+      "Aktif fatura döngüsündeki recurring data block'ların toplamı (decimal GB). UI'da kullanım\/kota ilerleme çubuğu için.",
+    ),
   accountId: zod.number().nullish(),
   accountLabel: zod.string().nullish(),
 });

@@ -360,7 +360,14 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
   const optOutGib = detail?.optOutGib ?? null;
   const stepAlertGib = detail?.stepAlertGib ?? null;
   const used = detail?.totalGib ?? 0;
-  const allowance = optOutGib;
+  // Plan adından çıkarılan kota (decimal GB) → mevcut iç birim sistemiyle
+  // (used/optOutGib hep GiB-numerik, formatGibAsGb ile GB gösteriliyor)
+  // uyumlu olması için GiB-eşdeğerine çevir. Plan kotası varsa onu önceliklendir,
+  // yoksa eski opt-out eşiğine düş.
+  const planAllowanceGb = detail?.planAllowanceGb ?? null;
+  const planAllowanceGib =
+    planAllowanceGb != null ? planAllowanceGb / GIB_TO_GB : null;
+  const allowance = planAllowanceGib ?? optOutGib;
   const remaining =
     allowance != null ? Math.max(allowance - used, 0) : null;
   const usedPct =
@@ -384,7 +391,10 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
       detail?.lastSyncedAt,
   );
   const hasPlanInfo = Boolean(
-    planName != null || optOutGib != null || stepAlertGib != null,
+    planName != null ||
+      optOutGib != null ||
+      stepAlertGib != null ||
+      planAllowanceGb != null,
   );
   const hasSubscriptions = (subscriptions ?? []).length > 0;
   const hasLastHour = lastHour != null;
