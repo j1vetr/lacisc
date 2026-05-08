@@ -638,27 +638,75 @@ export async function enrichCardDetails(
   let failed = 0;
 
   // Map / Measurements bizi başka sayfalara götürdü — ratedCdrs'e dön.
-  const cdrLink0 = page
-    .locator("a[href*='ratedCdrs.aspx' i], a[href*='RatedCdrs.aspx' i]")
-    .first();
-  if ((await cdrLink0.count()) > 0) {
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: "networkidle", timeout: 20000 }).catch(() => {}),
-      cdrLink0.click().catch(() => {}),
-    ]);
+  // Menü click → grid'in dolmasını bekle (KITP linkleri görünene kadar).
+  async function ensureRatedCdrsGrid(label: string): Promise<boolean> {
+    // Önce menü linkini dene; yoksa (örn. Starlink/Telemetry alt sayfasındayız)
+    // doğrudan URL'e git. Oturum kurulu olduğundan direct goto güvenli — bu
+    // gotcha "login'den hemen sonra" için geçerli, enrichment sonrasında değil.
+    const cdrLink = page
+      .locator("a[href*='ratedCdrs.aspx' i], a[href*='RatedCdrs.aspx' i]")
+      .first();
+    if ((await cdrLink.count()) > 0) {
+      await Promise.all([
+        page.waitForNavigation({ waitUntil: "networkidle", timeout: 20000 }).catch(() => {}),
+        cdrLink.click().catch(() => {}),
+      ]);
+    } else {
+      await page
+        .goto(`${baseUrl}/RatedCdrs.aspx`, { waitUntil: "networkidle", timeout: 25000 })
+        .catch((e) =>
+          logger.warn(
+            { label, err: (e as Error).message },
+            "CardDetails: ratedCdrs direct-goto failed"
+          )
+        );
+    }
+    // Grid hazır olana kadar (KITP link'i görünene dek) 10sn bekle.
+    try {
+      await page
+        .locator("#ctl00_ContentPlaceHolder1_gvRatedCdr a:text-matches('^KITP', 'i')")
+        .first()
+        .waitFor({ state: "visible", timeout: 10000 });
+      return true;
+    } catch {
+      const url = page.url();
+      const sample = await page
+        .locator("#ctl00_ContentPlaceHolder1_gvRatedCdr a")
+        .evaluateAll((els) => els.slice(0, 5).map((e) => (e.textContent || "").trim()))
+        .catch(() => [] as string[]);
+      logger.warn(
+        { label, url, sample },
+        "CardDetails: ratedCdrs grid'inde KITP link'i görünmedi"
+      );
+      return false;
+    }
   }
+  await ensureRatedCdrsGrid("initial");
 
   for (const k of kits) {
     try {
-      if (!k.detailHref) {
-        failed++;
-        logger.warn({ kitNo: k.kitNo }, "CardDetails: detailHref yok (atlandı)");
-        continue;
+      // KIT'in grid'deki link'ini KIT no text'inden bul (href format
+      // farklılıklarına bağımlı değil). Önce gvRatedCdr içinde, yoksa
+      // sayfa genelinde ara.
+      let link = page
+        .locator("#ctl00_ContentPlaceHolder1_gvRatedCdr a", { hasText: k.kitNo })
+        .first();
+      if ((await link.count()) === 0 && k.detailHref) {
+        link = page.locator(`a[href="${k.detailHref}"]`).first();
       }
-      const link = page.locator(`a[href="${k.detailHref}"]`).first();
+      if ((await link.count()) === 0) {
+        // Bir kerelik grid'i tekrar yüklemeyi dene.
+        await ensureRatedCdrsGrid(`retry ${k.kitNo}`);
+        link = page
+          .locator("#ctl00_ContentPlaceHolder1_gvRatedCdr a", { hasText: k.kitNo })
+          .first();
+      }
       if ((await link.count()) === 0) {
         failed++;
-        logger.warn({ kitNo: k.kitNo }, "CardDetails: grid link bulunamadı (atlandı)");
+        logger.warn(
+          { kitNo: k.kitNo, url: page.url() },
+          "CardDetails: grid link bulunamadı (atlandı)"
+        );
         continue;
       }
       await Promise.all([
