@@ -49,7 +49,7 @@ export const kpi = {
   satcomKits: 67,
   tototheoKits: 52,
   norwayKits: 23,
-  activePeriod: "MAY · 2026",
+  activePeriod: "MAYIS 2026",
   syncStatus: "success" as "success" | "failed" | "running" | "pending",
   lastSyncAt: "2026-05-08 09:42",
   satcomAccounts: 3,
