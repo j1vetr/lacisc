@@ -237,6 +237,7 @@ export async function runLeobridgeSync(): Promise<LeobridgeSyncResult> {
     progress.startLeobridgePhase(total);
 
     for (const { kit, sl } of tasks) {
+      processed += 1;
       progress.startLeobridgeTerminal(kit, sl.nickname ?? null, processed);
       try {
         await persistTerminal(kit, sl);
@@ -250,7 +251,6 @@ export async function runLeobridgeSync(): Promise<LeobridgeSyncResult> {
         );
         logger.error({ err, kit }, "Leo Bridge terminal sync hatası");
       }
-      processed += 1;
     }
 
     const ok = failures === 0;

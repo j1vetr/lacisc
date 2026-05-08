@@ -409,15 +409,15 @@ export default function NorwayDetail({ kit }: { kit: string }) {
               <thead className="bg-secondary/40">
                 <tr>
                   {[
-                    { label: "Dönem", align: "left", pad: "pl-4" },
-                    { label: "Toplam", align: "right" },
-                    { label: "Öncelikli", align: "right" },
-                    { label: "Standart", align: "right" },
-                    { label: "Tarama", align: "right", pad: "pr-4" },
+                    { label: "Dönem", alignClass: "text-left", pad: "pl-4" },
+                    { label: "Toplam", alignClass: "text-right" },
+                    { label: "Öncelikli", alignClass: "text-right" },
+                    { label: "Standart", alignClass: "text-right" },
+                    { label: "Tarama", alignClass: "text-right", pad: "pr-4" },
                   ].map((h) => (
                     <th
                       key={h.label}
-                      className={`h-9 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold text-${h.align} ${h.pad ?? ""}`}
+                      className={`h-9 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold ${h.alignClass} ${h.pad ?? ""}`}
                     >
                       {h.label}
                     </th>
