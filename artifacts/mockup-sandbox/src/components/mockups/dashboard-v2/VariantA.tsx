@@ -85,11 +85,10 @@ export default function VariantA() {
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span
               style={{
-                width: 12,
-                height: 12,
+                width: 10,
+                height: 10,
                 borderRadius: 999,
                 background: "var(--dv-success)",
-                boxShadow: "0 0 0 5px rgba(31,138,101,0.14)",
               }}
             />
             <span style={{ fontSize: 26, fontWeight: 500, color: ink }}>AKTİF</span>
