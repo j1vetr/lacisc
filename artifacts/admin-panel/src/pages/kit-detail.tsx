@@ -92,7 +92,10 @@ function formatHourLabel(iso: string) {
 // Wrapper picks the correct view by asking the backend which data source the
 // KIT belongs to. See git history for rationale.
 export default function KitDetail() {
-  const [, params] = useRoute("/kits/:kitNo");
+  const [, kitsParams] = useRoute("/kits/:kitNo");
+  const [, norwayParams] = useRoute("/norway/:kitNo");
+  const [, starlinkParams] = useRoute("/starlink/:kitNo");
+  const params = kitsParams ?? norwayParams ?? starlinkParams;
   const rawKitNo = params?.kitNo ?? "";
   const kitNo = decodeURIComponent(rawKitNo);
   const { data: srcData, isLoading: srcLoading, error: srcError } = useGetKitSource(

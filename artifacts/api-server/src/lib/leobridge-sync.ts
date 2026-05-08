@@ -65,14 +65,8 @@ function pickLatLng(sl: LeoServiceLine): {
   lat: number | null;
   lng: number | null;
 } {
-  if (
-    sl.address &&
-    typeof sl.address.latitude === "number" &&
-    typeof sl.address.longitude === "number"
-  ) {
-    return { lat: sl.address.latitude, lng: sl.address.longitude };
-  }
-  // Fallback to first terminal's H3 cell center.
+  // Prefer the live H3 cell center (current position) over the static service
+  // address — terminals are mobile, so H3 reflects "where the ship is now".
   const t = sl.terminals?.find((t) => t.currentH3Cell);
   if (
     t?.currentH3Cell &&
@@ -80,6 +74,14 @@ function pickLatLng(sl: LeoServiceLine): {
     typeof t.currentH3Cell.centerLon === "number"
   ) {
     return { lat: t.currentH3Cell.centerLat, lng: t.currentH3Cell.centerLon };
+  }
+  // Fallback to the static service address coordinates.
+  if (
+    sl.address &&
+    typeof sl.address.latitude === "number" &&
+    typeof sl.address.longitude === "number"
+  ) {
+    return { lat: sl.address.latitude, lng: sl.address.longitude };
   }
   return { lat: null, lng: null };
 }

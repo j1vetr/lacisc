@@ -169,6 +169,8 @@ function Router() {
       <Route path="/">{() => <RootRoute />}</Route>
       <Route path="/kits">{() => <ProtectedRoute component={Kits} />}</Route>
       <Route path="/kits/:kitNo">{() => <ProtectedRoute component={KitDetail} />}</Route>
+      <Route path="/norway/:kitNo">{() => <ProtectedRoute component={KitDetail} />}</Route>
+      <Route path="/starlink/:kitNo">{() => <ProtectedRoute component={KitDetail} />}</Route>
       <Route path="/sync-logs">{() => <ProtectedRoute component={SyncLogs} minRole="viewer" />}</Route>
       <Route path="/settings">{() => <ProtectedRoute component={SettingsAccounts} minRole="admin" />}</Route>
       <Route path="/settings/starlink">{() => <ProtectedRoute component={SettingsStarlink} minRole="admin" />}</Route>
