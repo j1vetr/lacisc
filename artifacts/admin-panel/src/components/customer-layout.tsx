@@ -1,300 +1,371 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { LogOut } from "lucide-react";
+import { useTheme } from "next-themes";
+import { useQueryClient } from "@tanstack/react-query";
+import { Search, Sun, Moon, Menu, X, LogOut, User } from "lucide-react";
 import {
   useGetMe,
   getGetMeQueryKey,
-  useGetKits,
-  getGetKitsQueryKey,
-  useGetStarlinkTerminals,
-  getGetStarlinkTerminalsQueryKey,
-  useGetDashboardSummary,
-  getGetDashboardSummaryQueryKey,
   useLogout,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
 
-import brandLogo from "@assets/1_1778023047729.png";
-import brandLogoWhite from "@assets/2_1778184166378.png";
-import { useThemedAsset } from "@/hooks/use-themed-asset";
-import "@/styles/editorial.css";
+import {
+  useCustomerFleet,
+  CustomerFleetProvider,
+  detailHref,
+} from "@/hooks/use-customer-fleet";
+import "@/styles/customer-sade.css";
 
-type SidebarRow = {
-  source: "satcom" | "starlink";
-  kitNo: string;
-  shipName: string;
-  currentPeriodGib: number;
-  online: boolean;
-};
-
-const TR = (s: string) => s.toLocaleUpperCase("tr-TR");
-
-function fmtGib(n: number | null | undefined): string {
-  const v = Number.isFinite(n as number) ? (n as number) : 0;
-  return new Intl.NumberFormat("tr-TR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(v);
+function LogoMark() {
+  return (
+    <span className="sd-logo-mark" aria-label="Station Satcom">
+      SS
+    </span>
+  );
 }
 
-function isOnlineSatcom(lastSeenAt: string | null): boolean {
-  if (!lastSeenAt) return false;
-  const t = new Date(lastSeenAt).getTime();
-  if (!Number.isFinite(t)) return false;
-  return Date.now() - t < 24 * 60 * 60 * 1000;
-}
-
-function periodLabelTR(period: string | undefined | null): string {
-  if (!period || period.length !== 6) return "";
-  const months = [
-    "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
-    "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
-  ];
-  const y = period.slice(0, 4);
-  const m = parseInt(period.slice(4, 6), 10);
-  if (m < 1 || m > 12) return period;
-  return `${months[m - 1]} ${y}`;
-}
-
-export default function CustomerLayout({ children }: { children: React.ReactNode }) {
+export default function CustomerLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [location, setLocation] = useLocation();
   const qc = useQueryClient();
   const logout = useLogout();
-  const brandSrc = useThemedAsset(brandLogo, brandLogoWhite);
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const accountTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => setMounted(true), []);
+
+  const isDark = mounted && resolvedTheme === "dark";
+
+  // Lock scroll when mobile drawer open.
+  useEffect(() => {
+    if (!mobileOpen) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileOpen]);
+
+  // Close mobile drawer + account menu on route change.
+  useEffect(() => {
+    setMobileOpen(false);
+    setAccountOpen(false);
+  }, [location]);
+
+  // Escape closes whichever overlay is open; restore focus to its trigger.
+  useEffect(() => {
+    if (!mobileOpen && !accountOpen) return undefined;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (mobileOpen) {
+        setMobileOpen(false);
+        menuButtonRef.current?.focus();
+      } else if (accountOpen) {
+        setAccountOpen(false);
+        accountTriggerRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [mobileOpen, accountOpen]);
+
+  // Outside click closes account menu.
+  useEffect(() => {
+    if (!accountOpen) return undefined;
+    const onPointer = (e: MouseEvent) => {
+      const target = e.target as Node | null;
+      if (!target) return;
+      if (accountMenuRef.current?.contains(target)) return;
+      if (accountTriggerRef.current?.contains(target)) return;
+      setAccountOpen(false);
+    };
+    document.addEventListener("mousedown", onPointer);
+    return () => document.removeEventListener("mousedown", onPointer);
+  }, [accountOpen]);
 
   const { data: me } = useGetMe({
     query: { queryKey: getGetMeQueryKey(), staleTime: 60_000 },
   });
 
-  const refetchMs = 30_000;
+  const fleetState = useCustomerFleet();
+  const { fleet, isLoading } = fleetState;
 
-  const { data: summary } = useGetDashboardSummary({
-    query: {
-      queryKey: getGetDashboardSummaryQueryKey(),
-      refetchInterval: refetchMs,
-    },
-  });
+  const filteredFleet = useMemo(() => {
+    const q = query.trim().toLocaleLowerCase("tr-TR");
+    if (!q) return fleet;
+    return fleet.filter(
+      (r) =>
+        r.shipName.toLocaleLowerCase("tr-TR").includes(q) ||
+        r.kitNo.toLocaleLowerCase("tr-TR").includes(q),
+    );
+  }, [fleet, query]);
 
-  const { data: satcomKits } = useGetKits(
-    { sortBy: "totalGib" },
-    {
-      query: {
-        queryKey: getGetKitsQueryKey({ sortBy: "totalGib" }),
-        refetchInterval: refetchMs,
-      },
-    }
-  );
-
-  const { data: starlinkTerminals } = useGetStarlinkTerminals({
-    query: {
-      queryKey: getGetStarlinkTerminalsQueryKey(),
-      refetchInterval: refetchMs,
-    },
-  });
-
-  const rows: SidebarRow[] = useMemo(() => {
-    const out: SidebarRow[] = [];
-    for (const k of satcomKits ?? []) {
-      out.push({
-        source: "satcom",
-        kitNo: k.kitNo,
-        shipName: (k.shipName?.trim() || "Adsız Gemi"),
-        // Satcom GiB → GB; Starlink zaten GB.
-        currentPeriodGib: (k.totalGib ?? 0) * 1.073741824,
-        online: isOnlineSatcom(k.lastSyncedAt ?? null),
-      });
-    }
-    for (const t of starlinkTerminals ?? []) {
-      out.push({
-        source: "starlink",
-        kitNo: t.kitSerialNumber,
-        shipName: (t.nickname?.trim() || t.assetName?.trim() || "Adsız Gemi"),
-        currentPeriodGib: t.currentPeriodTotalGb ?? 0,
-        online: t.isOnline ?? false,
-      });
-    }
-    out.sort((a, b) => b.currentPeriodGib - a.currentPeriodGib);
-    return out;
-  }, [satcomKits, starlinkTerminals]);
-
-  const totalKits = rows.length;
-  const totalGib = rows.reduce((s, r) => s + r.currentPeriodGib, 0);
-  const onlineCount = rows.filter((r) => r.online).length;
-  const activePeriodLabel = periodLabelTR(summary?.activePeriod) || "Aktif Dönem";
-
-  const today = TR(
-    new Date().toLocaleDateString("tr-TR", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    })
+  const ctxValue = useMemo(
+    () => ({ ...fleetState, filteredFleet, query }),
+    [fleetState, filteredFleet, query],
   );
 
   const handleLogout = () => {
     logout.mutate(undefined, {
-      onSuccess: () => {
-        qc.clear();
-        window.location.href = "/login";
-      },
-      onError: () => {
+      onSettled: () => {
         qc.clear();
         window.location.href = "/login";
       },
     });
   };
 
-  const userName = (me as { name?: string; username?: string } | undefined)?.name
-    || (me as { username?: string } | undefined)?.username
-    || "Müşteri";
-  const userHandle = (me as { username?: string } | undefined)?.username
-    || (me as { email?: string } | undefined)?.email
-    || "";
+  const userName =
+    (me as { name?: string; username?: string } | undefined)?.name ||
+    (me as { username?: string } | undefined)?.username ||
+    "Müşteri";
+  const userHandle =
+    (me as { username?: string } | undefined)?.username ||
+    (me as { email?: string } | undefined)?.email ||
+    "";
+  const initials = userName
+    .split(/\s+/)
+    .map((s) => s[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toLocaleUpperCase("tr-TR");
 
-  // Aktif olan kit (kit-detail rotasında URL'den çıkar) → sidebar'da vurgula.
+  // Aktif KIT (kit-detail/starlink/norway rotalarından) → sidebar vurgusu.
   const activeKitNo = (() => {
-    const m = location.match(/^\/kits\/([^/]+)/);
+    const m = location.match(/^\/(?:kits|starlink|norway)\/([^/]+)/);
     return m ? decodeURIComponent(m[1]) : null;
   })();
 
-  return (
-    <div className="editorial-theme flex w-full min-h-screen">
-      {/* Sidebar */}
-      <aside className="w-[320px] shrink-0 hl-r min-h-screen sticky top-0 h-screen flex flex-col">
-        <div className="px-8 pt-9 pb-9">
-          <Link href="/">
-            <a className="brand-mark block cursor-pointer">
-              <img src={brandSrc} alt="Lacivert Teknoloji" />
-            </a>
-          </Link>
-        </div>
+  const sidebar = (
+    <aside
+      className={`sd-sidebar w-[260px] shrink-0 flex flex-col ${mobileOpen ? "open" : ""}`}
+    >
+      <div className="px-5 py-5 flex items-center justify-between gap-2">
+        <Link href="/">
+          <a className="flex items-center gap-2.5 cursor-pointer">
+            <LogoMark />
+            <span
+              className="text-[14px] font-semibold leading-none"
+              style={{ letterSpacing: "-0.01em" }}
+            >
+              Station Satcom
+            </span>
+          </a>
+        </Link>
+        <button
+          type="button"
+          className="sd-icon-btn sd-mobile-only"
+          aria-label="Kapat"
+          onClick={() => setMobileOpen(false)}
+          style={{ width: 30, height: 30 }}
+        >
+          <X size={14} />
+        </button>
+      </div>
 
-        <div className="px-8 pb-7 hl-b">
-          <div className="text-[10px] tracking-widest uppercase text-[var(--ink-mute)] mb-2">
-            Hesap
-          </div>
-          <div className="ed-serif text-[22px] leading-tight text-[var(--ink)]">
-            {userName}
-          </div>
-          {userHandle && (
-            <div className="ed-mono text-[11px] text-[var(--ink-mute)] mt-1">
-              @{userHandle}
-            </div>
-          )}
-        </div>
+      <div className="sd-divider" />
 
-        <div className="flex-1 overflow-y-auto no-scrollbar pt-7 pb-6">
-          <div className="px-8 mb-4 flex items-center justify-between">
-            <div className="text-[10px] tracking-widest uppercase text-[var(--ink-mute)] font-medium">
-              Filo · İçindekiler
-            </div>
-            <Link href="/">
-              <a className="text-[10px] tracking-widest uppercase text-[var(--ink-mute)] hover:text-[var(--orange)] cursor-pointer">
-                Tümü
+      <div className="px-5 pt-5 pb-2">
+        <span className="sd-eyebrow">Gemiler</span>
+      </div>
+
+      <nav className="flex-1 overflow-auto pb-4" aria-label="Filo">
+        {isLoading ? (
+          <ul aria-hidden className="px-5 py-2 space-y-3">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <li
+                key={i}
+                className="h-9 rounded animate-pulse"
+                style={{ background: "var(--sd-hover-bg)" }}
+              />
+            ))}
+          </ul>
+        ) : fleet.length === 0 ? (
+          <div
+            className="px-5 py-6 text-[12.5px]"
+            style={{ color: "var(--sd-muted)" }}
+          >
+            Henüz size atanmış bir gemi bulunmuyor.
+          </div>
+        ) : (
+          fleet.map((s) => {
+            const active = activeKitNo === s.kitNo;
+            return (
+              <button
+                key={`${s.source}:${s.kitNo}`}
+                type="button"
+                className={`sd-nav-item ${active ? "active" : ""}`}
+                onClick={() => setLocation(detailHref(s))}
+                aria-current={active ? "page" : undefined}
+              >
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span
+                    className="text-[13px] truncate"
+                    style={{
+                      fontWeight: active ? 600 : 500,
+                      letterSpacing: "-0.005em",
+                    }}
+                  >
+                    {s.shipName}
+                  </span>
+                  <span
+                    className="sd-mono text-[10.5px]"
+                    style={{ color: "var(--sd-muted)" }}
+                  >
+                    {s.kitNo}
+                  </span>
+                </div>
+                <span
+                  className="sd-dot"
+                  style={{
+                    backgroundColor: s.online
+                      ? "var(--sd-success)"
+                      : "var(--sd-hairline-strong)",
+                  }}
+                />
+              </button>
+            );
+          })
+        )}
+      </nav>
+
+      <div className="sd-divider" />
+
+      <div className="p-4 relative">
+        <button
+          ref={accountTriggerRef}
+          type="button"
+          onClick={() => setAccountOpen((v) => !v)}
+          className="w-full flex items-center gap-3 text-left"
+          aria-haspopup="menu"
+          aria-expanded={accountOpen}
+        >
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0"
+            style={{ backgroundColor: "var(--sd-ink)", color: "var(--sd-bg)" }}
+          >
+            {initials || "MA"}
+          </div>
+          <div className="flex flex-col leading-tight min-w-0 flex-1">
+            <span className="text-[12.5px] font-medium truncate">
+              {userName}
+            </span>
+            {userHandle && (
+              <span
+                className="text-[10.5px] truncate"
+                style={{ color: "var(--sd-muted)" }}
+              >
+                {userHandle}
+              </span>
+            )}
+          </div>
+        </button>
+
+        {accountOpen && (
+          <div
+            ref={accountMenuRef}
+            role="menu"
+            aria-label="Hesap menüsü"
+            className="absolute left-4 right-4 bottom-[calc(100%-8px)] rounded-lg overflow-hidden z-10"
+            style={{
+              background: "var(--sd-surface)",
+              border: "1px solid var(--sd-hairline)",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+            }}
+          >
+            <Link href="/profile">
+              <a
+                role="menuitem"
+                className="flex items-center gap-2 px-3 py-2.5 text-[13px]"
+                style={{ color: "var(--sd-ink)" }}
+                onClick={() => setAccountOpen(false)}
+              >
+                <User size={14} />
+                Profilim
               </a>
             </Link>
-          </div>
-
-          {rows.length === 0 ? (
-            <div className="px-8 ed-serif italic text-[14px] text-[var(--ink-mute)]">
-              Henüz size atanmış bir gemi bulunmuyor.
-            </div>
-          ) : (
-            <ul>
-              {rows.map((kit, i) => {
-                const isActive = activeKitNo === kit.kitNo;
-                return (
-                  <li key={`${kit.source}:${kit.kitNo}`}>
-                    <button
-                      onClick={() =>
-                        setLocation(`/kits/${encodeURIComponent(kit.kitNo)}`)
-                      }
-                      className={`row-link w-full text-left px-8 py-3.5 flex items-center justify-between gap-3 ${
-                        isActive ? "bg-[var(--bg-paper)]" : ""
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span
-                          className="ed-mono text-[11px] w-5 num-tabular font-medium tracking-tight"
-                          style={{ color: kit.online ? "#2f8a4f" : "#d44a2c" }}
-                        >
-                          {String(i + 1).padStart(2, "0")}
-                        </span>
-                        <div className="min-w-0">
-                          <div
-                            className={`ship-name ed-serif text-[18px] leading-tight truncate ${
-                              isActive ? "text-[var(--orange)]" : "text-[var(--ink)]"
-                            }`}
-                          >
-                            {kit.shipName}
-                          </div>
-                          <div className="ed-mono text-[10px] text-[var(--ink-faint)] mt-0.5">
-                            {kit.kitNo}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="ed-mono text-[12px] text-[var(--ink-soft)] num-tabular">
-                          {fmtGib(kit.currentPeriodGib)}
-                        </div>
-                        <div className="text-[9px] tracking-widest uppercase text-[var(--ink-faint)] mt-0.5">
-                          GB
-                        </div>
-                      </div>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-
-        <div className="px-8 py-6 hl-t">
-          <div className="text-[10px] tracking-widest uppercase text-[var(--ink-mute)]">
-            {activePeriodLabel} · Toplam
-          </div>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="stat-num text-[26px] text-[var(--ink)]">
-              {fmtGib(totalGib)}
-            </span>
-            <span className="ed-mono text-[11px] text-[var(--ink-mute)]">
-              GB
-            </span>
-          </div>
-          <div className="text-[11px] text-[var(--ink-mute)] mt-1">
-            {onlineCount} / {totalKits} gemi çevrimiçi
-          </div>
-        </div>
-      </aside>
-
-      {/* Main */}
-      <main className="flex-1 min-w-0">
-        {/* Top bar — page-agnostic chrome */}
-        <div className="hl-b px-14 py-5 flex items-center justify-between">
-          <div className="flex items-center gap-3 text-[11px] tracking-[0.18em] uppercase text-[var(--ink-mute)]">
-            <span className="rule-orange" />
-            <span>AYLIK FİLO BÜLTENİ</span>
-            <span className="text-[var(--ink-faint)]">·</span>
-            <span className="ed-mono text-[11px] tracking-[0.12em]">
-              {today}
-            </span>
-          </div>
-          <div className="flex items-center gap-6">
-            <Link href="/profile">
-              <button className="ghost-cta">PROFİLİM</button>
-            </Link>
+            <div className="sd-divider" />
             <button
+              role="menuitem"
+              type="button"
               onClick={handleLogout}
-              className="ghost-cta"
-              title="Çıkış Yap"
+              className="w-full flex items-center gap-2 px-3 py-2.5 text-[13px] text-left"
+              style={{ color: "var(--sd-ink)" }}
             >
-              ÇIKIŞ
-              <LogOut className="w-3.5 h-3.5" strokeWidth={1.5} />
+              <LogOut size={14} />
+              Çıkış
             </button>
           </div>
-        </div>
+        )}
+      </div>
+    </aside>
+  );
 
-        {children}
-      </main>
+  return (
+    <div className="sade-theme">
+      <div className="flex" style={{ minHeight: "100vh" }}>
+        {mobileOpen && (
+          <div
+            className="sd-mobile-overlay sd-mobile-only"
+            onClick={() => setMobileOpen(false)}
+            aria-hidden
+          />
+        )}
+
+        {sidebar}
+
+        <main className="flex-1 min-w-0 flex flex-col">
+          <header
+            className="sd-main-pad px-10 py-4 flex items-center gap-3 border-b"
+            style={{ borderColor: "var(--sd-hairline)" }}
+          >
+            <button
+              ref={menuButtonRef}
+              type="button"
+              className="sd-icon-btn sd-mobile-only"
+              aria-label="Menü"
+              onClick={() => setMobileOpen(true)}
+            >
+              <Menu size={16} />
+            </button>
+
+            <div className="flex-1 max-w-md">
+              <div className="sd-search">
+                <Search size={14} style={{ color: "var(--sd-muted)" }} />
+                <input
+                  placeholder="Gemi veya KIT ara"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  aria-label="Gemi ara"
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="sd-icon-btn"
+              aria-label={isDark ? "Açık tema" : "Koyu tema"}
+              onClick={() => setTheme(isDark ? "light" : "dark")}
+              suppressHydrationWarning
+            >
+              {mounted && isDark ? <Sun size={14} /> : <Moon size={14} />}
+            </button>
+          </header>
+
+          <CustomerFleetProvider value={ctxValue}>
+            {children}
+          </CustomerFleetProvider>
+        </main>
+      </div>
     </div>
   );
 }
