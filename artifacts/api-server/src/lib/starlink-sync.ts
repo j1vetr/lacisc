@@ -55,6 +55,7 @@ async function firstActiveCredential(): Promise<StarlinkCredentials | null> {
   const [row] = await db
     .select()
     .from(starlinkCredentials)
+    .where(eq(starlinkCredentials.isActive, true))
     .orderBy(asc(starlinkCredentials.id))
     .limit(1);
   return row ?? null;

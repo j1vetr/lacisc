@@ -69,6 +69,7 @@ async function firstActiveCredential(): Promise<LeobridgeCredentials | null> {
   const [row] = await db
     .select()
     .from(leobridgeCredentials)
+    .where(eq(leobridgeCredentials.isActive, true))
     .orderBy(asc(leobridgeCredentials.id))
     .limit(1);
   return row ?? null;
