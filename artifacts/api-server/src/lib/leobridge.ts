@@ -190,7 +190,7 @@ export class LeobridgeClient {
     // Returns whatever shape the portal exposes; intentionally typed as
     // unknown[] until alerts are surfaced in the UI.
     const data = await this.getJson<{ alerts?: unknown[] } | unknown[]>(
-      "/api/starlink/alerts"
+      "/api/starlink/terminal/alert"
     );
     if (Array.isArray(data)) return data;
     return data.alerts ?? [];

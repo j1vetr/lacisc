@@ -49,7 +49,7 @@ function publicSettings(row: Awaited<ReturnType<typeof loadSettingsRow>>) {
 router.get(
   "/leobridge/settings",
   requireAuth,
-  requireRole("admin"),
+  requireRole("viewer"),
   async (_req: AuthRequest, res): Promise<void> => {
     const row = await loadSettingsRow();
     res.json(publicSettings(row));
