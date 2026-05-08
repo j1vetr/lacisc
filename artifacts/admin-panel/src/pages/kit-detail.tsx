@@ -406,7 +406,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
   const fmtNum = (v?: number | null, dec = 1) =>
     v == null ? "—" : formatNumber(v, dec);
 
-  return (
+  const content = (
     <div className="space-y-4 animate-in fade-in duration-500">
       {/* Sticky dense header */}
       <div className="rounded-lg border border-border bg-card sticky top-0 z-20 shadow-[0_1px_0_0_hsl(var(--border))]">
@@ -447,7 +447,6 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                 )}
               </Pill>
             )}
-            {planName && <Pill tone="info">{planName}</Pill>}
           </div>
         </div>
         {hasHeaderMeta && (
@@ -619,11 +618,6 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
             </h2>
             <Pill tone="info">{periodLabel}</Pill>
           </div>
-          {planName && (
-            <span className="text-[10px] font-mono text-muted-foreground">
-              {planName}
-            </span>
-          )}
         </div>
         <div className="p-6">
           {detailLoading ? (
@@ -948,4 +942,16 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
       </Card>
     </div>
   );
+
+  // Müşteri rolünde CustomerLayout kendi container'ını sağlamadığı için
+  // detay sayfası tam genişlikte bırakılıyordu. Operatör Layout'undaki
+  // padding/max-w'yi burada lokal olarak uygula.
+  if (isCustomer) {
+    return (
+      <div className="py-6 px-4 sm:py-8 sm:px-6 lg:py-10 lg:px-10 max-w-[1200px] mx-auto w-full">
+        {content}
+      </div>
+    );
+  }
+  return content;
 }
