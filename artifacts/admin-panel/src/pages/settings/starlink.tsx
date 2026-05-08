@@ -1,31 +1,12 @@
-import React from "react";
-import { useLocation } from "wouter";
-import { z } from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Satellite, Send, Loader2, RefreshCw } from "lucide-react";
+import React, { useState } from "react";
+import { Satellite, Plus } from "lucide-react";
 import {
-  useGetStarlinkSettings,
-  getGetStarlinkSettingsQueryKey,
-  useUpdateStarlinkSettings,
-  useTestStarlinkConnection,
-  useSyncStarlinkNow,
-  type StarlinkSettingsUpdate,
+  useListStarlinkAccounts,
+  getListStarlinkAccountsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import {
   Card,
   CardContent,
@@ -34,297 +15,105 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/hooks/use-toast";
-import { formatDate } from "@/lib/format";
 
 import SettingsLayout from "./layout";
+import { StarlinkAccountRow } from "./starlink-account-row";
+import { StarlinkAccountFormDialog } from "./starlink-account-form";
+import type { StarlinkAccount } from "./types";
 
-const schema = z.object({
-  enabled: z.boolean(),
-  apiBaseUrl: z.string().min(1, "Geçerli bir URL girin."),
-  token: z.string().optional(),
-});
-type FormValues = z.infer<typeof schema>;
-
-export default function StarlinkSettingsPage() {
-  const { data: settings, isLoading } = useGetStarlinkSettings({
-    query: { queryKey: getGetStarlinkSettingsQueryKey() },
+export default function StarlinkAccountsPage() {
+  const { data: accounts, isLoading } = useListStarlinkAccounts({
+    query: { queryKey: getListStarlinkAccountsQueryKey() },
   });
   const queryClient = useQueryClient();
-  const { toast } = useToast();
-  const [, navigate] = useLocation();
-  const updateMutation = useUpdateStarlinkSettings();
-  const testMutation = useTestStarlinkConnection();
-  const syncMutation = useSyncStarlinkNow();
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      enabled: false,
-      apiBaseUrl: "https://starlink.tototheo.com",
-      token: "",
-    },
-  });
+  const [editing, setEditing] = useState<StarlinkAccount | null>(null);
+  const [creating, setCreating] = useState(false);
 
-  React.useEffect(() => {
-    if (!settings) return;
-    form.reset({
-      enabled: settings.enabled,
-      apiBaseUrl: settings.apiBaseUrl,
-      token: "",
+  const refresh = () =>
+    queryClient.invalidateQueries({
+      queryKey: getListStarlinkAccountsQueryKey(),
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings?.updatedAt]);
-
-  const onSubmit = (values: FormValues) => {
-    const payload: StarlinkSettingsUpdate = {
-      enabled: values.enabled,
-      apiBaseUrl: values.apiBaseUrl.trim(),
-    };
-    if (values.token && values.token.length > 0) {
-      payload.token = values.token;
-    }
-    updateMutation.mutate(
-      { data: payload },
-      {
-        onSuccess: () => {
-          toast({
-            title: "Starlink Ayarları Kaydedildi",
-            description: values.enabled
-              ? "Otomatik senkronizasyon her 30 dakikada bir çalışacak."
-              : "Yapılandırma kaydedildi (entegrasyon pasif).",
-          });
-          queryClient.invalidateQueries({
-            queryKey: getGetStarlinkSettingsQueryKey(),
-          });
-          form.setValue("token", "");
-        },
-        onError: (err: unknown) => {
-          toast({
-            title: "Kayıt Başarısız",
-            description: err instanceof Error ? err.message : "Ayarlar kaydedilemedi.",
-            variant: "destructive",
-          });
-        },
-      }
-    );
-  };
-
-  const handleTest = () => {
-    const values = form.getValues();
-    testMutation.mutate(
-      {
-        data: {
-          apiBaseUrl: values.apiBaseUrl.trim(),
-          token: values.token && values.token.length > 0 ? values.token : null,
-        },
-      },
-      {
-        onSuccess: (res) => {
-          toast({
-            title: res.success ? "Bağlantı Başarılı" : "Bağlantı Başarısız",
-            description: res.message,
-            variant: res.success ? "default" : "destructive",
-          });
-        },
-        onError: (err: unknown) => {
-          toast({
-            title: "Test Başarısız",
-            description: err instanceof Error ? err.message : "Test yapılamadı.",
-            variant: "destructive",
-          });
-        },
-      }
-    );
-  };
-
-  const handleSyncNow = () => {
-    syncMutation.mutate(undefined, {
-      onSuccess: () => {
-        toast({
-          title: "Tototheo Senkronizasyonu Başlatıldı",
-          description:
-            "Sadece Tototheo terminalleri çekiliyor. İlerlemeyi senkronizasyon kayıtlarından takip edebilirsiniz.",
-        });
-        // Operatörü doğrudan canlı durum panelinin olduğu sayfaya götür.
-        navigate("/sync-logs");
-      },
-      onError: (err: unknown) => {
-        toast({
-          title: "Senkronizasyon Başlatılamadı",
-          description: err instanceof Error ? err.message : "Hata oluştu.",
-          variant: "destructive",
-        });
-      },
-    });
-  };
 
   return (
     <SettingsLayout>
       <Card className="border border-border shadow-none bg-card rounded-xl overflow-hidden">
         <CardHeader className="bg-secondary/50 border-b border-border pb-5">
-          <CardTitle className="text-lg font-normal tracking-tight flex items-center gap-2.5">
-            <div className="p-1.5 bg-background rounded border border-border">
-              <Satellite className="w-4 h-4 text-foreground" />
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <CardTitle className="text-lg font-normal tracking-tight flex items-center gap-2.5">
+                <div className="p-1.5 bg-background rounded border border-border">
+                  <Satellite className="w-4 h-4 text-foreground" />
+                </div>
+                Tototheo Hesapları
+              </CardTitle>
+              <CardDescription className="mt-1 text-sm text-muted-foreground">
+                Aktif hesapların hepsi otomatik (her 30 dk) ve manuel sync
+                turlarında sırayla taranır. Bir hesap düşerse diğerleri devam
+                eder.
+              </CardDescription>
             </div>
-            Tototheo API
-          </CardTitle>
-          <CardDescription className="mt-1 text-sm text-muted-foreground">
-            Tototheo (TM Starlink) portalından terminal envanterini ve aylık kullanımı
-            otomatik olarak çeker. Token kayıtlıyken her 30 dakikada bir otomatik
-            senkronizasyon çalışır.
-          </CardDescription>
+            <Button
+              onClick={() => setCreating(true)}
+              className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-none h-9 px-4"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Yeni Hesap
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent className="p-4 sm:p-6 lg:p-8">
+        <CardContent className="p-0">
           {isLoading ? (
-            <Skeleton className="h-64 w-full rounded-lg" />
+            <div className="p-6 space-y-3">
+              <Skeleton className="h-16 w-full rounded-lg" />
+              <Skeleton className="h-16 w-full rounded-lg" />
+            </div>
+          ) : !accounts || accounts.length === 0 ? (
+            <div className="p-12 text-center">
+              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-secondary flex items-center justify-center">
+                <Satellite className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <p className="text-sm font-medium text-foreground mb-1">
+                Henüz Tototheo hesabı eklenmedi
+              </p>
+              <p className="text-xs text-muted-foreground max-w-sm mx-auto mb-5">
+                Senkronizasyon başlatabilmek için en az bir Tototheo Bearer
+                token tanımlamalısınız.
+              </p>
+              <Button
+                onClick={() => setCreating(true)}
+                className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-none"
+              >
+                <Plus className="w-4 h-4 mr-2" /> İlk Hesabı Ekle
+              </Button>
+            </div>
           ) : (
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-                <FormField
-                  control={form.control}
-                  name="enabled"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center justify-between rounded-lg border border-border p-3 bg-background">
-                      <div className="space-y-0.5 pr-3">
-                        <FormLabel className="text-sm font-medium text-foreground">
-                          Entegrasyonu Etkinleştir
-                        </FormLabel>
-                        <FormDescription className="text-xs">
-                          Kapalıyken otomatik tur Tototheo fazını atlar.
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          className="data-[state=checked]:bg-primary"
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
+            <ul className="divide-y divide-border">
+              {(accounts as StarlinkAccount[]).map((a) => (
+                <StarlinkAccountRow
+                  key={a.id}
+                  account={a}
+                  onEdit={() => setEditing(a)}
                 />
-
-                <FormField
-                  control={form.control}
-                  name="apiBaseUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                        API Base URL
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="https://starlink.tototheo.com"
-                          {...field}
-                          className="font-mono text-sm bg-background border-border h-10 rounded-lg shadow-none"
-                        />
-                      </FormControl>
-                      <FormDescription className="text-xs">
-                        Tototheo Swagger sayfasındaki temel adres. Genellikle değiştirilmez.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="token"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                        Bearer Token{" "}
-                        {settings?.hasToken && (
-                          <span className="text-muted-foreground normal-case">
-                            (değiştirmek için doldur)
-                          </span>
-                        )}
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          type="password"
-                          autoComplete="new-password"
-                          placeholder={settings?.hasToken ? "•••••••••" : "eyJhbGciOi..."}
-                          {...field}
-                          value={field.value ?? ""}
-                          className="font-mono text-sm bg-background border-border h-10 rounded-lg shadow-none"
-                        />
-                      </FormControl>
-                      <FormDescription className="text-xs">
-                        AES-256-GCM ile şifrelenmiş olarak saklanır. Bu sayfada bir daha
-                        gösterilmez.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="rounded-lg border border-border bg-secondary/30 p-3 text-xs text-muted-foreground space-y-1.5 font-mono">
-                  <div>
-                    <span className="uppercase tracking-widest text-[10px] mr-2">Son Sync:</span>
-                    {settings?.lastSyncAt ? formatDate(settings.lastSyncAt) : "—"}
-                  </div>
-                  {settings?.lastErrorMessage && (
-                    <div className="text-[#dfa88f]">
-                      <span className="uppercase tracking-widest text-[10px] mr-2">Son Hata:</span>
-                      {settings.lastErrorMessage}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap gap-2 justify-end pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleSyncNow}
-                    disabled={syncMutation.isPending || !settings?.enabled || !settings?.hasToken}
-                    className="rounded-lg shadow-none h-10 px-4"
-                    title={
-                      !settings?.hasToken
-                        ? "Önce token kaydedin"
-                        : !settings?.enabled
-                          ? "Önce entegrasyonu açın"
-                          : "Şimdi senkronize et"
-                    }
-                  >
-                    {syncMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                    )}
-                    Şimdi Senkronize Et
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleTest}
-                    disabled={testMutation.isPending}
-                    className="rounded-lg shadow-none h-10 px-4"
-                  >
-                    {testMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Send className="w-4 h-4 mr-2" />
-                    )}
-                    Bağlantıyı Test Et
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={updateMutation.isPending}
-                    className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-none h-10 px-4"
-                  >
-                    {updateMutation.isPending && (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    )}
-                    Kaydet
-                  </Button>
-                </div>
-              </form>
-            </Form>
+              ))}
+            </ul>
           )}
         </CardContent>
       </Card>
+
+      <StarlinkAccountFormDialog
+        open={creating}
+        onOpenChange={setCreating}
+        mode="create"
+        onSaved={refresh}
+      />
+      <StarlinkAccountFormDialog
+        open={editing !== null}
+        onOpenChange={(o) => !o && setEditing(null)}
+        mode="edit"
+        account={editing}
+        onSaved={refresh}
+      />
     </SettingsLayout>
   );
 }
