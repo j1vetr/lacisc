@@ -89,17 +89,32 @@ export function SyncProgressPanel({ active = true }: SyncProgressPanelProps) {
       ? "Satcom"
       : "Beklemede";
 
-  // Composite percentage: each account contributes (1/totalAccounts) of the
-  // bar; within an account, periods × kits gives a fine-grained sub-percent.
-  const perAccount = 100 / acctTotal;
-  const subPct =
-    progress.currentAccountIndex > 0
-      ? ((periodIdx - 1) / periodTotal + kitIdx / (kitTotal * periodTotal)) * 100
-      : 0;
-  const completedAccountsPct = (acctIdx > 0 ? acctIdx - 1 : 0) * perAccount;
-  const overall = progress.running
-    ? Math.min(100, completedAccountsPct + (subPct / 100) * perAccount)
-    : 100;
+  // Phase-aware percent. Satcom uses the (account × period × kit) composite
+  // formula; Starlink/Leo Bridge use simple terminal-fraction (processed/total)
+  // since they iterate one flat list of terminals each. Fallback to 0 when a
+  // phase has not yet reported any work units.
+  let overall: number;
+  if (!progress.running) {
+    overall = 100;
+  } else if (phase === "starlink") {
+    const t = (p.starlinkTotalTerminals ?? 0) || 0;
+    const done = (p.starlinkProcessedTerminals ?? 0) || 0;
+    overall = t > 0 ? Math.min(100, (done / t) * 100) : 0;
+  } else if (phase === "leobridge") {
+    const t = (p.leobridgeTotalTerminals ?? 0) || 0;
+    const done = (p.leobridgeProcessedTerminals ?? 0) || 0;
+    overall = t > 0 ? Math.min(100, (done / t) * 100) : 0;
+  } else if (phase === "satcom") {
+    const perAccount = 100 / acctTotal;
+    const subPct =
+      progress.currentAccountIndex > 0
+        ? ((periodIdx - 1) / periodTotal + kitIdx / (kitTotal * periodTotal)) * 100
+        : 0;
+    const completedAccountsPct = (acctIdx > 0 ? acctIdx - 1 : 0) * perAccount;
+    overall = Math.min(100, completedAccountsPct + (subPct / 100) * perAccount);
+  } else {
+    overall = 0;
+  }
 
   return (
     <Card className="border border-border bg-card shadow-none rounded-xl overflow-hidden">
