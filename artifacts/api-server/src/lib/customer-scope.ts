@@ -54,8 +54,9 @@ export async function getAssignedKits(userId: number): Promise<AssignedKits> {
 }
 
 // T002 — multi-account: bir KIT birden fazla hesapta (ve kaynakta) bulunabilir.
-// Aynı KIT için en son güncellenen kayıt hangi kaynaktaysa onu döndür.
-// Beraberlikte sıralama starlink > leobridge > satcom (canlı API'ler önce).
+// Cross-source çakışmada SABİT öncelik: starlink > leobridge > satcom (canlı API'ler önce).
+// MAX(updated_at) yalnızca AYNI kaynak içinde aynı KIT için birden fazla credential
+// çakıştığında devreye girer (en son güncellenen credential kazanır).
 const SOURCE_PRIO: Record<KitSource, number> = {
   starlink: 3,
   leobridge: 2,
@@ -70,7 +71,7 @@ interface Candidate {
 function pickWinner(cands: Candidate[]): KitSource | null {
   if (cands.length === 0) return null;
   cands.sort(
-    (a, b) => b.ts - a.ts || SOURCE_PRIO[b.src] - SOURCE_PRIO[a.src],
+    (a, b) => SOURCE_PRIO[b.src] - SOURCE_PRIO[a.src] || b.ts - a.ts,
   );
   return cands[0].src;
 }

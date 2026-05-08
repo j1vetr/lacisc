@@ -301,12 +301,13 @@ async function markCredential(
   ok: boolean,
   message?: string | null,
 ): Promise<void> {
+  const now = new Date();
   await db
     .update(leobridgeCredentials)
     .set({
-      lastSuccessSyncAt: new Date(),
+      ...(ok ? { lastSuccessSyncAt: now } : {}),
       lastErrorMessage: ok ? null : (message ?? "bilinmeyen hata"),
-      updatedAt: new Date(),
+      updatedAt: now,
     })
     .where(eq(leobridgeCredentials.id, credentialId));
 }
