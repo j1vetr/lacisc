@@ -439,8 +439,14 @@ export async function sendTestWhatsapp(
 // Spec: WhatsApp eşik bildirimleri YALNIZ customer rolündeki kullanıcılara
 // (kendilerine atanmış KIT için) gider. Operatör/admin/viewer global
 // listesi dispatch yolundan kaldırıldı.
+//
+// Source dimension: customer_kit_assignments (kitNo, source) bazında
+// scope'lanır — aynı kitNo birden fazla kaynakta ('satcom'/'starlink'/
+// 'leobridge') var olabilir, dolayısıyla tetikleyen kaynağın atamasıyla
+// eşleşmeyen müşteriler bildirim almaz.
 async function resolveRecipientsForKit(opts: {
   kitNo: string;
+  source: WhatsappAlertSource;
 }): Promise<string[]> {
   const customers = await db
     .select({ phone: adminUsers.phone })
@@ -449,6 +455,7 @@ async function resolveRecipientsForKit(opts: {
     .where(
       and(
         eq(customerKitAssignments.kitNo, opts.kitNo),
+        eq(customerKitAssignments.source, opts.source),
         eq(adminUsers.role, "customer"),
         sql`${adminUsers.phone} IS NOT NULL AND ${adminUsers.phone} <> ''`
       )
@@ -540,7 +547,10 @@ export async function maybeFireWhatsappAlert(opts: {
     }
     if (!claimed) return;
 
-    const recipients = await resolveRecipientsForKit({ kitNo: opts.kitNo });
+    const recipients = await resolveRecipientsForKit({
+      kitNo: opts.kitNo,
+      source: opts.source,
+    });
     if (recipients.length === 0) {
       logger.info(
         { source: opts.source, kitNo: opts.kitNo, crossedStep },
