@@ -26,7 +26,7 @@ router.get(
   }
 );
 
-router.put(
+router.patch(
   "/whatsapp/settings",
   requireAuth,
   requireRole("admin"),
@@ -37,8 +37,6 @@ router.put(
     if (body.endpointUrl !== undefined) patch.endpointUrl = body.endpointUrl;
     if (body.testRecipient !== undefined)
       patch.testRecipient = body.testRecipient;
-    if (body.globalThresholdGb !== undefined)
-      patch.globalThresholdGb = body.globalThresholdGb;
     if (body.apiKey !== undefined) patch.apiKey = body.apiKey;
     try {
       const settings = await saveWhatsappSettings(patch);
@@ -48,7 +46,6 @@ router.put(
         meta: {
           enabled: settings.enabled,
           hasApiKey: settings.hasApiKey,
-          globalThresholdGb: settings.globalThresholdGb,
         },
       });
       res.json(settings);
@@ -61,7 +58,7 @@ router.put(
 );
 
 router.post(
-  "/whatsapp/settings/test",
+  "/whatsapp/test",
   requireAuth,
   requireRole("admin"),
   async (req: AuthRequest, res): Promise<void> => {

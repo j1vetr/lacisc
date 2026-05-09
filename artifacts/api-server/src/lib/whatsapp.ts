@@ -21,6 +21,7 @@ import {
   starlinkTerminals,
   leobridgeTerminals,
   stationKits,
+  emailSettings,
 } from "@workspace/db";
 import { decrypt, encrypt } from "./crypto";
 import { logger } from "./logger";
@@ -34,22 +35,36 @@ export type WhatsappSettingsView = {
   hasApiKey: boolean;
   endpointUrl: string;
   testRecipient: string | null;
-  globalThresholdGb: number | null;
+  // E-posta ayarlarından okunan global fallback (read-only — bilgilendirme).
+  // Plan kotası bilinmiyorsa veya hiçbir whatsapp_threshold_rules kuralı
+  // eşleşmiyorsa pickStepGb bu değeri kullanır.
+  emailFallbackThresholdGb: number | null;
   updatedAt: Date;
 };
+
+async function getEmailFallbackThresholdGb(): Promise<number | null> {
+  const [row] = await db
+    .select({ step: emailSettings.thresholdStepGib })
+    .from(emailSettings)
+    .where(eq(emailSettings.id, 1));
+  // Schema legacy adı "Gib" — replit.md'ye göre artık GB olarak yorumlanır.
+  if (row?.step != null && row.step >= 1) return row.step;
+  return null;
+}
 
 export async function getWhatsappSettings(): Promise<WhatsappSettingsView> {
   const [row] = await db
     .select()
     .from(whatsappSettings)
     .where(eq(whatsappSettings.id, 1));
+  const emailFallback = await getEmailFallbackThresholdGb();
   if (!row) {
     return {
       enabled: false,
       hasApiKey: false,
       endpointUrl: DEFAULT_WHATSAPP_ENDPOINT,
       testRecipient: null,
-      globalThresholdGb: null,
+      emailFallbackThresholdGb: emailFallback,
       updatedAt: new Date(),
     };
   }
@@ -62,7 +77,7 @@ export async function getWhatsappSettings(): Promise<WhatsappSettingsView> {
     hasApiKey: !!row.apiKeyEncrypted,
     endpointUrl: safeEndpoint,
     testRecipient: row.testRecipient,
-    globalThresholdGb: row.globalThresholdGb ?? null,
+    emailFallbackThresholdGb: emailFallback,
     updatedAt: row.updatedAt,
   };
 }
@@ -73,8 +88,6 @@ export type WhatsappSettingsUpdate = {
   apiKey?: string | null;
   endpointUrl?: string;
   testRecipient?: string | null;
-  // Global fallback eşik. null → fallback kapalı.
-  globalThresholdGb?: number | null;
 };
 
 // Güvenlik: SSRF + API anahtarı sızıntısını önlemek için endpoint URL
@@ -108,18 +121,6 @@ export async function saveWhatsappSettings(
   }
   if (patch.testRecipient !== undefined)
     update.testRecipient = patch.testRecipient;
-  if (patch.globalThresholdGb !== undefined) {
-    if (patch.globalThresholdGb === null) {
-      update.globalThresholdGb = null;
-    } else if (
-      Number.isFinite(patch.globalThresholdGb) &&
-      patch.globalThresholdGb >= 1
-    ) {
-      update.globalThresholdGb = patch.globalThresholdGb;
-    } else {
-      throw new Error("globalThresholdGb >= 1 olmalı (veya null).");
-    }
-  }
   if (patch.apiKey !== undefined) {
     update.apiKeyEncrypted =
       patch.apiKey === null || patch.apiKey === ""
@@ -140,8 +141,7 @@ export async function saveWhatsappSettings(
       opsRecipients: null,
       testRecipient:
         (update.testRecipient as string | null | undefined) ?? null,
-      globalThresholdGb:
-        (update.globalThresholdGb as number | null | undefined) ?? null,
+      globalThresholdGb: null,
       updatedAt: update.updatedAt as Date,
     })
     .onConflictDoUpdate({ target: whatsappSettings.id, set: update });
@@ -466,7 +466,7 @@ export async function maybeFireWhatsappAlert(opts: {
 
     const stepGb = await pickStepGb(
       opts.planAllowanceGb ?? null,
-      settings.globalThresholdGb ?? null
+      settings.emailFallbackThresholdGb
     );
     if (!stepGb || stepGb < 1) return;
 

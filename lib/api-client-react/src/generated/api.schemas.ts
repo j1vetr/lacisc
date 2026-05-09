@@ -605,8 +605,8 @@ export interface WhatsappSettings {
   hasApiKey: boolean;
   endpointUrl: string;
   testRecipient?: string | null;
-  /** Plan kotası bilinmediğinde / kural eşleşmediğinde devreye giren yedek eşik (decimal GB). null = fallback kapalı. */
-  globalThresholdGb?: number | null;
+  /** Plan kotası bilinmediğinde / kural eşleşmediğinde fallback olarak kullanılan e-posta eşiği (email_settings.thresholdStepGib). Read-only — e-posta ayarlarından yönetilir. */
+  emailFallbackThresholdGb?: number | null;
   updatedAt: string;
 }
 
@@ -616,8 +616,6 @@ export interface WhatsappSettingsUpdate {
   apiKey?: string | null;
   endpointUrl?: string;
   testRecipient?: string | null;
-  /** @minimum 1 */
-  globalThresholdGb?: number | null;
 }
 
 export interface WhatsappTestResult {

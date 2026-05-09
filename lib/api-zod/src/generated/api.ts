@@ -344,11 +344,11 @@ export const GetWhatsappSettingsResponse = zod.object({
     .describe("true → kayıtlı API anahtarı var (gerçek değer dönmez)"),
   endpointUrl: zod.string(),
   testRecipient: zod.string().nullish(),
-  globalThresholdGb: zod
+  emailFallbackThresholdGb: zod
     .number()
     .nullish()
     .describe(
-      "Plan kotası bilinmediğinde \/ kural eşleşmediğinde devreye giren yedek eşik (decimal GB). null = fallback kapalı.",
+      "Plan kotası bilinmediğinde \/ kural eşleşmediğinde fallback olarak kullanılan e-posta eşiği (email_settings.thresholdStepGib). Read-only — e-posta ayarlarından yönetilir.",
     ),
   updatedAt: zod.coerce.date(),
 });
@@ -363,7 +363,6 @@ export const UpdateWhatsappSettingsBody = zod.object({
     ),
   endpointUrl: zod.string().optional(),
   testRecipient: zod.string().nullish(),
-  globalThresholdGb: zod.number().min(1).nullish(),
 });
 
 export const UpdateWhatsappSettingsResponse = zod.object({
@@ -373,11 +372,11 @@ export const UpdateWhatsappSettingsResponse = zod.object({
     .describe("true → kayıtlı API anahtarı var (gerçek değer dönmez)"),
   endpointUrl: zod.string(),
   testRecipient: zod.string().nullish(),
-  globalThresholdGb: zod
+  emailFallbackThresholdGb: zod
     .number()
     .nullish()
     .describe(
-      "Plan kotası bilinmediğinde \/ kural eşleşmediğinde devreye giren yedek eşik (decimal GB). null = fallback kapalı.",
+      "Plan kotası bilinmediğinde \/ kural eşleşmediğinde fallback olarak kullanılan e-posta eşiği (email_settings.thresholdStepGib). Read-only — e-posta ayarlarından yönetilir.",
     ),
   updatedAt: zod.coerce.date(),
 });

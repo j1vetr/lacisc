@@ -51,7 +51,6 @@ export default function WhatsappSettingsPage() {
   const [apiKey, setApiKey] = useState("");
   const [testRecipient, setTestRecipient] = useState("");
   const [overrideTest, setOverrideTest] = useState("");
-  const [globalThresholdGb, setGlobalThresholdGb] = useState("");
 
   const [newMinPlan, setNewMinPlan] = useState("");
   const [newStep, setNewStep] = useState("");
@@ -62,31 +61,13 @@ export default function WhatsappSettingsPage() {
     setEndpointUrl(settings.endpointUrl);
     setApiKey("");
     setTestRecipient(settings.testRecipient ?? "");
-    setGlobalThresholdGb(
-      settings.globalThresholdGb != null ? String(settings.globalThresholdGb) : "",
-    );
   }, [settings?.updatedAt]);
 
   const handleSave = () => {
     // endpointUrl frontend'de read-only — backend allowlist enforce ediyor.
-    const trimmed = globalThresholdGb.trim();
-    let globalNum: number | null = null;
-    if (trimmed !== "") {
-      const n = Number(trimmed);
-      if (!Number.isFinite(n) || n < 1) {
-        toast({
-          title: "Geçersiz global eşik",
-          description: "En az 1 GB olmalı veya boş bırakın.",
-          variant: "destructive",
-        });
-        return;
-      }
-      globalNum = n;
-    }
     const payload: Record<string, unknown> = {
       enabled,
       testRecipient: testRecipient.trim() || null,
-      globalThresholdGb: globalNum,
     };
     if (apiKey.length > 0) payload.apiKey = apiKey;
     updateMut.mutate(
@@ -282,20 +263,23 @@ export default function WhatsappSettingsPage() {
 
                 <div className="space-y-1.5">
                   <Label className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Global Yedek Eşik (GB)
+                    Yedek Eşik (E-posta ayarlarından)
                   </Label>
                   <Input
-                    type="number"
-                    min={1}
-                    value={globalThresholdGb}
-                    placeholder="örn. 100 (boş = fallback kapalı)"
-                    onChange={(e) => setGlobalThresholdGb(e.target.value)}
-                    className="font-mono text-sm bg-background border-border h-10 rounded-lg shadow-none"
+                    value={
+                      settings?.emailFallbackThresholdGb != null
+                        ? `${settings.emailFallbackThresholdGb} GB`
+                        : "—"
+                    }
+                    readOnly
+                    disabled
+                    className="font-mono text-sm bg-secondary border-border h-10 rounded-lg shadow-none opacity-70 cursor-not-allowed"
                   />
                   <p className="text-xs text-muted-foreground">
                     Plan kotası bilinmiyorsa veya aşağıdaki kurallardan hiçbiri
-                    eşleşmiyorsa devreye girer. Boş bırakırsanız: eşleşme yoksa
-                    bildirim gönderilmez.
+                    eşleşmiyorsa devreye girer. Bu değer{" "}
+                    <span className="font-mono">/settings/email</span>{" "}
+                    sayfasındaki "eşik adımı"ndan okunur.
                   </p>
                 </div>
 

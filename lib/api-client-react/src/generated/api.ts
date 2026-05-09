@@ -1778,7 +1778,7 @@ export const updateWhatsappSettings = async (
 ): Promise<WhatsappSettings> => {
   return customFetch<WhatsappSettings>(getUpdateWhatsappSettingsUrl(), {
     ...options,
-    method: "PUT",
+    method: "PATCH",
     headers: { "Content-Type": "application/json", ...options?.headers },
     body: JSON.stringify(whatsappSettingsUpdate),
   });
@@ -1853,7 +1853,7 @@ export const useUpdateWhatsappSettings = <
  * @summary Test mesajı gönderir (override alıcı veya kayıtlı testRecipient).
  */
 export const getTestWhatsappSettingsUrl = () => {
-  return `/api/whatsapp/settings/test`;
+  return `/api/whatsapp/test`;
 };
 
 export const testWhatsappSettings = async (

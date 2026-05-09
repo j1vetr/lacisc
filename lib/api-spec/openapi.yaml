@@ -435,7 +435,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/WhatsappSettings" }
-    put:
+    patch:
       operationId: updateWhatsappSettings
       x-required-role: admin
       tags: [whatsapp]
@@ -452,7 +452,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/WhatsappSettings" }
 
-  /whatsapp/settings/test:
+  /whatsapp/test:
     post:
       operationId: testWhatsappSettings
       x-required-role: admin
@@ -2339,10 +2339,10 @@ components:
         hasApiKey: { type: boolean, description: "true → kayıtlı API anahtarı var (gerçek değer dönmez)" }
         endpointUrl: { type: string }
         testRecipient: { type: string, nullable: true }
-        globalThresholdGb:
+        emailFallbackThresholdGb:
           type: number
           nullable: true
-          description: "Plan kotası bilinmediğinde / kural eşleşmediğinde devreye giren yedek eşik (decimal GB). null = fallback kapalı."
+          description: "Plan kotası bilinmediğinde / kural eşleşmediğinde fallback olarak kullanılan e-posta eşiği (email_settings.thresholdStepGib). Read-only — e-posta ayarlarından yönetilir."
         updatedAt: { type: string, format: date-time }
 
     WhatsappSettingsUpdate:
@@ -2355,10 +2355,6 @@ components:
           description: "undefined → değişmez, '' veya null → temizler, dolu → yeni anahtar."
         endpointUrl: { type: string }
         testRecipient: { type: string, nullable: true }
-        globalThresholdGb:
-          type: number
-          nullable: true
-          minimum: 1
 
     WhatsappTestResult:
       type: object
