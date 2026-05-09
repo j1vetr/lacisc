@@ -165,7 +165,7 @@ async function parseMeasurementsPage(page: Page): Promise<
   const raw: { kit: string; ts: string; vals: string[] }[] = await page.evaluate(() => {
     const rows = Array.from(
       document.querySelectorAll(
-        "[id^='ctl00_ContentPlaceHolder1_gvStarlinkMeasurementsOneHour_DXDataRow'], [id*='gvStarlinkMeasurementsOneHour_DXDataRow']"
+        "[id^='gvStarlinkMeasurementsOneHour_DXDataRow'], [id*='gvStarlinkMeasurementsOneHour_DXDataRow']"
       )
     );
     return rows.map((tr) => {
@@ -200,7 +200,7 @@ async function waitForMeasurementsRows(
   page: Page,
   timeoutMs = 15000
 ): Promise<number> {
-  const gridPrefix = "ctl00_ContentPlaceHolder1_gvStarlinkMeasurementsOneHour";
+  const gridPrefix = "gvStarlinkMeasurementsOneHour";
   const deadline = Date.now() + timeoutMs;
   let last = 0;
   while (Date.now() < deadline) {
@@ -242,7 +242,7 @@ async function fireMeasurementsPager(
   command: "PBF" | "PBP" | "PBN" | "PBL" | string,
   label: string
 ): Promise<{ triggered: boolean; movedSig: boolean }> {
-  const gridPrefix = "ctl00_ContentPlaceHolder1_gvStarlinkMeasurementsOneHour";
+  const gridPrefix = "gvStarlinkMeasurementsOneHour";
   const before = await page.evaluate(measurementsSigFn, gridPrefix).catch(() => "");
 
   const triggered = await page
@@ -322,64 +322,6 @@ export async function fetchHourlyTelemetry(
     .first()
     .waitFor({ timeout: 15000 })
     .catch(() => {});
-
-  // DEBUG: Measurements sayfasının DOM durumunu logla.
-  const probe = await page
-    .evaluate(() => {
-      const gid = "ctl00_ContentPlaceHolder1_gvStarlinkMeasurementsOneHour";
-      const w = window as unknown as Record<string, unknown>;
-      const aspx = w["ASPx"] as
-        | { GVPagerOnClick?: (id: string, val: string) => void }
-        | undefined;
-      const allRows = document.querySelectorAll(
-        `[id*='${gid}'] tr[id*='DXDataRow']`
-      ).length;
-      const directRows = document.querySelectorAll(
-        `[id^='${gid}_DXDataRow']`
-      ).length;
-      const pagerBtns = Array.from(
-        document.querySelectorAll(`[id*='${gid}'] [class*='dxWeb_p']`)
-      )
-        .map((el) => (el as HTMLElement).className)
-        .slice(0, 8);
-      const containerHtmlLen =
-        document.querySelector(`[id*='${gid}']`)?.innerHTML.length ?? 0;
-      const iframes = Array.from(document.querySelectorAll("iframe"))
-        .map((f) => (f as HTMLIFrameElement).id || "(no-id)")
-        .slice(0, 5);
-      // Sayfadaki tüm "gv" prefix'li ID'leri ve büyük tabloları listele.
-      const allGvIds = Array.from(document.querySelectorAll("[id*='gv']"))
-        .map((el) => el.id)
-        .filter((id) => id && !id.includes("_DX") && id.length < 100)
-        .slice(0, 20);
-      const tableIds = Array.from(document.querySelectorAll("table[id]"))
-        .map((t) => (t as HTMLTableElement).id)
-        .filter((id) => id.length < 80)
-        .slice(0, 15);
-      const measurementsIds = Array.from(
-        document.querySelectorAll("[id*='easurement'], [id*='easur']")
-      )
-        .map((el) => el.id)
-        .filter((id) => id.length < 100)
-        .slice(0, 10);
-      const bodyTextSnippet = (document.body.innerText || "").slice(0, 400);
-      return {
-        url: location.href,
-        title: document.title,
-        hasASPx: typeof aspx?.GVPagerOnClick === "function",
-        allRows,
-        directRows,
-        pagerBtns,
-        containerHtmlLen,
-        iframes,
-        allGvIds,
-        tableIds,
-        measurementsIds,
-        bodyTextSnippet,
-      };
-    })
-    .catch((e) => ({ err: (e as Error).message }));
-  logger.info({ credentialId, probe }, "Measurements DOM probe");
 
   // 1) WAKE: page-size komutu grid'i AJAX ile yeniden yükler. PBL boş gridde
   //    no-op olur; önce default sayfa verilerini yüklemek şart.
