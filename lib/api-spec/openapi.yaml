@@ -2365,6 +2365,14 @@ components:
         recipients:
           type: array
           items: { type: string }
+        providerStatus:
+          type: integer
+          nullable: true
+          description: "wpileti.com HTTP durum kodu (istek yapılmadıysa null)."
+        providerBody:
+          type: string
+          nullable: true
+          description: "wpileti.com yanıt gövdesi (ilk 500 karakter; istek yapılmadıysa null)."
 
     WhatsappThresholdRule:
       type: object

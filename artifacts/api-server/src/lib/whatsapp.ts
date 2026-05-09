@@ -253,20 +253,6 @@ export function normalizePhone(raw: string | null | undefined): string | null {
   return s;
 }
 
-function parseRecipientsCsv(csv: string | null | undefined): string[] {
-  if (!csv) return [];
-  const out: string[] = [];
-  const seen = new Set<string>();
-  for (const raw of csv.split(/[,;\n]/)) {
-    const n = normalizePhone(raw);
-    if (n && !seen.has(n)) {
-      seen.add(n);
-      out.push(n);
-    }
-  }
-  return out;
-}
-
 // ---------------------------------------------------------------------------
 // Send (FIFO 30s queue — same shape as alerts.ts)
 // ---------------------------------------------------------------------------
@@ -348,23 +334,49 @@ async function sendOne(opts: {
   return { ok: res.ok, status: res.status, body };
 }
 
+export type WhatsappTestResultDetail = {
+  ok: boolean;
+  message: string;
+  recipients: string[];
+  providerStatus: number | null;
+  providerBody: string | null;
+};
+
 export async function sendTestWhatsapp(
   overrideTo?: string
-): Promise<{ ok: boolean; message: string; recipients: string[] }> {
+): Promise<WhatsappTestResultDetail> {
   const settings = await getWhatsappSettings();
   if (!settings.hasApiKey) {
-    return { ok: false, message: "API anahtarı tanımlı değil.", recipients: [] };
+    return {
+      ok: false,
+      message: "API anahtarı tanımlı değil.",
+      recipients: [],
+      providerStatus: null,
+      providerBody: null,
+    };
   }
   const target = normalizePhone(overrideTo) ?? normalizePhone(settings.testRecipient);
   if (!target) {
-    return { ok: false, message: "Geçerli bir test alıcısı yok.", recipients: [] };
+    return {
+      ok: false,
+      message: "Geçerli bir test alıcısı yok.",
+      recipients: [],
+      providerStatus: null,
+      providerBody: null,
+    };
   }
   const [row] = await db
     .select({ apiKey: whatsappSettings.apiKeyEncrypted })
     .from(whatsappSettings)
     .where(eq(whatsappSettings.id, 1));
   if (!row?.apiKey) {
-    return { ok: false, message: "API anahtarı çözümlenemedi.", recipients: [] };
+    return {
+      ok: false,
+      message: "API anahtarı çözümlenemedi.",
+      recipients: [],
+      providerStatus: null,
+      providerBody: null,
+    };
   }
   const apiKey = decrypt(row.apiKey);
   const message =
@@ -379,23 +391,22 @@ export async function sendTestWhatsapp(
       receiver: target,
       message,
     });
-    if (!r.ok) {
-      return {
-        ok: false,
-        message: `wpileti.com hata (${r.status}): ${r.body.slice(0, 200)}`,
-        recipients: [target],
-      };
-    }
     return {
-      ok: true,
-      message: `Test mesajı ${target} numarasına gönderildi.`,
+      ok: r.ok,
+      message: r.ok
+        ? `Test mesajı ${target} numarasına gönderildi.`
+        : `wpileti.com hata (${r.status}).`,
       recipients: [target],
+      providerStatus: r.status,
+      providerBody: r.body.slice(0, 500),
     };
   } catch (err) {
     return {
       ok: false,
       message: `İstek başarısız: ${(err as Error).message}`,
       recipients: [target],
+      providerStatus: null,
+      providerBody: null,
     };
   }
 }

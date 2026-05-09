@@ -99,9 +99,17 @@ export default function WhatsappSettingsPage() {
       { data: { to: overrideTest.trim() || null } },
       {
         onSuccess: (res) => {
+          const statusLine =
+            res.providerStatus != null ? `HTTP ${res.providerStatus}` : null;
+          const bodyLine = res.providerBody
+            ? res.providerBody.slice(0, 200)
+            : null;
+          const desc = [res.message, statusLine, bodyLine]
+            .filter(Boolean)
+            .join(" — ");
           toast({
             title: res.success ? "Test Mesajı Gönderildi" : "Test Başarısız",
-            description: res.message,
+            description: desc,
             variant: res.success ? "default" : "destructive",
           });
         },

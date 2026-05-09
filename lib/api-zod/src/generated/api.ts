@@ -392,6 +392,16 @@ export const TestWhatsappSettingsResponse = zod.object({
   success: zod.boolean(),
   message: zod.string(),
   recipients: zod.array(zod.string()),
+  providerStatus: zod
+    .number()
+    .nullish()
+    .describe("wpileti.com HTTP durum kodu (istek yapılmadıysa null)."),
+  providerBody: zod
+    .string()
+    .nullish()
+    .describe(
+      "wpileti.com yanıt gövdesi (ilk 500 karakter; istek yapılmadıysa null).",
+    ),
 });
 
 export const ListWhatsappThresholdRulesResponseItem = zod.object({

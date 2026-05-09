@@ -68,12 +68,18 @@ router.post(
       action: "whatsapp.test",
       target: "whatsapp_settings:1",
       success: result.ok,
-      meta: { message: result.message, recipients: result.recipients },
+      meta: {
+        message: result.message,
+        recipients: result.recipients,
+        providerStatus: result.providerStatus,
+      },
     });
     res.json({
       success: result.ok,
       message: result.message,
       recipients: result.recipients,
+      providerStatus: result.providerStatus,
+      providerBody: result.providerBody,
     });
   }
 );
