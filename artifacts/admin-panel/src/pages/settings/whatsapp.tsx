@@ -15,7 +15,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
   Card,
@@ -50,9 +49,9 @@ export default function WhatsappSettingsPage() {
     "https://app.wpileti.com/api/send-message",
   );
   const [apiKey, setApiKey] = useState("");
-  const [opsRecipients, setOpsRecipients] = useState("");
   const [testRecipient, setTestRecipient] = useState("");
   const [overrideTest, setOverrideTest] = useState("");
+  const [globalThresholdGb, setGlobalThresholdGb] = useState("");
 
   const [newMinPlan, setNewMinPlan] = useState("");
   const [newStep, setNewStep] = useState("");
@@ -62,16 +61,32 @@ export default function WhatsappSettingsPage() {
     setEnabled(settings.enabled);
     setEndpointUrl(settings.endpointUrl);
     setApiKey("");
-    setOpsRecipients(settings.opsRecipients ?? "");
     setTestRecipient(settings.testRecipient ?? "");
+    setGlobalThresholdGb(
+      settings.globalThresholdGb != null ? String(settings.globalThresholdGb) : "",
+    );
   }, [settings?.updatedAt]);
 
   const handleSave = () => {
     // endpointUrl frontend'de read-only — backend allowlist enforce ediyor.
+    const trimmed = globalThresholdGb.trim();
+    let globalNum: number | null = null;
+    if (trimmed !== "") {
+      const n = Number(trimmed);
+      if (!Number.isFinite(n) || n < 1) {
+        toast({
+          title: "Geçersiz global eşik",
+          description: "En az 1 GB olmalı veya boş bırakın.",
+          variant: "destructive",
+        });
+        return;
+      }
+      globalNum = n;
+    }
     const payload: Record<string, unknown> = {
       enabled,
-      opsRecipients: opsRecipients.trim() || null,
       testRecipient: testRecipient.trim() || null,
+      globalThresholdGb: globalNum,
     };
     if (apiKey.length > 0) payload.apiKey = apiKey;
     updateMut.mutate(
@@ -199,10 +214,10 @@ export default function WhatsappSettingsPage() {
               WhatsApp Bildirimleri (wpileti.com)
             </CardTitle>
             <CardDescription className="mt-1 text-sm text-muted-foreground">
-              Plan-bazlı eşikleri aşan KIT'ler için anlık WhatsApp mesajı gönderir.
-              Müşteri rolündeki kullanıcılar yalnız atanmış KIT'leri için bildirim
-              alır; operatör/admin alıcıları aşağıdaki global liste üzerinden
-              bildirim alır.
+              Plan-bazlı eşikleri aşan KIT'ler için anlık WhatsApp mesajı
+              gönderir. Bildirimler YALNIZ "müşteri" rolündeki kullanıcılara,
+              kendilerine atanmış KIT için gider (Kullanıcılar sayfasında
+              telefon alanı dolu olmalı).
             </CardDescription>
           </CardHeader>
           <CardContent className="p-4 sm:p-6 lg:p-8">
@@ -267,19 +282,20 @@ export default function WhatsappSettingsPage() {
 
                 <div className="space-y-1.5">
                   <Label className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Operatör Alıcı Listesi
+                    Global Yedek Eşik (GB)
                   </Label>
-                  <Textarea
-                    value={opsRecipients}
-                    placeholder="905321234567, 905339998877"
-                    rows={3}
-                    onChange={(e) => setOpsRecipients(e.target.value)}
-                    className="font-mono text-sm bg-background border-border rounded-lg shadow-none"
+                  <Input
+                    type="number"
+                    min={1}
+                    value={globalThresholdGb}
+                    placeholder="örn. 100 (boş = fallback kapalı)"
+                    onChange={(e) => setGlobalThresholdGb(e.target.value)}
+                    className="font-mono text-sm bg-background border-border h-10 rounded-lg shadow-none"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Virgülle ayrılmış telefon listesi. E.164 formatında, başında +
-                    yok (örn. <span className="font-mono">905321234567</span>). Tüm
-                    KIT'lerden gelen bildirimleri bu numaralar alır.
+                    Plan kotası bilinmiyorsa veya aşağıdaki kurallardan hiçbiri
+                    eşleşmiyorsa devreye girer. Boş bırakırsanız: eşleşme yoksa
+                    bildirim gönderilmez.
                   </p>
                 </div>
 

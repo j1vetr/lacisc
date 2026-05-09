@@ -343,13 +343,13 @@ export const GetWhatsappSettingsResponse = zod.object({
     .boolean()
     .describe("true → kayıtlı API anahtarı var (gerçek değer dönmez)"),
   endpointUrl: zod.string(),
-  opsRecipients: zod
-    .string()
+  testRecipient: zod.string().nullish(),
+  globalThresholdGb: zod
+    .number()
     .nullish()
     .describe(
-      "Virgülle ayrılmış telefon listesi (operatör\/admin\/viewer roller için)",
+      "Plan kotası bilinmediğinde \/ kural eşleşmediğinde devreye giren yedek eşik (decimal GB). null = fallback kapalı.",
     ),
-  testRecipient: zod.string().nullish(),
   updatedAt: zod.coerce.date(),
 });
 
@@ -362,8 +362,8 @@ export const UpdateWhatsappSettingsBody = zod.object({
       "undefined → değişmez, '' veya null → temizler, dolu → yeni anahtar.",
     ),
   endpointUrl: zod.string().optional(),
-  opsRecipients: zod.string().nullish(),
   testRecipient: zod.string().nullish(),
+  globalThresholdGb: zod.number().min(1).nullish(),
 });
 
 export const UpdateWhatsappSettingsResponse = zod.object({
@@ -372,13 +372,13 @@ export const UpdateWhatsappSettingsResponse = zod.object({
     .boolean()
     .describe("true → kayıtlı API anahtarı var (gerçek değer dönmez)"),
   endpointUrl: zod.string(),
-  opsRecipients: zod
-    .string()
+  testRecipient: zod.string().nullish(),
+  globalThresholdGb: zod
+    .number()
     .nullish()
     .describe(
-      "Virgülle ayrılmış telefon listesi (operatör\/admin\/viewer roller için)",
+      "Plan kotası bilinmediğinde \/ kural eşleşmediğinde devreye giren yedek eşik (decimal GB). null = fallback kapalı.",
     ),
-  testRecipient: zod.string().nullish(),
   updatedAt: zod.coerce.date(),
 });
 

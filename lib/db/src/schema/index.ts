@@ -718,13 +718,17 @@ export const whatsappSettings = pgTable("whatsapp_settings", {
   endpointUrl: text("endpoint_url")
     .default("https://app.wpileti.com/api/send-message")
     .notNull(),
-  // Operatör/admin/viewer için CSV liste — E.164-without-plus
-  // (örn. "905321234567,905339998877"). Customer roller bu listeyi YOK
-  // sayar; onlar yalnız atanmış KIT bildirimi için adminUsers.phone üzerinden
-  // alır.
+  // LEGACY (Task #27 ilk taslak): operatör CSV listesi. Spec'e göre
+  // bildirim akışı YALNIZ customer atamalı (customer_kit_assignments)
+  // kullanır; bu kolon artık dispatch yolundan okunmuyor. Sütun ileride
+  // tech-debt task'ında düşürülecek.
   opsRecipients: text("ops_recipients"),
   // "Test mesajı gönder" butonu için varsayılan tek alıcı.
   testRecipient: text("test_recipient"),
+  // Global yedek eşik (decimal GB). Plan kotası bilinmediğinde VEYA
+  // hiçbir whatsapp_threshold_rules kuralı eşleşmediğinde devreye girer.
+  // NULL → fallback yok, eşleşme yoksa bildirim gönderilmez.
+  globalThresholdGb: doublePrecision("global_threshold_gb"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 export type WhatsappSettings = typeof whatsappSettings.$inferSelect;

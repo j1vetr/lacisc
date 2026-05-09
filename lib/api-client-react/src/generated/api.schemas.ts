@@ -604,9 +604,9 @@ export interface WhatsappSettings {
   /** true → kayıtlı API anahtarı var (gerçek değer dönmez) */
   hasApiKey: boolean;
   endpointUrl: string;
-  /** Virgülle ayrılmış telefon listesi (operatör/admin/viewer roller için) */
-  opsRecipients?: string | null;
   testRecipient?: string | null;
+  /** Plan kotası bilinmediğinde / kural eşleşmediğinde devreye giren yedek eşik (decimal GB). null = fallback kapalı. */
+  globalThresholdGb?: number | null;
   updatedAt: string;
 }
 
@@ -615,8 +615,9 @@ export interface WhatsappSettingsUpdate {
   /** undefined → değişmez, '' veya null → temizler, dolu → yeni anahtar. */
   apiKey?: string | null;
   endpointUrl?: string;
-  opsRecipients?: string | null;
   testRecipient?: string | null;
+  /** @minimum 1 */
+  globalThresholdGb?: number | null;
 }
 
 export interface WhatsappTestResult {

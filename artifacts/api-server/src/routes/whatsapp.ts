@@ -35,22 +35,28 @@ router.put(
     const patch: WhatsappSettingsUpdate = {};
     if (typeof body.enabled === "boolean") patch.enabled = body.enabled;
     if (body.endpointUrl !== undefined) patch.endpointUrl = body.endpointUrl;
-    if (body.opsRecipients !== undefined)
-      patch.opsRecipients = body.opsRecipients;
     if (body.testRecipient !== undefined)
       patch.testRecipient = body.testRecipient;
+    if (body.globalThresholdGb !== undefined)
+      patch.globalThresholdGb = body.globalThresholdGb;
     if (body.apiKey !== undefined) patch.apiKey = body.apiKey;
-    const settings = await saveWhatsappSettings(patch);
-    await audit(req, {
-      action: "whatsapp.settings.update",
-      target: "whatsapp_settings:1",
-      meta: {
-        enabled: settings.enabled,
-        hasApiKey: settings.hasApiKey,
-        opsRecipientsLen: settings.opsRecipients?.length ?? 0,
-      },
-    });
-    res.json(settings);
+    try {
+      const settings = await saveWhatsappSettings(patch);
+      await audit(req, {
+        action: "whatsapp.settings.update",
+        target: "whatsapp_settings:1",
+        meta: {
+          enabled: settings.enabled,
+          hasApiKey: settings.hasApiKey,
+          globalThresholdGb: settings.globalThresholdGb,
+        },
+      });
+      res.json(settings);
+    } catch (err) {
+      res.status(400).json({
+        error: err instanceof Error ? err.message : "Ayarlar kaydedilemedi.",
+      });
+    }
   }
 );
 

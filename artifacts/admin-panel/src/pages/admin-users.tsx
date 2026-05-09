@@ -211,6 +211,7 @@ export default function AdminUsers() {
                   <tr className="border-b border-border">
                     <th className="text-left py-2 font-medium">Ad</th>
                     <th className="text-left py-2 font-medium">Kullanıcı adı / E-posta</th>
+                    <th className="text-left py-2 font-medium">Telefon</th>
                     <th className="text-left py-2 font-medium">Rol</th>
                     <th className="text-left py-2 font-medium">Atanmış KIT</th>
                     <th className="text-left py-2 font-medium">Son Giriş</th>
@@ -233,6 +234,13 @@ export default function AdminUsers() {
                             )}
                             {!u.username && !u.email && <span className="text-muted-foreground">—</span>}
                           </div>
+                        </td>
+                        <td className="py-3 font-mono text-xs">
+                          {u.phone ? (
+                            <span>{u.phone}</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </td>
                         <td className="py-3">
                           <Badge

@@ -33,8 +33,8 @@ export type WhatsappSettingsView = {
   enabled: boolean;
   hasApiKey: boolean;
   endpointUrl: string;
-  opsRecipients: string | null;
   testRecipient: string | null;
+  globalThresholdGb: number | null;
   updatedAt: Date;
 };
 
@@ -48,8 +48,8 @@ export async function getWhatsappSettings(): Promise<WhatsappSettingsView> {
       enabled: false,
       hasApiKey: false,
       endpointUrl: DEFAULT_WHATSAPP_ENDPOINT,
-      opsRecipients: null,
       testRecipient: null,
+      globalThresholdGb: null,
       updatedAt: new Date(),
     };
   }
@@ -61,8 +61,8 @@ export async function getWhatsappSettings(): Promise<WhatsappSettingsView> {
     enabled: row.enabled,
     hasApiKey: !!row.apiKeyEncrypted,
     endpointUrl: safeEndpoint,
-    opsRecipients: row.opsRecipients,
     testRecipient: row.testRecipient,
+    globalThresholdGb: row.globalThresholdGb ?? null,
     updatedAt: row.updatedAt,
   };
 }
@@ -72,8 +72,9 @@ export type WhatsappSettingsUpdate = {
   // null/"" → temizle, undefined → değişmez, dolu → re-encrypt
   apiKey?: string | null;
   endpointUrl?: string;
-  opsRecipients?: string | null;
   testRecipient?: string | null;
+  // Global fallback eşik. null → fallback kapalı.
+  globalThresholdGb?: number | null;
 };
 
 // Güvenlik: SSRF + API anahtarı sızıntısını önlemek için endpoint URL
@@ -105,10 +106,20 @@ export async function saveWhatsappSettings(
     }
     update.endpointUrl = candidate;
   }
-  if (patch.opsRecipients !== undefined)
-    update.opsRecipients = patch.opsRecipients;
   if (patch.testRecipient !== undefined)
     update.testRecipient = patch.testRecipient;
+  if (patch.globalThresholdGb !== undefined) {
+    if (patch.globalThresholdGb === null) {
+      update.globalThresholdGb = null;
+    } else if (
+      Number.isFinite(patch.globalThresholdGb) &&
+      patch.globalThresholdGb >= 1
+    ) {
+      update.globalThresholdGb = patch.globalThresholdGb;
+    } else {
+      throw new Error("globalThresholdGb >= 1 olmalı (veya null).");
+    }
+  }
   if (patch.apiKey !== undefined) {
     update.apiKeyEncrypted =
       patch.apiKey === null || patch.apiKey === ""
@@ -126,10 +137,11 @@ export async function saveWhatsappSettings(
       endpointUrl:
         (update.endpointUrl as string | undefined) ??
         DEFAULT_WHATSAPP_ENDPOINT,
-      opsRecipients:
-        (update.opsRecipients as string | null | undefined) ?? null,
+      opsRecipients: null,
       testRecipient:
         (update.testRecipient as string | null | undefined) ?? null,
+      globalThresholdGb:
+        (update.globalThresholdGb as number | null | undefined) ?? null,
       updatedAt: update.updatedAt as Date,
     })
     .onConflictDoUpdate({ target: whatsappSettings.id, set: update });
@@ -188,29 +200,38 @@ export async function deleteThresholdRule(id: number): Promise<void> {
 }
 
 // Plan kotası verili → en yüksek minPlanGb<=plan kuralını seç. Plan null →
-// catchall (minPlanGb IS NULL). Hiç eşleşme yoksa null döner (uyarı yok).
-async function pickStepGb(planAllowanceGb: number | null): Promise<number | null> {
+// catchall (minPlanGb IS NULL). Hiç eşleşme yoksa SETTINGS.globalThresholdGb
+// fallback olarak kullanılır; o da null ise uyarı gönderilmez.
+async function pickStepGb(
+  planAllowanceGb: number | null,
+  globalFallbackGb: number | null
+): Promise<number | null> {
+  let row:
+    | typeof whatsappThresholdRules.$inferSelect
+    | undefined;
   if (planAllowanceGb == null || !Number.isFinite(planAllowanceGb)) {
-    const [row] = await db
+    [row] = await db
       .select()
       .from(whatsappThresholdRules)
       .where(isNull(whatsappThresholdRules.minPlanGb))
       .orderBy(desc(whatsappThresholdRules.id))
       .limit(1);
-    return row?.stepGb ?? null;
-  }
-  const [row] = await db
-    .select()
-    .from(whatsappThresholdRules)
-    .where(
-      or(
-        isNull(whatsappThresholdRules.minPlanGb),
-        lte(whatsappThresholdRules.minPlanGb, planAllowanceGb)
+  } else {
+    [row] = await db
+      .select()
+      .from(whatsappThresholdRules)
+      .where(
+        or(
+          isNull(whatsappThresholdRules.minPlanGb),
+          lte(whatsappThresholdRules.minPlanGb, planAllowanceGb)
+        )
       )
-    )
-    .orderBy(sql`${whatsappThresholdRules.minPlanGb} DESC NULLS LAST`)
-    .limit(1);
-  return row?.stepGb ?? null;
+      .orderBy(sql`${whatsappThresholdRules.minPlanGb} DESC NULLS LAST`)
+      .limit(1);
+  }
+  if (row?.stepGb && row.stepGb >= 1) return row.stepGb;
+  if (globalFallbackGb != null && globalFallbackGb >= 1) return globalFallbackGb;
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -265,13 +286,39 @@ async function processSendQueue(): Promise<void> {
     while (sendQueue.length > 0) {
       const job = sendQueue.shift()!;
       try {
-        await job.send();
-        logger.info(
-          { label: job.label, queueRemaining: sendQueue.length },
-          "WhatsApp mesajı gönderildi"
-        );
+        const r = (await job.send()) as
+          | { ok: boolean; status: number; body: string }
+          | undefined;
+        if (r && !r.ok) {
+          // Yapılandırılmış hata kaydı (client_errors / sync_logs ile aynı
+          // pino sink'ine gider — bir sonraki adımda /sync-logs benzeri UI'da
+          // listelenebilir).
+          logger.error(
+            {
+              clientError: true,
+              channel: "whatsapp",
+              label: job.label,
+              providerStatus: r.status,
+              providerBody: r.body.slice(0, 500),
+            },
+            "WhatsApp wpileti.com hata yanıtı"
+          );
+        } else {
+          logger.info(
+            { label: job.label, queueRemaining: sendQueue.length },
+            "WhatsApp mesajı gönderildi"
+          );
+        }
       } catch (err) {
-        logger.error({ err, label: job.label }, "WhatsApp gönderimi başarısız");
+        logger.error(
+          {
+            clientError: true,
+            channel: "whatsapp",
+            label: job.label,
+            err,
+          },
+          "WhatsApp gönderimi başarısız"
+        );
       }
       if (sendQueue.length > 0) {
         await new Promise((r) => setTimeout(r, SEND_INTERVAL_MS));
@@ -357,13 +404,12 @@ export async function sendTestWhatsapp(
 // Recipient resolution
 // ---------------------------------------------------------------------------
 
-// Operatör listesi (ops_recipients CSV) + atanmış customer kullanıcıların
-// telefonları. Tekilleştirme ve normalize uygulanır.
+// Spec: WhatsApp eşik bildirimleri YALNIZ customer rolündeki kullanıcılara
+// (kendilerine atanmış KIT için) gider. Operatör/admin/viewer global
+// listesi dispatch yolundan kaldırıldı.
 async function resolveRecipientsForKit(opts: {
   kitNo: string;
-  opsCsv: string | null;
 }): Promise<string[]> {
-  const ops = parseRecipientsCsv(opts.opsCsv);
   const customers = await db
     .select({ phone: adminUsers.phone })
     .from(customerKitAssignments)
@@ -375,15 +421,13 @@ async function resolveRecipientsForKit(opts: {
         sql`${adminUsers.phone} IS NOT NULL AND ${adminUsers.phone} <> ''`
       )
     );
-  const customerPhones = customers
-    .map((r) => normalizePhone(r.phone))
-    .filter((v): v is string => !!v);
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const p of [...ops, ...customerPhones]) {
-    if (!seen.has(p)) {
-      seen.add(p);
-      out.push(p);
+  for (const r of customers) {
+    const n = normalizePhone(r.phone);
+    if (n && !seen.has(n)) {
+      seen.add(n);
+      out.push(n);
     }
   }
   return out;
@@ -420,7 +464,10 @@ export async function maybeFireWhatsappAlert(opts: {
     const settings = await getWhatsappSettings();
     if (!settings.enabled || !settings.hasApiKey) return;
 
-    const stepGb = await pickStepGb(opts.planAllowanceGb ?? null);
+    const stepGb = await pickStepGb(
+      opts.planAllowanceGb ?? null,
+      settings.globalThresholdGb ?? null
+    );
     if (!stepGb || stepGb < 1) return;
 
     const crossedStep = Math.floor(opts.totalGb / stepGb) * stepGb;
@@ -461,10 +508,7 @@ export async function maybeFireWhatsappAlert(opts: {
     }
     if (!claimed) return;
 
-    const recipients = await resolveRecipientsForKit({
-      kitNo: opts.kitNo,
-      opsCsv: settings.opsRecipients,
-    });
+    const recipients = await resolveRecipientsForKit({ kitNo: opts.kitNo });
     if (recipients.length === 0) {
       logger.info(
         { source: opts.source, kitNo: opts.kitNo, crossedStep },

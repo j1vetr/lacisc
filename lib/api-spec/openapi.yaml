@@ -2338,8 +2338,11 @@ components:
         enabled: { type: boolean }
         hasApiKey: { type: boolean, description: "true → kayıtlı API anahtarı var (gerçek değer dönmez)" }
         endpointUrl: { type: string }
-        opsRecipients: { type: string, nullable: true, description: "Virgülle ayrılmış telefon listesi (operatör/admin/viewer roller için)" }
         testRecipient: { type: string, nullable: true }
+        globalThresholdGb:
+          type: number
+          nullable: true
+          description: "Plan kotası bilinmediğinde / kural eşleşmediğinde devreye giren yedek eşik (decimal GB). null = fallback kapalı."
         updatedAt: { type: string, format: date-time }
 
     WhatsappSettingsUpdate:
@@ -2351,8 +2354,11 @@ components:
           nullable: true
           description: "undefined → değişmez, '' veya null → temizler, dolu → yeni anahtar."
         endpointUrl: { type: string }
-        opsRecipients: { type: string, nullable: true }
         testRecipient: { type: string, nullable: true }
+        globalThresholdGb:
+          type: number
+          nullable: true
+          minimum: 1
 
     WhatsappTestResult:
       type: object
