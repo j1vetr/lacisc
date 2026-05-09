@@ -191,83 +191,108 @@ async function parseMeasurementsPage(page: Page): Promise<
   return out;
 }
 
-// Generic ASPx.GVPagerOnClick helper — same proven mechanism as
-// `setGridPageSize()` in scraper.ts, parameterized by grid id. DevExpress's
-// `Page size` dropdown calls `ASPx.GVPagerOnClick(gridId, size)`; SetValue /
-// PerformCallback / __doPostBack silently fail (see replit.md gotcha).
-async function setMeasurementsGridPageSize(
+// Bu Measurements gridinde page-size dropdown YOK. Onun yerine DevExpress
+// "Moderno" pager butonları kullanılıyor: dxWeb_pFirst/pPrev/pNext/pLast_Moderno.
+// Strateji: önce gridin satır basmasını bekle, sonra "Last" butonuyla
+// pager'ın sonuna atla (en güncel veri orada — sayfa sıralaması ASC),
+// ardından N sayfa "Prev" ile geri yürü. Her sayfa upsert overlap-safe.
+async function waitForMeasurementsRows(
   page: Page,
-  size: number
-): Promise<void> {
-  const gridId = "ctl00_ContentPlaceHolder1_gvStarlinkMeasurementsOneHour";
-  const before = await page
-    .evaluate(
-      (gid) => document.querySelectorAll(`[id^='${gid}_DXDataRow']`).length,
-      gridId
+  timeoutMs = 15000
+): Promise<number> {
+  const gridPrefix = "ctl00_ContentPlaceHolder1_gvStarlinkMeasurementsOneHour";
+  const deadline = Date.now() + timeoutMs;
+  let last = 0;
+  while (Date.now() < deadline) {
+    const n = await page
+      .evaluate(
+        (gid) => document.querySelectorAll(`[id^='${gid}_DXDataRow']`).length,
+        gridPrefix
+      )
+      .catch(() => 0);
+    if (n > 0) return n;
+    last = n;
+    await page.waitForTimeout(300);
+  }
+  return last;
+}
+
+// Grid imza fonksiyonu — pager disabled / no-op tespiti için.
+const measurementsSigFn = (gid: string) => {
+  const rows = Array.from(
+    document.querySelectorAll(`[id^='${gid}_DXDataRow']`)
+  ).slice(0, 3) as HTMLElement[];
+  return rows
+    .map((tr) =>
+      Array.from(tr.querySelectorAll("td"))
+        .slice(0, 2)
+        .map((td) => (td.textContent || "").trim())
+        .join("|")
     )
-    .catch(() => 0);
+    .join("§");
+};
+
+// ASPx.GVPagerOnClick komutları:
+//   PBF=First, PBP=Prev, PBN=Next, PBL=Last, "<n>"=spesifik sayfa
+//   sayısal değer (ör. "50") = page-size değişikliği → grid'i AJAX ile yeniden
+//   yükler. Bu portalda goto sonrası grid boş geliyor; page-size komutu
+//   hem grid'i uyandırır hem yükler.
+async function fireMeasurementsPager(
+  page: Page,
+  command: "PBF" | "PBP" | "PBN" | "PBL" | string,
+  label: string
+): Promise<{ triggered: boolean; movedSig: boolean }> {
+  const gridPrefix = "ctl00_ContentPlaceHolder1_gvStarlinkMeasurementsOneHour";
+  const before = await page.evaluate(measurementsSigFn, gridPrefix).catch(() => "");
+
   const triggered = await page
     .evaluate(
-      ([gid, sz]) => {
+      ([gid, cmd]) => {
         const w = window as unknown as Record<string, unknown>;
         const aspx = w["ASPx"] as
           | { GVPagerOnClick?: (id: string, val: string) => void }
           | undefined;
         if (aspx && typeof aspx.GVPagerOnClick === "function") {
           try {
-            aspx.GVPagerOnClick(gid as string, String(sz));
-            return "ASPx.GVPagerOnClick";
+            aspx.GVPagerOnClick(gid as string, cmd as string);
+            return true;
           } catch {
-            /* fall through */
+            return false;
           }
         }
-        return "noop";
+        return false;
       },
-      [gridId, size] as const
+      [gridPrefix, command] as const
     )
-    .catch(() => "error");
-  // Poll DOM row count until grid rerenders (or stabilises) — same approach as
-  // setGridPageSize() in scraper.ts.
-  const deadline = Date.now() + 12000;
-  let after = before;
-  let stableTicks = 0;
-  while (Date.now() < deadline) {
-    await page.waitForTimeout(400);
-    const n = await page
-      .evaluate(
-        (gid) => document.querySelectorAll(`[id^='${gid}_DXDataRow']`).length,
-        gridId
-      )
-      .catch(() => after);
-    if (n > before) {
-      after = n;
-      await page.waitForTimeout(400);
-      after = await page
-        .evaluate(
-          (gid) => document.querySelectorAll(`[id^='${gid}_DXDataRow']`).length,
-          gridId
-        )
-        .catch(() => after);
-      break;
+    .catch(() => false);
+
+  if (!triggered) {
+    // Yedek: DOM butonuna tıkla (Moderno theme).
+    const clsMap: Record<string, string> = {
+      PBF: "dxWeb_pFirst_Moderno",
+      PBP: "dxWeb_pPrev_Moderno",
+      PBN: "dxWeb_pNext_Moderno",
+      PBL: "dxWeb_pLast_Moderno",
+    };
+    const cls = clsMap[command];
+    const btn = page.locator(`[id*='${gridPrefix}'] .${cls}`).first();
+    if ((await btn.count().catch(() => 0)) === 0) {
+      logger.info({ command, label }, "Pager: ASPx yok ve DOM butonu yok");
+      return { triggered: false, movedSig: false };
     }
-    if (n === after) {
-      stableTicks++;
-      if (stableTicks >= 4) break;
-    } else {
-      after = n;
-      stableTicks = 0;
+    await btn.click({ timeout: 5000 }).catch(() => {});
+  }
+
+  // Grid imzası değişene kadar bekle (yeniden render).
+  const deadline = Date.now() + 12000;
+  while (Date.now() < deadline) {
+    await page.waitForTimeout(300);
+    const nowSig = await page.evaluate(measurementsSigFn, gridPrefix).catch(() => before);
+    if (nowSig && nowSig !== before) {
+      return { triggered: true, movedSig: true };
     }
   }
-  logger.info(
-    {
-      gridId,
-      requestedSize: size,
-      triggered,
-      rowsBefore: before,
-      rowsAfter: after,
-    },
-    "setMeasurementsGridPageSize result"
-  );
+  return { triggered: true, movedSig: false };
 }
 
 export async function fetchHourlyTelemetry(
@@ -289,25 +314,96 @@ export async function fetchHourlyTelemetry(
     return { inserted: 0, updated: 0, rows: 0 };
   }
 
-  // Grid'in oluşmasını bekle.
+  // Grid container'ı bekle. Bu portalda satırlar AJAX ile geç yükleniyor —
+  // grid'i "uyandırmak" için PBL (Last) komutu gönderiyoruz; bu hem grid'i
+  // doldurur hem de en güncel sayfaya götürür (sıralama ASC).
   await page
     .locator("[id*='gvStarlinkMeasurementsOneHour']")
     .first()
     .waitFor({ timeout: 15000 })
     .catch(() => {});
 
-  // setGridPageSize pattern (proven in scraper.ts) → page size 200; sonra
-  // DevExpress pager ile gerçek sayfa-sayfa traverse. Telemetry tablosu
-  // (credential_id, kit_no, interval_start) unique → overlap-safe upsert,
-  // tekrar çekilen saatler güncellenir, duplicate yok.
-  // - First-full: en fazla 10 sayfa (200 × 10 = 2000 satır → ~10 gün × 24h ×
-  //   8 KIT için yeterli headroom).
-  // - Incremental: 2 sayfa yeter (en taze saatler + 1 önceki sayfa overlap).
-  await setMeasurementsGridPageSize(page, 200);
-  // Task spec: first-full = ~80 sayfa derinlik (10 günlük backfill garantisi),
-  // incremental = 2 sayfa (overlap-safe upsert). Pager `goToNextMeasurementsPage`
-  // disabled olunca erken çıkar — boş sayfalar 80 limitine kadar çalışmaz.
-  const maxPages = isFirstFull ? 80 : 2;
+  // DEBUG: Measurements sayfasının DOM durumunu logla.
+  const probe = await page
+    .evaluate(() => {
+      const gid = "ctl00_ContentPlaceHolder1_gvStarlinkMeasurementsOneHour";
+      const w = window as unknown as Record<string, unknown>;
+      const aspx = w["ASPx"] as
+        | { GVPagerOnClick?: (id: string, val: string) => void }
+        | undefined;
+      const allRows = document.querySelectorAll(
+        `[id*='${gid}'] tr[id*='DXDataRow']`
+      ).length;
+      const directRows = document.querySelectorAll(
+        `[id^='${gid}_DXDataRow']`
+      ).length;
+      const pagerBtns = Array.from(
+        document.querySelectorAll(`[id*='${gid}'] [class*='dxWeb_p']`)
+      )
+        .map((el) => (el as HTMLElement).className)
+        .slice(0, 8);
+      const containerHtmlLen =
+        document.querySelector(`[id*='${gid}']`)?.innerHTML.length ?? 0;
+      const iframes = Array.from(document.querySelectorAll("iframe"))
+        .map((f) => (f as HTMLIFrameElement).id || "(no-id)")
+        .slice(0, 5);
+      // Sayfadaki tüm "gv" prefix'li ID'leri ve büyük tabloları listele.
+      const allGvIds = Array.from(document.querySelectorAll("[id*='gv']"))
+        .map((el) => el.id)
+        .filter((id) => id && !id.includes("_DX") && id.length < 100)
+        .slice(0, 20);
+      const tableIds = Array.from(document.querySelectorAll("table[id]"))
+        .map((t) => (t as HTMLTableElement).id)
+        .filter((id) => id.length < 80)
+        .slice(0, 15);
+      const measurementsIds = Array.from(
+        document.querySelectorAll("[id*='easurement'], [id*='easur']")
+      )
+        .map((el) => el.id)
+        .filter((id) => id.length < 100)
+        .slice(0, 10);
+      const bodyTextSnippet = (document.body.innerText || "").slice(0, 400);
+      return {
+        url: location.href,
+        title: document.title,
+        hasASPx: typeof aspx?.GVPagerOnClick === "function",
+        allRows,
+        directRows,
+        pagerBtns,
+        containerHtmlLen,
+        iframes,
+        allGvIds,
+        tableIds,
+        measurementsIds,
+        bodyTextSnippet,
+      };
+    })
+    .catch((e) => ({ err: (e as Error).message }));
+  logger.info({ credentialId, probe }, "Measurements DOM probe");
+
+  // 1) WAKE: page-size komutu grid'i AJAX ile yeniden yükler. PBL boş gridde
+  //    no-op olur; önce default sayfa verilerini yüklemek şart.
+  const wake = await fireMeasurementsPager(page, "50", "wake-50");
+  const wokeRows = await waitForMeasurementsRows(page, 20000);
+  if (wokeRows === 0) {
+    logger.warn(
+      { credentialId, wake },
+      "Measurements grid satır basmadı (telemetri atlandı)"
+    );
+    return { inserted: 0, updated: 0, rows: 0 };
+  }
+  // 2) Sonuna atla — sıralama ASC, son sayfa = en güncel.
+  const lastJump = await fireMeasurementsPager(page, "PBL", "Last");
+  await waitForMeasurementsRows(page, 10000);
+  logger.info({ credentialId, wokeRows, lastJump }, "Measurements: PBL sonrası");
+
+  // Bu gridde page-size dropdown YOK. Strateji: PBL ile en son sayfaya atla
+  // (yukarıda yapıldı), sonra PBP ile N sayfa geri yürü. Yazımlar
+  // (credential_id, kit_no, interval_start) unique key üzerinde upsert —
+  // tekrar çekilen saatler güncellenir.
+  // First-full: 14 sayfa (~14 gün headroom), incremental: 7 sayfa (~1 hafta).
+  const maxPages = isFirstFull ? 14 : 7;
+
   let inserted = 0;
   let updated = 0;
   let totalRows = 0;
@@ -361,8 +457,9 @@ export async function fetchHourlyTelemetry(
       else updated++;
     }
 
-    const moved = await goToNextMeasurementsPage(page);
-    if (!moved) break;
+    if (pageIdx === maxPages - 1) break;
+    const prev = await fireMeasurementsPager(page, "PBP", "Prev");
+    if (!prev.movedSig) break;
   }
 
   logger.info(
@@ -378,75 +475,6 @@ export async function fetchHourlyTelemetry(
     "Saatlik telemetri kaydedildi"
   );
   return { inserted, updated, rows: totalRows };
-}
-
-async function goToNextMeasurementsPage(page: Page): Promise<boolean> {
-  const gridPrefix = "ctl00_ContentPlaceHolder1_gvStarlinkMeasurementsOneHour";
-  // Sayfa değişimini içerik-imzası ile algıla. DevExpress satır id'leri
-  // (`...DXDataRow0`, `DXDataRow1`...) sayfalar arası SABİT kalır; sadece
-  // hücre metni (özellikle KIT no + saatlik timestamp) değişir. Bu yüzden
-  // snapshot olarak ilk birkaç satırın hücre içeriğini birleştirip kullan.
-  const sigFn = (gid: string) => {
-    const rows = Array.from(
-      document.querySelectorAll(`[id^='${gid}_DXDataRow']`)
-    ).slice(0, 3) as HTMLElement[];
-    return rows
-      .map((tr) =>
-        Array.from(tr.querySelectorAll("td"))
-          .slice(0, 2)
-          .map((td) => (td.textContent || "").trim())
-          .join("|")
-      )
-      .join("§");
-  };
-  const before = await page.evaluate(sigFn, gridPrefix).catch(() => "");
-
-  // En güvenli yol: ASPx.GVPagerOnClick(gridId, 'PBN') = page button next.
-  // SetValue/PerformCallback/__doPostBack silently fail (replit.md), bu
-  // mekanizma `setGridPageSize` ile aynı API.
-  const triggered = await page
-    .evaluate((gid) => {
-      const w = window as unknown as Record<string, unknown>;
-      const aspx = w["ASPx"] as
-        | { GVPagerOnClick?: (id: string, val: string) => void }
-        | undefined;
-      if (aspx && typeof aspx.GVPagerOnClick === "function") {
-        try {
-          aspx.GVPagerOnClick(gid, "PBN");
-          return "ASPx.GVPagerOnClick(PBN)";
-        } catch {
-          /* fall through */
-        }
-      }
-      return "noop";
-    }, gridPrefix)
-    .catch(() => "error");
-
-  if (triggered === "noop" || triggered === "error") {
-    // Yedek: title='Next Page' resim/butonu (DevExpress pager).
-    const fallback = page
-      .locator(
-        `[id*='${gridPrefix}'] img[title='Next Page' i], [id*='${gridPrefix}'] .dxp-button[title='Next Page' i]`
-      )
-      .first();
-    if ((await fallback.count()) === 0) return false;
-    const disabled = await fallback
-      .evaluate((el) =>
-        /Disabled|disabled/.test((el as HTMLElement).className || "")
-      )
-      .catch(() => false);
-    if (disabled) return false;
-    await fallback.click({ timeout: 5000 }).catch(() => {});
-  }
-
-  // Grid yenilenene kadar bekle — ilk satırların hücre içeriği değişmeli.
-  const deadline = Date.now() + 10000;
-  while (Date.now() < deadline) {
-    await page.waitForTimeout(300);
-    const nowSig = await page.evaluate(sigFn, gridPrefix).catch(() => before);
-    if (nowSig && nowSig !== before) return true;
-  }
-  return false;
 }
 
 // ---------------------------------------------------------------------------
