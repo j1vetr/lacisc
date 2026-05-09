@@ -285,9 +285,11 @@ export default function WhatsappSettingsPage() {
                   />
                   <p className="text-xs text-muted-foreground">
                     Plan kotası bilinmiyorsa veya aşağıdaki kurallardan hiçbiri
-                    eşleşmiyorsa devreye girer. Bu değer{" "}
+                    eşleşmiyorsa devreye girer (catchall kuralı eklemeseniz
+                    dahi bu fallback aktiftir). Değer{" "}
                     <span className="font-mono">/settings/email</span>{" "}
-                    sayfasındaki "eşik adımı"ndan okunur.
+                    sayfasındaki "eşik adımı"ndan okunur; WhatsApp ve e-posta
+                    tek ortak global eşiği paylaşır.
                   </p>
                 </div>
 

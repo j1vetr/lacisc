@@ -391,6 +391,18 @@ export async function sendTestWhatsapp(
       receiver: target,
       message,
     });
+    if (!r.ok) {
+      logger.error(
+        {
+          clientError: true,
+          channel: "whatsapp",
+          label: `test→${target}`,
+          providerStatus: r.status,
+          providerBody: r.body.slice(0, 500),
+        },
+        "WhatsApp test gönderimi wpileti.com hata yanıtı"
+      );
+    }
     return {
       ok: r.ok,
       message: r.ok
@@ -401,6 +413,15 @@ export async function sendTestWhatsapp(
       providerBody: r.body.slice(0, 500),
     };
   } catch (err) {
+    logger.error(
+      {
+        clientError: true,
+        channel: "whatsapp",
+        label: `test→${target}`,
+        err,
+      },
+      "WhatsApp test gönderimi başarısız"
+    );
     return {
       ok: false,
       message: `İstek başarısız: ${(err as Error).message}`,
