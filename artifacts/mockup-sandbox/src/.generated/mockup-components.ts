@@ -12,8 +12,8 @@ export const modules: ModuleMap = {
   "./components/mockups/email-alerts/EditorialSayisal.tsx": () => import("../components/mockups/email-alerts/EditorialSayisal.tsx"),
   "./components/mockups/email-alerts/LacivertOperasyon.tsx": () => import("../components/mockups/email-alerts/LacivertOperasyon.tsx"),
   "./components/mockups/email-alerts/RenkliDurumBanner.tsx": () => import("../components/mockups/email-alerts/RenkliDurumBanner.tsx"),
-  "./components/mockups/starlink-detail/Sade.tsx": () => import("../components/mockups/starlink-detail/Sade.tsx"),
-  "./components/mockups/starlink-detail/Zengin.tsx": () => import("../components/mockups/starlink-detail/Zengin.tsx"),
   "./components/mockups/kits-redesign/VariantA.tsx": () => import("../components/mockups/kits-redesign/VariantA.tsx"),
-  "./components/mockups/kits-redesign/VariantB.tsx": () => import("../components/mockups/kits-redesign/VariantB.tsx")
+  "./components/mockups/kits-redesign/VariantB.tsx": () => import("../components/mockups/kits-redesign/VariantB.tsx"),
+  "./components/mockups/starlink-detail/Sade.tsx": () => import("../components/mockups/starlink-detail/Sade.tsx"),
+  "./components/mockups/starlink-detail/Zengin.tsx": () => import("../components/mockups/starlink-detail/Zengin.tsx")
 };
