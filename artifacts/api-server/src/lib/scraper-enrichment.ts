@@ -87,6 +87,15 @@ export async function fetchKitLocations(
     if (!t.Code || typeof t.Latitude !== "number" || typeof t.Longitude !== "number") {
       continue;
     }
+    // Seed station_kits: bu KIT henüz CDR üretmemiş olabilir, ama Map'te
+    // gözüküyorsa portal'da fiziksel olarak var. Ana KIT listesinin onu
+    // göstermesi için satırı varlıklandır (no-op if exists).
+    await db
+      .insert(stationKits)
+      .values({ credentialId, kitNo: t.Code })
+      .onConflictDoNothing({
+        target: [stationKits.credentialId, stationKits.kitNo],
+      });
     await db
       .insert(stationKitLocation)
       .values({
@@ -355,6 +364,20 @@ export async function fetchHourlyTelemetry(
     const rows = await parseMeasurementsPage(page);
     if (rows.length === 0) break;
     totalRows += rows.length;
+
+    // Seed station_kits için bu sayfadaki unique KIT'leri varlıklandır.
+    // Telemetri üreten ama henüz CDR'sı olmayan KIT'ler ana listede
+    // görünebilsin (no-op if exists).
+    const seenKits = new Set<string>();
+    for (const r of rows) seenKits.add(r.kitNo);
+    for (const kitNo of seenKits) {
+      await db
+        .insert(stationKits)
+        .values({ credentialId, kitNo })
+        .onConflictDoNothing({
+          target: [stationKits.credentialId, stationKits.kitNo],
+        });
+    }
 
     for (const r of rows) {
       const c = r.cells;

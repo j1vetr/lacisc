@@ -39,6 +39,9 @@ type UnifiedRow = {
   shipName: string | null;
   totalGb: number | null;
   planGb: number | null;
+  // Satcom: portal'da KIT görünüyor (telemetri/lokasyon var) ama bu hesapta
+  // henüz hiç fatura/CDR üretmemiş. Listede rozet ile işaretlenir.
+  isIdle?: boolean;
 };
 
 const SOURCE_CLASS: Record<Source, string> = {
@@ -137,6 +140,7 @@ export default function Kits() {
         shipName: k.shipName ?? null,
         totalGb: gibToGb(k.totalGib),
         planGb: k.planAllowanceGb ?? null,
+        isIdle: k.lastPeriod == null,
       });
     }
     for (const t of starlinkTerminals ?? []) {
@@ -334,7 +338,14 @@ export default function Kits() {
 
                 {/* Kota / Kullanım barı */}
                 <div className="flex items-center justify-end gap-3 min-w-0">
-                  {pct !== null ? (
+                  {r.isIdle ? (
+                    <span
+                      className="text-[10px] uppercase tracking-widest text-muted-foreground border border-border rounded-full px-2 py-0.5 whitespace-nowrap"
+                      title="Bu hesapta henüz fatura/CDR üretmemiş — telemetri/lokasyon mevcut"
+                    >
+                      Henüz kullanım yok
+                    </span>
+                  ) : pct !== null ? (
                     <>
                       <div className="hidden sm:block flex-1 max-w-[110px] h-[3px] rounded-full bg-border overflow-hidden">
                         <div

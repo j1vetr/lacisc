@@ -74,11 +74,15 @@ router.get("/station/kits", requireAuth, async (req: AuthRequest, res): Promise<
   // her KIT'i ayrı param yapan IN listesi üretiyoruz. Empty scope yukarıda
   // erken dönüş ile yakalandığı için IN () üretme riski yok.
   const where = scope
-    ? sql`WHERE l.kit_no IN (${sql.join(
+    ? sql`WHERE k.kit_no IN (${sql.join(
         scope.map((v) => sql`${v}`),
         sql`, `,
       )})`
     : sql``;
+  // station_kits-driven liste: telemetri/lokasyon üreten ama henüz hiç CDR'ı
+  // olmayan ("atıl") KIT'ler de görünür. Faturalandırma kolonları (lastPeriod,
+  // totalGib, totalUsd, rowCount, lastSyncedAt) bu KIT'ler için NULL kalır;
+  // UI bu sinyali "Henüz kullanım yok" rozeti olarak gösterir.
   const rows = await db.execute(sql`
     WITH latest AS (
       SELECT DISTINCT ON (credential_id, kit_no)
@@ -87,21 +91,21 @@ router.get("/station/kits", requireAuth, async (req: AuthRequest, res): Promise<
       ORDER BY credential_id, kit_no, period DESC
     )
     SELECT
-      l.kit_no        AS "kitNo",
+      k.kit_no        AS "kitNo",
       l.period        AS "lastPeriod",
       l.total_gib     AS "totalGib",
       l.total_usd     AS "totalUsd",
-      l.row_count     AS "rowCount",
+      COALESCE(l.row_count, 0) AS "rowCount",
       l.scraped_at    AS "lastSyncedAt",
       k.ship_name     AS "shipName",
       k.active_plan_name AS "activePlanName",
-      l.credential_id AS "credentialId",
+      k.credential_id AS "credentialId",
       c.label         AS "accountLabel",
       c.username      AS "accountUsername"
-    FROM latest l
-    LEFT JOIN station_kits k
-      ON k.kit_no = l.kit_no AND k.credential_id = l.credential_id
-    LEFT JOIN station_credentials c ON c.id = l.credential_id
+    FROM station_kits k
+    LEFT JOIN latest l
+      ON l.kit_no = k.kit_no AND l.credential_id = k.credential_id
+    LEFT JOIN station_credentials c ON c.id = k.credential_id
     ${where}
   `);
   const list = (
