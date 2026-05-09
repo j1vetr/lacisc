@@ -567,12 +567,6 @@ export async function maybeFireWhatsappAlert(opts: {
 
     const shipLabel = opts.shipName?.trim() || opts.kitNo;
     const periodLabel = `${opts.period.slice(0, 4)}-${opts.period.slice(4)}`;
-    const sourceLabel =
-      opts.source === "satcom"
-        ? "Satcom"
-        : opts.source === "starlink"
-          ? "Starlink"
-          : "Norway";
     const planLine =
       opts.planAllowanceGb != null && Number.isFinite(opts.planAllowanceGb)
         ? `Kota: ${opts.planAllowanceGb.toFixed(0)} GB`
@@ -582,7 +576,6 @@ export async function maybeFireWhatsappAlert(opts: {
       `⚠️ Veri Eşiği Aşıldı\n\n` +
       `🚢 Gemi: ${shipLabel}\n` +
       `📡 KIT: ${opts.kitNo}\n` +
-      `🛰️ Kaynak: ${sourceLabel} (${opts.credentialLabel})\n` +
       `📅 Dönem: ${periodLabel}\n\n` +
       `📊 Kullanım: ${opts.totalGb.toFixed(2)} GB\n` +
       `🚨 Aşılan eşik: ${crossedStep} GB\n` +
