@@ -1037,9 +1037,8 @@ async function enrichShipNames(
           updatedAt: now,
         })
         .onConflictDoUpdate({
-          target: stationKits.kitNo,
+          target: [stationKits.credentialId, stationKits.kitNo],
           set: {
-            credentialId,
             shipName: shipName ?? undefined,
             detailUrl: href,
             shipNameSyncedAt: shipName ? now : undefined,

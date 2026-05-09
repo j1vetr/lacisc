@@ -262,7 +262,13 @@ router.get(
         shipName: stationKits.shipName,
       })
       .from(stationKitLocation)
-      .leftJoin(stationKits, eq(stationKits.kitNo, stationKitLocation.kitNo))
+      .leftJoin(
+        stationKits,
+        and(
+          eq(stationKits.kitNo, stationKitLocation.kitNo),
+          eq(stationKits.credentialId, stationKitLocation.credentialId)
+        )
+      )
       .where(eq(stationKitLocation.kitNo, kitNo))
       .limit(1);
     if (!row) {
@@ -305,7 +311,13 @@ router.get(
         shipName: stationKits.shipName,
       })
       .from(stationKitLocation)
-      .leftJoin(stationKits, eq(stationKits.kitNo, stationKitLocation.kitNo));
+      .leftJoin(
+        stationKits,
+        and(
+          eq(stationKits.kitNo, stationKitLocation.kitNo),
+          eq(stationKits.credentialId, stationKitLocation.credentialId)
+        )
+      );
     const rows = scope
       ? await baseQuery.where(inArray(stationKitLocation.kitNo, scope))
       : await baseQuery;

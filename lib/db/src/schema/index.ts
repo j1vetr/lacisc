@@ -133,8 +133,10 @@ export const stationCredentials = pgTable("station_credentials", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const stationKits = pgTable("station_kits", {
-  kitNo: text("kit_no").primaryKey(),
+export const stationKits = pgTable(
+  "station_kits",
+  {
+  kitNo: text("kit_no").notNull(),
   credentialId: integer("credential_id")
     .notNull()
     .references(() => stationCredentials.id, { onDelete: "cascade" }),
@@ -161,15 +163,18 @@ export const stationKits = pgTable("station_kits", {
   cardDetailsSyncedAt: timestamp("card_details_synced_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+  },
+  (t) => [primaryKey({ columns: [t.credentialId, t.kitNo] })]
+);
 
 // Snapshot — overwrite each Map sync. Inline JSON `MapManager.terminals`
-// on /Starlink/Telemetry/Map sayfasından çekilir; kitNo PK çünkü portal'da
-// her terminal tek satır. credential_id FK cascade — hesap silinince düşer.
+// on /Starlink/Telemetry/Map sayfasından çekilir; (credential_id, kit_no)
+// composite PK — aynı KIT birden fazla hesapta görünebilir. credential_id
+// FK cascade — hesap silinince düşer.
 export const stationKitLocation = pgTable(
   "station_kit_location",
   {
-    kitNo: text("kit_no").primaryKey(),
+    kitNo: text("kit_no").notNull(),
     credentialId: integer("credential_id")
       .notNull()
       .references(() => stationCredentials.id, { onDelete: "cascade" }),
@@ -181,7 +186,10 @@ export const stationKitLocation = pgTable(
     customerId: integer("customer_id"),
     lastSeenAt: timestamp("last_seen_at").defaultNow().notNull(),
   },
-  (t) => [index("station_kit_location_credential_idx").on(t.credentialId)]
+  (t) => [
+    primaryKey({ columns: [t.credentialId, t.kitNo] }),
+    index("station_kit_location_credential_idx").on(t.credentialId),
+  ]
 );
 export type StationKitLocation = typeof stationKitLocation.$inferSelect;
 

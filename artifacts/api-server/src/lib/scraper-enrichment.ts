@@ -27,7 +27,7 @@ import {
   stationKitTelemetryHourly,
   stationKitSubscriptionHistory,
 } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import type { Page } from "playwright";
 import type { KitListEntry } from "./scraper";
@@ -101,9 +101,8 @@ export async function fetchKitLocations(
         lastSeenAt: new Date(),
       })
       .onConflictDoUpdate({
-        target: stationKitLocation.kitNo,
+        target: [stationKitLocation.credentialId, stationKitLocation.kitNo],
         set: {
-          credentialId,
           lat: t.Latitude,
           lng: t.Longitude,
           active: !!t.Active,
@@ -757,7 +756,12 @@ export async function enrichCardDetails(
           cardDetailsSyncedAt: now,
           updatedAt: now,
         })
-        .where(eq(stationKits.kitNo, k.kitNo));
+        .where(
+          and(
+            eq(stationKits.credentialId, credentialId),
+            eq(stationKits.kitNo, k.kitNo)
+          )
+        );
 
       for (const sub of parsed.subscriptionHistory) {
         await db
