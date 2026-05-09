@@ -61,6 +61,8 @@ export interface AdminUserDetail {
   name: string;
   email?: string | null;
   username?: string | null;
+  /** WhatsApp eşik bildirimi için E.164-without-plus (örn. 905321234567). */
+  phone?: string | null;
   role: AdminUserDetailRole;
   lastLoginAt?: string | null;
   lockedUntil?: string | null;
@@ -83,6 +85,7 @@ export interface CreateAdminUserBody {
   name: string;
   email?: string | null;
   username?: string | null;
+  phone?: string | null;
   password: string;
   role?: CreateAdminUserBodyRole;
 }
@@ -100,6 +103,8 @@ export const UpdateAdminUserBodyRole = {
 export interface UpdateAdminUserBody {
   name?: string;
   username?: string | null;
+  /** undefined → değişmez, '' veya null → temizler, dolu → günceller. */
+  phone?: string | null;
   role?: UpdateAdminUserBodyRole;
   unlock?: boolean;
 }
@@ -594,6 +599,47 @@ export interface LeobridgeMonthlyPoint {
   scrapedAt?: string | null;
 }
 
+export interface WhatsappSettings {
+  enabled: boolean;
+  /** true → kayıtlı API anahtarı var (gerçek değer dönmez) */
+  hasApiKey: boolean;
+  endpointUrl: string;
+  /** Virgülle ayrılmış telefon listesi (operatör/admin/viewer roller için) */
+  opsRecipients?: string | null;
+  testRecipient?: string | null;
+  updatedAt: string;
+}
+
+export interface WhatsappSettingsUpdate {
+  enabled?: boolean;
+  /** undefined → değişmez, '' veya null → temizler, dolu → yeni anahtar. */
+  apiKey?: string | null;
+  endpointUrl?: string;
+  opsRecipients?: string | null;
+  testRecipient?: string | null;
+}
+
+export interface WhatsappTestResult {
+  success: boolean;
+  message: string;
+  recipients: string[];
+}
+
+export interface WhatsappThresholdRule {
+  id: number;
+  /** Plan kotası (decimal GB). NULL = catchall. */
+  minPlanGb?: number | null;
+  /** Eşik adımı (decimal GB). */
+  stepGb: number;
+  createdAt: string;
+}
+
+export interface CreateWhatsappThresholdRuleBody {
+  minPlanGb?: number | null;
+  /** @minimum 1 */
+  stepGb: number;
+}
+
 export interface EmailSettings {
   enabled: boolean;
   smtpHost?: string | null;
@@ -797,6 +843,10 @@ export type ListSessions200Item = {
 
 export type WipeStationDataParams = {
   credentialId?: number;
+};
+
+export type TestWhatsappSettingsBody = {
+  to?: string | null;
 };
 
 export type TestEmailSettingsBody = {

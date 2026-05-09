@@ -335,6 +335,103 @@ export const GetSyncProgressResponse = zod.object({
 });
 
 /**
+ * @summary WhatsApp (wpileti.com) yapılandırması.
+ */
+export const GetWhatsappSettingsResponse = zod.object({
+  enabled: zod.boolean(),
+  hasApiKey: zod
+    .boolean()
+    .describe("true → kayıtlı API anahtarı var (gerçek değer dönmez)"),
+  endpointUrl: zod.string(),
+  opsRecipients: zod
+    .string()
+    .nullish()
+    .describe(
+      "Virgülle ayrılmış telefon listesi (operatör\/admin\/viewer roller için)",
+    ),
+  testRecipient: zod.string().nullish(),
+  updatedAt: zod.coerce.date(),
+});
+
+export const UpdateWhatsappSettingsBody = zod.object({
+  enabled: zod.boolean().optional(),
+  apiKey: zod
+    .string()
+    .nullish()
+    .describe(
+      "undefined → değişmez, '' veya null → temizler, dolu → yeni anahtar.",
+    ),
+  endpointUrl: zod.string().optional(),
+  opsRecipients: zod.string().nullish(),
+  testRecipient: zod.string().nullish(),
+});
+
+export const UpdateWhatsappSettingsResponse = zod.object({
+  enabled: zod.boolean(),
+  hasApiKey: zod
+    .boolean()
+    .describe("true → kayıtlı API anahtarı var (gerçek değer dönmez)"),
+  endpointUrl: zod.string(),
+  opsRecipients: zod
+    .string()
+    .nullish()
+    .describe(
+      "Virgülle ayrılmış telefon listesi (operatör\/admin\/viewer roller için)",
+    ),
+  testRecipient: zod.string().nullish(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Test mesajı gönderir (override alıcı veya kayıtlı testRecipient).
+ */
+export const TestWhatsappSettingsBody = zod.object({
+  to: zod.string().nullish(),
+});
+
+export const TestWhatsappSettingsResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string(),
+  recipients: zod.array(zod.string()),
+});
+
+export const ListWhatsappThresholdRulesResponseItem = zod.object({
+  id: zod.number(),
+  minPlanGb: zod
+    .number()
+    .nullish()
+    .describe("Plan kotası (decimal GB). NULL = catchall."),
+  stepGb: zod.number().describe("Eşik adımı (decimal GB)."),
+  createdAt: zod.coerce.date(),
+});
+export const ListWhatsappThresholdRulesResponse = zod.array(
+  ListWhatsappThresholdRulesResponseItem,
+);
+
+export const CreateWhatsappThresholdRuleBody = zod.object({
+  minPlanGb: zod.number().nullish(),
+  stepGb: zod.number().min(1),
+});
+
+export const CreateWhatsappThresholdRuleResponse = zod.object({
+  id: zod.number(),
+  minPlanGb: zod
+    .number()
+    .nullish()
+    .describe("Plan kotası (decimal GB). NULL = catchall."),
+  stepGb: zod.number().describe("Eşik adımı (decimal GB)."),
+  createdAt: zod.coerce.date(),
+});
+
+export const DeleteWhatsappThresholdRuleParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteWhatsappThresholdRuleResponse = zod.object({
+  message: zod.string(),
+});
+
+/**
  * @summary SMTP yapılandırması ve uyarı alıcılarını döner.
  */
 export const GetEmailSettingsResponse = zod.object({
@@ -1187,6 +1284,12 @@ export const ListAdminUsersResponseItem = zod.object({
   name: zod.string(),
   email: zod.string().nullish(),
   username: zod.string().nullish(),
+  phone: zod
+    .string()
+    .nullish()
+    .describe(
+      "WhatsApp eşik bildirimi için E.164-without-plus (örn. 905321234567).",
+    ),
   role: zod.enum(["owner", "admin", "viewer", "customer"]),
   lastLoginAt: zod.coerce.date().nullish(),
   lockedUntil: zod.coerce.date().nullish(),
@@ -1200,6 +1303,7 @@ export const CreateAdminUserBody = zod.object({
   name: zod.string(),
   email: zod.string().nullish(),
   username: zod.string().nullish(),
+  phone: zod.string().nullish(),
   password: zod.string(),
   role: zod.enum(["owner", "admin", "viewer", "customer"]).optional(),
 });
@@ -1209,6 +1313,12 @@ export const CreateAdminUserResponse = zod.object({
   name: zod.string(),
   email: zod.string().nullish(),
   username: zod.string().nullish(),
+  phone: zod
+    .string()
+    .nullish()
+    .describe(
+      "WhatsApp eşik bildirimi için E.164-without-plus (örn. 905321234567).",
+    ),
   role: zod.enum(["owner", "admin", "viewer", "customer"]),
   lastLoginAt: zod.coerce.date().nullish(),
   lockedUntil: zod.coerce.date().nullish(),
@@ -1224,6 +1334,12 @@ export const UpdateAdminUserParams = zod.object({
 export const UpdateAdminUserBody = zod.object({
   name: zod.string().optional(),
   username: zod.string().nullish(),
+  phone: zod
+    .string()
+    .nullish()
+    .describe(
+      "undefined → değişmez, '' veya null → temizler, dolu → günceller.",
+    ),
   role: zod.enum(["owner", "admin", "viewer", "customer"]).optional(),
   unlock: zod.boolean().optional(),
 });
@@ -1233,6 +1349,12 @@ export const UpdateAdminUserResponse = zod.object({
   name: zod.string(),
   email: zod.string().nullish(),
   username: zod.string().nullish(),
+  phone: zod
+    .string()
+    .nullish()
+    .describe(
+      "WhatsApp eşik bildirimi için E.164-without-plus (örn. 905321234567).",
+    ),
   role: zod.enum(["owner", "admin", "viewer", "customer"]),
   lastLoginAt: zod.coerce.date().nullish(),
   lockedUntil: zod.coerce.date().nullish(),

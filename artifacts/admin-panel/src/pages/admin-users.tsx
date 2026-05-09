@@ -115,6 +115,7 @@ export default function AdminUsers() {
     name: "",
     email: "",
     username: "",
+    phone: "",
     password: "",
     role: "admin" as Role,
   });
@@ -123,7 +124,7 @@ export default function AdminUsers() {
   );
 
   const resetCreateForm = () => {
-    setCreateForm({ name: "", email: "", username: "", password: "", role: "admin" });
+    setCreateForm({ name: "", email: "", username: "", phone: "", password: "", role: "admin" });
     setCreateAssignedKits(new Set());
   };
 
@@ -136,6 +137,7 @@ export default function AdminUsers() {
           role: createForm.role,
           email: createForm.email.trim() || null,
           username: createForm.username.trim() || null,
+          phone: createForm.phone.trim() || null,
         },
       });
       // Müşteri ise ve KIT seçildiyse ikinci PUT — atomik değil ama replace-all
@@ -178,7 +180,7 @@ export default function AdminUsers() {
     }
   };
 
-  const [editOpen, setEditOpen] = useState<null | { id: number; name: string; username: string | null; role: Role }>(null);
+  const [editOpen, setEditOpen] = useState<null | { id: number; name: string; username: string | null; phone: string; role: Role }>(null);
   const [resetOpen, setResetOpen] = useState<null | { id: number; label: string }>(null);
   const [resetPw, setResetPw] = useState("");
   const [assignOpen, setAssignOpen] = useState<null | { id: number; name: string; username: string | null }>(null);
@@ -295,6 +297,7 @@ export default function AdminUsers() {
                                 id: u.id,
                                 name: u.name,
                                 username: u.username ?? null,
+                                phone: u.phone ?? "",
                                 role: u.role as Role,
                               })
                             }
@@ -413,6 +416,20 @@ export default function AdminUsers() {
               />
             </div>
             <div className="space-y-1.5">
+              <Label>
+                Telefon{" "}
+                <span className="text-[11px] text-muted-foreground">
+                  (opsiyonel — WhatsApp eşik bildirimi için, örn. 905321234567)
+                </span>
+              </Label>
+              <Input
+                type="tel"
+                value={createForm.phone}
+                placeholder="905321234567"
+                onChange={(e) => setCreateForm((f) => ({ ...f, phone: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
               <Label>Şifre</Label>
               <Input
                 type="password"
@@ -489,6 +506,22 @@ export default function AdminUsers() {
                 />
               </div>
               <div className="space-y-1.5">
+                <Label>
+                  Telefon{" "}
+                  <span className="text-[11px] text-muted-foreground">
+                    (WhatsApp eşik bildirimi — boş bırakılabilir)
+                  </span>
+                </Label>
+                <Input
+                  type="tel"
+                  value={editOpen.phone}
+                  placeholder="905321234567"
+                  onChange={(e) =>
+                    setEditOpen((s) => (s ? { ...s, phone: e.target.value } : s))
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
                 <Label>Rol</Label>
                 <Select
                   value={editOpen.role}
@@ -523,6 +556,7 @@ export default function AdminUsers() {
                     name: editOpen.name,
                     role: editOpen.role,
                     username: editOpen.username || null,
+                    phone: editOpen.phone.trim() || null,
                   },
                 });
               }}

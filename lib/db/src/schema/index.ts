@@ -33,6 +33,11 @@ export const adminUsers = pgTable("admin_users", {
   // atanmış via customer_kit_assignments.
   role: text("role").default("admin").notNull(),
   lastLoginAt: timestamp("last_login_at"),
+  // Optional E.164-without-plus phone (e.g. "905321234567") for WhatsApp
+  // threshold notifications. Customer rolündeki kullanıcılar atanmış
+  // KIT'leri için bildirim alır; operatör rolleri WhatsApp ayarlarındaki
+  // global ops listesi üzerinden bildirim alır.
+  phone: text("phone"),
   failedLoginCount: integer("failed_login_count").default(0).notNull(),
   // While set, login is rejected even with correct credentials. Cleared on
   // first successful login after the timestamp passes.
@@ -698,3 +703,71 @@ export const leobridgeSyncLogs = pgTable(
     index("leobridge_sync_logs_credential_idx").on(t.credentialId),
   ]
 );
+
+// ---------------------------------------------------------------------------
+// WhatsApp eşik bildirimleri (Task #27)
+// ---------------------------------------------------------------------------
+
+// Singleton (id=1). wpileti.com hesap sırrı + global operatör bildirim
+// listesi + opsiyonel test alıcısı. Plan-bazlı eşik kuralları ayrı tabloda.
+export const whatsappSettings = pgTable("whatsapp_settings", {
+  id: integer("id").primaryKey(),
+  enabled: boolean("enabled").default(false).notNull(),
+  apiKeyEncrypted: text("api_key_encrypted"),
+  // wpileti.com endpoint (tek nokta — değişirse buradan ayarlanır).
+  endpointUrl: text("endpoint_url")
+    .default("https://app.wpileti.com/api/send-message")
+    .notNull(),
+  // Operatör/admin/viewer için CSV liste — E.164-without-plus
+  // (örn. "905321234567,905339998877"). Customer roller bu listeyi YOK
+  // sayar; onlar yalnız atanmış KIT bildirimi için adminUsers.phone üzerinden
+  // alır.
+  opsRecipients: text("ops_recipients"),
+  // "Test mesajı gönder" butonu için varsayılan tek alıcı.
+  testRecipient: text("test_recipient"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export type WhatsappSettings = typeof whatsappSettings.$inferSelect;
+
+// Plan-bazlı eşik kuralları. minPlanGb=NULL → tüm planlar için catchall
+// (Satcom KIT'leri planAllowanceGb null olduğu için catchall'a düşer).
+// Örn. (50 → 10), (100 → 25), (NULL → 100): 60GB plan her 10GB'da uyarı,
+// 200GB plan her 25GB'da, planı bilinmeyen her 100GB'da.
+export const whatsappThresholdRules = pgTable(
+  "whatsapp_threshold_rules",
+  {
+    id: serial("id").primaryKey(),
+    // Plan kotası (decimal GB). NULL = catchall.
+    minPlanGb: doublePrecision("min_plan_gb"),
+    // Eşik adımı (decimal GB). En az 1.
+    stepGb: doublePrecision("step_gb").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [index("whatsapp_threshold_rules_min_plan_idx").on(t.minPlanGb)]
+);
+export type WhatsappThresholdRule = typeof whatsappThresholdRules.$inferSelect;
+
+// E-posta alarmından bağımsız idempotent claim tablosu. Her (kaynak, hesap,
+// KIT, dönem) için son tetiklenen GB eşiği. Atomic update sayesinde aynı
+// eşik birden fazla kez WhatsApp mesajı oluşturmaz. E-posta alarm sistemi
+// (last_alert_threshold_gib column) Satcom-only ve farklı eşik adımı
+// kullandığı için ayrı tutuldu.
+export const whatsappAlertState = pgTable(
+  "whatsapp_alert_state",
+  {
+    source: text("source").notNull(), // 'satcom' | 'starlink' | 'leobridge'
+    credentialId: integer("credential_id").notNull(),
+    kitNo: text("kit_no").notNull(),
+    period: text("period").notNull(), // YYYYMM
+    lastAlertStepGb: doublePrecision("last_alert_step_gb")
+      .default(0)
+      .notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({
+      columns: [t.source, t.credentialId, t.kitNo, t.period],
+    }),
+  ]
+);
+export type WhatsappAlertState = typeof whatsappAlertState.$inferSelect;

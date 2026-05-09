@@ -598,6 +598,10 @@ async function persistMonthlyTotals(
   kitSerialNumber: string,
   months: RawTototheoDetail[],
 ): Promise<void> {
+  // Local import to avoid circular deps (whatsapp.ts imports starlinkTerminals).
+  const { maybeFireWhatsappAlert, lookupStarlinkPlanAndShip } = await import(
+    "./whatsapp"
+  );
   for (const m of months) {
     const usage = pickField<RawTototheoDetail>(m, "usage");
     if (!usage) continue;
@@ -636,5 +640,19 @@ async function persistMonthlyTotals(
           scrapedAt: new Date(),
         },
       });
+    // WhatsApp eşik bildirimi — fire-and-forget. Plan kotası terminal
+    // satırından okunur (recurring data block toplamı). Aktif dönemde
+    // değilse maybeFireWhatsappAlert kendi içinde no-op olur.
+    const meta = await lookupStarlinkPlanAndShip(credentialId, kitSerialNumber);
+    void maybeFireWhatsappAlert({
+      source: "starlink",
+      credentialId,
+      credentialLabel: `Tototheo #${credentialId}`,
+      kitNo: kitSerialNumber,
+      period,
+      totalGb: total,
+      planAllowanceGb: meta.planAllowanceGb,
+      shipName: meta.shipName,
+    });
   }
 }

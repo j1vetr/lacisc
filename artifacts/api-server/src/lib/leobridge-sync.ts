@@ -297,6 +297,23 @@ async function persistUsage(
         },
       });
 
+    // WhatsApp eşik bildirimi — Leo Bridge persistTerminal sonrası
+    // planAllowanceGb terminal satırına yazılı. Aktif dönem değilse no-op.
+    const { maybeFireWhatsappAlert, lookupLeobridgePlanAndShip } = await import(
+      "./whatsapp"
+    );
+    const meta = await lookupLeobridgePlanAndShip(credentialId, kitSerialNumber);
+    void maybeFireWhatsappAlert({
+      source: "leobridge",
+      credentialId,
+      credentialLabel: `Norway #${credentialId}`,
+      kitNo: kitSerialNumber,
+      period: periodKey,
+      totalGb,
+      planAllowanceGb: meta.planAllowanceGb,
+      shipName: meta.shipName,
+    });
+
     for (const d of p.dailyUsages ?? []) {
       const dailyTotal = (d.priorityGb ?? 0) + (d.standardGb ?? 0);
       await db

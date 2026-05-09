@@ -8,6 +8,7 @@ import {
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { checkAndSendUsageAlert } from "./alerts";
+import { maybeFireWhatsappAlert, lookupSatcomShipName } from "./whatsapp";
 import type { Page, Browser } from "playwright";
 import * as progress from "./sync-progress";
 import {
@@ -1482,6 +1483,23 @@ export async function runSync(opts: RunSyncOptions): Promise<SyncResult> {
             totalGib,
             totalUsd,
           });
+          // WhatsApp eşik bildirimi — tamamen ayrı sistem (kendi eşik
+          // kuralları + idempotency tablosu). Satcom'da plan kotası yok →
+          // catchall kuralına düşer. totalGib (binary) → GB (decimal).
+          // Ship name DB'den okunur (KitListEntry'de yok).
+          void (async () => {
+            const shipName = await lookupSatcomShipName(credentialId, kit.kitNo);
+            await maybeFireWhatsappAlert({
+              source: "satcom",
+              credentialId,
+              credentialLabel: accountLabel,
+              kitNo: kit.kitNo,
+              period,
+              totalGb: totalGib * 1.073741824,
+              planAllowanceGb: null,
+              shipName,
+            });
+          })();
           logger.info(
             {
               period,

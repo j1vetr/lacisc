@@ -16,6 +16,7 @@ tags:
   - name: audit
   - name: starlink
   - name: leobridge
+  - name: whatsapp
 
 paths:
   /healthz:
@@ -417,6 +418,107 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SyncProgress"
+
+  # ---------------------------------------------------------------------------
+  # WhatsApp eşik bildirim sistemi (Task #27)
+  # ---------------------------------------------------------------------------
+  /whatsapp/settings:
+    get:
+      operationId: getWhatsappSettings
+      x-required-role: admin
+      tags: [whatsapp]
+      summary: WhatsApp (wpileti.com) yapılandırması.
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WhatsappSettings" }
+    put:
+      operationId: updateWhatsappSettings
+      x-required-role: admin
+      tags: [whatsapp]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WhatsappSettingsUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WhatsappSettings" }
+
+  /whatsapp/settings/test:
+    post:
+      operationId: testWhatsappSettings
+      x-required-role: admin
+      tags: [whatsapp]
+      summary: Test mesajı gönderir (override alıcı veya kayıtlı testRecipient).
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                to: { type: string, nullable: true }
+      responses:
+        "200":
+          description: Test sonucu
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WhatsappTestResult" }
+
+  /whatsapp/threshold-rules:
+    get:
+      operationId: listWhatsappThresholdRules
+      x-required-role: admin
+      tags: [whatsapp]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200":
+          description: Plan-bazlı eşik kuralları
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/WhatsappThresholdRule" }
+    post:
+      operationId: createWhatsappThresholdRule
+      x-required-role: admin
+      tags: [whatsapp]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateWhatsappThresholdRuleBody" }
+      responses:
+        "200":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WhatsappThresholdRule" }
+
+  /whatsapp/threshold-rules/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    delete:
+      operationId: deleteWhatsappThresholdRule
+      x-required-role: admin
+      tags: [whatsapp]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
 
   /station/email-settings:
     get:
@@ -1586,6 +1688,7 @@ components:
         name: { type: string }
         email: { type: string, nullable: true }
         username: { type: string, nullable: true }
+        phone: { type: string, nullable: true, description: "WhatsApp eşik bildirimi için E.164-without-plus (örn. 905321234567)." }
         role: { type: string, enum: [owner, admin, viewer, customer] }
         lastLoginAt: { type: string, format: date-time, nullable: true }
         lockedUntil: { type: string, format: date-time, nullable: true }
@@ -1600,6 +1703,7 @@ components:
         name: { type: string }
         email: { type: string, nullable: true }
         username: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
         password: { type: string }
         role: { type: string, enum: [owner, admin, viewer, customer] }
       required: [name, password]
@@ -1609,6 +1713,7 @@ components:
       properties:
         name: { type: string }
         username: { type: string, nullable: true }
+        phone: { type: string, nullable: true, description: "undefined → değişmez, '' veya null → temizler, dolu → günceller." }
         role: { type: string, enum: [owner, admin, viewer, customer] }
         unlock: { type: boolean }
 
@@ -2225,6 +2330,55 @@ components:
         priorityGb: { type: number, nullable: true }
         standardGb: { type: number, nullable: true }
         scrapedAt: { type: string, format: date-time, nullable: true }
+
+    WhatsappSettings:
+      type: object
+      required: [enabled, hasApiKey, endpointUrl, updatedAt]
+      properties:
+        enabled: { type: boolean }
+        hasApiKey: { type: boolean, description: "true → kayıtlı API anahtarı var (gerçek değer dönmez)" }
+        endpointUrl: { type: string }
+        opsRecipients: { type: string, nullable: true, description: "Virgülle ayrılmış telefon listesi (operatör/admin/viewer roller için)" }
+        testRecipient: { type: string, nullable: true }
+        updatedAt: { type: string, format: date-time }
+
+    WhatsappSettingsUpdate:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        apiKey:
+          type: string
+          nullable: true
+          description: "undefined → değişmez, '' veya null → temizler, dolu → yeni anahtar."
+        endpointUrl: { type: string }
+        opsRecipients: { type: string, nullable: true }
+        testRecipient: { type: string, nullable: true }
+
+    WhatsappTestResult:
+      type: object
+      required: [success, message, recipients]
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        recipients:
+          type: array
+          items: { type: string }
+
+    WhatsappThresholdRule:
+      type: object
+      required: [id, stepGb, createdAt]
+      properties:
+        id: { type: integer }
+        minPlanGb: { type: number, nullable: true, description: "Plan kotası (decimal GB). NULL = catchall." }
+        stepGb: { type: number, description: "Eşik adımı (decimal GB)." }
+        createdAt: { type: string, format: date-time }
+
+    CreateWhatsappThresholdRuleBody:
+      type: object
+      required: [stepGb]
+      properties:
+        minPlanGb: { type: number, nullable: true }
+        stepGb: { type: number, minimum: 1 }
 
     EmailSettings:
       type: object

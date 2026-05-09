@@ -28,6 +28,7 @@ import type {
   CreateLeobridgeAccountBody,
   CreateStarlinkAccountBody,
   CreateStationAccountBody,
+  CreateWhatsappThresholdRuleBody,
   DashboardSummary,
   EmailSettings,
   EmailSettingsUpdate,
@@ -80,12 +81,17 @@ import type {
   TestEmailSettings200,
   TestEmailSettingsBody,
   TestStarlinkConnectionBody,
+  TestWhatsappSettingsBody,
   UpdateAdminUserBody,
   UpdateAssignedKitsBody,
   UpdateAssignedKitsResponse,
   UpdateLeobridgeAccountBody,
   UpdateStarlinkAccountBody,
   UpdateStationAccountBody,
+  WhatsappSettings,
+  WhatsappSettingsUpdate,
+  WhatsappTestResult,
+  WhatsappThresholdRule,
   WipeDataResponse,
   WipeStationDataParams,
 } from "./api.schemas";
@@ -1686,6 +1692,483 @@ export function useGetSyncProgress<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary WhatsApp (wpileti.com) yapılandırması.
+ */
+export const getGetWhatsappSettingsUrl = () => {
+  return `/api/whatsapp/settings`;
+};
+
+export const getWhatsappSettings = async (
+  options?: RequestInit,
+): Promise<WhatsappSettings> => {
+  return customFetch<WhatsappSettings>(getGetWhatsappSettingsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetWhatsappSettingsQueryKey = () => {
+  return [`/api/whatsapp/settings`] as const;
+};
+
+export const getGetWhatsappSettingsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getWhatsappSettings>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWhatsappSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetWhatsappSettingsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getWhatsappSettings>>
+  > = ({ signal }) => getWhatsappSettings({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getWhatsappSettings>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetWhatsappSettingsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getWhatsappSettings>>
+>;
+export type GetWhatsappSettingsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary WhatsApp (wpileti.com) yapılandırması.
+ */
+
+export function useGetWhatsappSettings<
+  TData = Awaited<ReturnType<typeof getWhatsappSettings>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWhatsappSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetWhatsappSettingsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getUpdateWhatsappSettingsUrl = () => {
+  return `/api/whatsapp/settings`;
+};
+
+export const updateWhatsappSettings = async (
+  whatsappSettingsUpdate: WhatsappSettingsUpdate,
+  options?: RequestInit,
+): Promise<WhatsappSettings> => {
+  return customFetch<WhatsappSettings>(getUpdateWhatsappSettingsUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(whatsappSettingsUpdate),
+  });
+};
+
+export const getUpdateWhatsappSettingsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateWhatsappSettings>>,
+    TError,
+    { data: BodyType<WhatsappSettingsUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateWhatsappSettings>>,
+  TError,
+  { data: BodyType<WhatsappSettingsUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateWhatsappSettings"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateWhatsappSettings>>,
+    { data: BodyType<WhatsappSettingsUpdate> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateWhatsappSettings(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateWhatsappSettingsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateWhatsappSettings>>
+>;
+export type UpdateWhatsappSettingsMutationBody =
+  BodyType<WhatsappSettingsUpdate>;
+export type UpdateWhatsappSettingsMutationError = ErrorType<unknown>;
+
+export const useUpdateWhatsappSettings = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateWhatsappSettings>>,
+    TError,
+    { data: BodyType<WhatsappSettingsUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateWhatsappSettings>>,
+  TError,
+  { data: BodyType<WhatsappSettingsUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateWhatsappSettingsMutationOptions(options));
+};
+
+/**
+ * @summary Test mesajı gönderir (override alıcı veya kayıtlı testRecipient).
+ */
+export const getTestWhatsappSettingsUrl = () => {
+  return `/api/whatsapp/settings/test`;
+};
+
+export const testWhatsappSettings = async (
+  testWhatsappSettingsBody?: TestWhatsappSettingsBody,
+  options?: RequestInit,
+): Promise<WhatsappTestResult> => {
+  return customFetch<WhatsappTestResult>(getTestWhatsappSettingsUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(testWhatsappSettingsBody),
+  });
+};
+
+export const getTestWhatsappSettingsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testWhatsappSettings>>,
+    TError,
+    { data: BodyType<TestWhatsappSettingsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof testWhatsappSettings>>,
+  TError,
+  { data: BodyType<TestWhatsappSettingsBody> },
+  TContext
+> => {
+  const mutationKey = ["testWhatsappSettings"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof testWhatsappSettings>>,
+    { data: BodyType<TestWhatsappSettingsBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return testWhatsappSettings(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TestWhatsappSettingsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof testWhatsappSettings>>
+>;
+export type TestWhatsappSettingsMutationBody =
+  BodyType<TestWhatsappSettingsBody>;
+export type TestWhatsappSettingsMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Test mesajı gönderir (override alıcı veya kayıtlı testRecipient).
+ */
+export const useTestWhatsappSettings = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testWhatsappSettings>>,
+    TError,
+    { data: BodyType<TestWhatsappSettingsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof testWhatsappSettings>>,
+  TError,
+  { data: BodyType<TestWhatsappSettingsBody> },
+  TContext
+> => {
+  return useMutation(getTestWhatsappSettingsMutationOptions(options));
+};
+
+export const getListWhatsappThresholdRulesUrl = () => {
+  return `/api/whatsapp/threshold-rules`;
+};
+
+export const listWhatsappThresholdRules = async (
+  options?: RequestInit,
+): Promise<WhatsappThresholdRule[]> => {
+  return customFetch<WhatsappThresholdRule[]>(
+    getListWhatsappThresholdRulesUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListWhatsappThresholdRulesQueryKey = () => {
+  return [`/api/whatsapp/threshold-rules`] as const;
+};
+
+export const getListWhatsappThresholdRulesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listWhatsappThresholdRules>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listWhatsappThresholdRules>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListWhatsappThresholdRulesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listWhatsappThresholdRules>>
+  > = ({ signal }) => listWhatsappThresholdRules({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listWhatsappThresholdRules>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListWhatsappThresholdRulesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listWhatsappThresholdRules>>
+>;
+export type ListWhatsappThresholdRulesQueryError = ErrorType<unknown>;
+
+export function useListWhatsappThresholdRules<
+  TData = Awaited<ReturnType<typeof listWhatsappThresholdRules>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listWhatsappThresholdRules>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListWhatsappThresholdRulesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getCreateWhatsappThresholdRuleUrl = () => {
+  return `/api/whatsapp/threshold-rules`;
+};
+
+export const createWhatsappThresholdRule = async (
+  createWhatsappThresholdRuleBody: CreateWhatsappThresholdRuleBody,
+  options?: RequestInit,
+): Promise<WhatsappThresholdRule> => {
+  return customFetch<WhatsappThresholdRule>(
+    getCreateWhatsappThresholdRuleUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(createWhatsappThresholdRuleBody),
+    },
+  );
+};
+
+export const getCreateWhatsappThresholdRuleMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createWhatsappThresholdRule>>,
+    TError,
+    { data: BodyType<CreateWhatsappThresholdRuleBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createWhatsappThresholdRule>>,
+  TError,
+  { data: BodyType<CreateWhatsappThresholdRuleBody> },
+  TContext
+> => {
+  const mutationKey = ["createWhatsappThresholdRule"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createWhatsappThresholdRule>>,
+    { data: BodyType<CreateWhatsappThresholdRuleBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createWhatsappThresholdRule(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateWhatsappThresholdRuleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createWhatsappThresholdRule>>
+>;
+export type CreateWhatsappThresholdRuleMutationBody =
+  BodyType<CreateWhatsappThresholdRuleBody>;
+export type CreateWhatsappThresholdRuleMutationError = ErrorType<unknown>;
+
+export const useCreateWhatsappThresholdRule = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createWhatsappThresholdRule>>,
+    TError,
+    { data: BodyType<CreateWhatsappThresholdRuleBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createWhatsappThresholdRule>>,
+  TError,
+  { data: BodyType<CreateWhatsappThresholdRuleBody> },
+  TContext
+> => {
+  return useMutation(getCreateWhatsappThresholdRuleMutationOptions(options));
+};
+
+export const getDeleteWhatsappThresholdRuleUrl = (id: number) => {
+  return `/api/whatsapp/threshold-rules/${id}`;
+};
+
+export const deleteWhatsappThresholdRule = async (
+  id: number,
+  options?: RequestInit,
+): Promise<MessageResponse> => {
+  return customFetch<MessageResponse>(getDeleteWhatsappThresholdRuleUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteWhatsappThresholdRuleMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteWhatsappThresholdRule>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteWhatsappThresholdRule>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteWhatsappThresholdRule"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteWhatsappThresholdRule>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteWhatsappThresholdRule(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteWhatsappThresholdRuleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteWhatsappThresholdRule>>
+>;
+
+export type DeleteWhatsappThresholdRuleMutationError = ErrorType<unknown>;
+
+export const useDeleteWhatsappThresholdRule = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteWhatsappThresholdRule>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteWhatsappThresholdRule>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteWhatsappThresholdRuleMutationOptions(options));
+};
 
 /**
  * @summary SMTP yapılandırması ve uyarı alıcılarını döner.

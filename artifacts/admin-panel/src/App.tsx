@@ -24,6 +24,7 @@ const SettingsAccounts = lazy(() => import("./pages/settings/accounts"));
 const SettingsStarlink = lazy(() => import("./pages/settings/starlink"));
 const SettingsNorway = lazy(() => import("./pages/settings/norway"));
 const SettingsEmail = lazy(() => import("./pages/settings/email"));
+const SettingsWhatsapp = lazy(() => import("./pages/settings/whatsapp"));
 const SettingsDanger = lazy(() => import("./pages/settings/danger"));
 const Profile = lazy(() => import("./pages/profile"));
 const AdminUsers = lazy(() => import("./pages/admin-users"));
@@ -176,6 +177,7 @@ function Router() {
       <Route path="/settings/starlink">{() => <ProtectedRoute component={SettingsStarlink} minRole="admin" />}</Route>
       <Route path="/settings/norway">{() => <ProtectedRoute component={SettingsNorway} minRole="admin" />}</Route>
       <Route path="/settings/email">{() => <ProtectedRoute component={SettingsEmail} minRole="admin" />}</Route>
+      <Route path="/settings/whatsapp">{() => <ProtectedRoute component={SettingsWhatsapp} minRole="admin" />}</Route>
       <Route path="/settings/danger">{() => <ProtectedRoute component={SettingsDanger} minRole="admin" />}</Route>
       <Route path="/profile">{() => <ProtectedRoute component={Profile} />}</Route>
       <Route path="/admin/users">{() => <ProtectedRoute component={AdminUsers} minRole="admin" />}</Route>

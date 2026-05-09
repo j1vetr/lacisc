@@ -58,12 +58,26 @@ function publicUser(u: typeof adminUsers.$inferSelect) {
     name: u.name,
     email: u.email,
     username: u.username,
+    phone: u.phone,
     role: u.role,
     lastLoginAt: u.lastLoginAt,
     lockedUntil: u.lockedUntil,
     createdAt: u.createdAt,
     updatedAt: u.updatedAt,
   };
+}
+
+// E.164-without-plus normalize. Boş string ya da geçersiz format → null.
+// "+90 (532) 123-4567", "0532 123 4567", "5321234567" → "905321234567".
+function normalizePhoneInput(raw: unknown): string | null {
+  if (raw === null || raw === undefined) return null;
+  let s = String(raw).trim().replace(/[\s\-().]/g, "");
+  if (!s) return null;
+  if (s.startsWith("+")) s = s.slice(1);
+  if (s.startsWith("00")) s = s.slice(2);
+  if (s.startsWith("0") && s.length === 11) s = "90" + s.slice(1);
+  if (/^5\d{9}$/.test(s)) s = "90" + s;
+  return /^\d{10,15}$/.test(s) ? s : null;
 }
 
 // All endpoints require admin+ except where noted.
@@ -100,13 +114,25 @@ router.post(
   requireAuth,
   requireRole("admin"),
   async (req: AuthRequest, res): Promise<void> => {
-    const { name, email, username, password, role } = req.body as {
+    const { name, email, username, password, role, phone } = req.body as {
       name?: string;
       email?: string | null;
       username?: string | null;
       password?: string;
       role?: string;
+      phone?: string | null;
     };
+    let finalPhone: string | null = null;
+    if (phone !== undefined && phone !== null && String(phone).trim() !== "") {
+      finalPhone = normalizePhoneInput(phone);
+      if (!finalPhone) {
+        res.status(400).json({
+          error:
+            "Geçersiz telefon. E.164 formatında 10-15 rakam olmalı (örn. 905321234567).",
+        });
+        return;
+      }
+    }
     if (!name || !password) {
       res.status(400).json({ error: "Ad ve şifre zorunludur." });
       return;
@@ -194,6 +220,7 @@ router.post(
         name,
         email: finalEmail,
         username: finalUsername,
+        phone: finalPhone,
         passwordHash,
         role: finalRole,
       })
@@ -225,11 +252,12 @@ router.patch(
       res.status(404).json({ error: "Kullanıcı bulunamadı." });
       return;
     }
-    const { name, role, username, unlock } = req.body as {
+    const { name, role, username, unlock, phone } = req.body as {
       name?: string;
       role?: string;
       username?: string | null;
       unlock?: boolean;
+      phone?: string | null;
     };
 
     const updates: Partial<typeof adminUsers.$inferInsert> = {
@@ -303,6 +331,22 @@ router.patch(
     if (unlock) {
       updates.lockedUntil = null;
       updates.failedLoginCount = 0;
+    }
+
+    if (phone !== undefined) {
+      if (phone === null || String(phone).trim() === "") {
+        updates.phone = null;
+      } else {
+        const normalized = normalizePhoneInput(phone);
+        if (!normalized) {
+          res.status(400).json({
+            error:
+              "Geçersiz telefon. E.164 formatında 10-15 rakam olmalı (örn. 905321234567).",
+          });
+          return;
+        }
+        updates.phone = normalized;
+      }
     }
 
     const [updated] = await db
