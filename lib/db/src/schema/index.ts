@@ -718,10 +718,12 @@ export const whatsappSettings = pgTable("whatsapp_settings", {
   endpointUrl: text("endpoint_url")
     .default("https://app.wpileti.com/api/send-message")
     .notNull(),
-  // LEGACY (Task #27 ilk taslak): operatör CSV listesi. Spec dispatch
-  // yolundan kaldırıldı (yalnız customer atama). Kolonlar geriye dönük
-  // uyum için DB'de kalıyor — runtime hep null yazar/okumaz. Tech-debt:
-  // sonraki migration'da DROP COLUMN.
+  // LEGACY — DEAD COLUMNS. Task #27 ilk taslağında ops broadcast +
+  // ayrı global eşik vardı; spec dispatch yolu YALNIZ customer atamalı
+  // (customer_kit_assignments) olarak güncellendi ve global fallback
+  // email_settings.thresholdStepGib'e taşındı. Bu iki sütun runtime
+  // tarafından okunmaz/yazılmaz (insert always null) ve sonraki
+  // migration'da DROP COLUMN edilecek.
   opsRecipients: text("ops_recipients"),
   globalThresholdGb: doublePrecision("global_threshold_gb"),
   // "Test mesajı gönder" butonu için varsayılan tek alıcı.

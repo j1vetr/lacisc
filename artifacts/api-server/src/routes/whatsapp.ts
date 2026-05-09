@@ -106,12 +106,21 @@ router.post(
       res.status(400).json({ error: "stepGb >= 1 olmalı." });
       return;
     }
-    const finalMin =
-      minPlanGb === null || minPlanGb === undefined
-        ? null
-        : Number.isFinite(minPlanGb) && minPlanGb >= 0
-          ? minPlanGb
-          : null;
+    let finalMin: number | null;
+    if (minPlanGb === null || minPlanGb === undefined) {
+      finalMin = null;
+    } else if (
+      typeof minPlanGb === "number" &&
+      Number.isFinite(minPlanGb) &&
+      minPlanGb >= 0
+    ) {
+      finalMin = minPlanGb;
+    } else {
+      res.status(400).json({
+        error: "minPlanGb null (catchall) ya da >= 0 sayı olmalı.",
+      });
+      return;
+    }
     const rule = await createThresholdRule({ minPlanGb: finalMin, stepGb });
     await audit(req, {
       action: "whatsapp.rule.create",
