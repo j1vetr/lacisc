@@ -716,7 +716,7 @@ export const whatsappSettings = pgTable("whatsapp_settings", {
   apiKeyEncrypted: text("api_key_encrypted"),
   // wpileti.com endpoint (tek nokta — değişirse buradan ayarlanır).
   endpointUrl: text("endpoint_url")
-    .default("https://app.wpileti.com/api/send-message")
+    .default("https://my.wpileti.com/api/send-message")
     .notNull(),
   // LEGACY — DEAD COLUMNS. Task #27 ilk taslağında ops broadcast +
   // ayrı global eşik vardı; spec dispatch yolu YALNIZ customer atamalı

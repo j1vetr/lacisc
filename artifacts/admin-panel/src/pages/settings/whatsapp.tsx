@@ -46,7 +46,7 @@ export default function WhatsappSettingsPage() {
 
   const [enabled, setEnabled] = useState(false);
   const [endpointUrl, setEndpointUrl] = useState(
-    "https://app.wpileti.com/api/send-message",
+    "https://my.wpileti.com/api/send-message",
   );
   const [apiKey, setApiKey] = useState("");
   const [testRecipient, setTestRecipient] = useState("");
@@ -238,7 +238,7 @@ export default function WhatsappSettingsPage() {
                   />
                   <p className="text-xs text-muted-foreground">
                     Güvenlik nedeniyle (SSRF + API anahtarı koruması) endpoint
-                    sabitlenmiştir. Yalnız <span className="font-mono">app.wpileti.com</span>
+                    sabitlenmiştir. Yalnız <span className="font-mono">my.wpileti.com</span>
                     {" "}host'una izin verilir.
                   </p>
                 </div>

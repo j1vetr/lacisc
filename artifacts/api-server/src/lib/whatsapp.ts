@@ -93,8 +93,8 @@ export type WhatsappSettingsUpdate = {
 // Güvenlik: SSRF + API anahtarı sızıntısını önlemek için endpoint URL
 // kesinlikle wpileti.com host'una pinlenmiştir. Admin UI'da bile
 // değiştirilemez (frontend read-only gösterir, backend reddeder).
-const ALLOWED_WHATSAPP_HOST = "app.wpileti.com";
-const DEFAULT_WHATSAPP_ENDPOINT = "https://app.wpileti.com/api/send-message";
+const ALLOWED_WHATSAPP_HOST = "my.wpileti.com";
+const DEFAULT_WHATSAPP_ENDPOINT = "https://my.wpileti.com/api/send-message";
 
 function isAllowedWhatsappEndpoint(raw: string): boolean {
   try {
