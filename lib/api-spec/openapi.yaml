@@ -2379,15 +2379,21 @@ components:
       required: [id, stepGb, createdAt]
       properties:
         id: { type: integer }
-        minPlanGb: { type: number, nullable: true, description: "Plan kotası (decimal GB). NULL = catchall." }
+        minPlanGb:
+          type: number
+          nullable: true
+          description: "Plan kotası alt sınırı (decimal GB, > 0). NULL satırlar legacy/yok sayılır — yeni kayıtlar için zorunludur."
         stepGb: { type: number, description: "Eşik adımı (decimal GB)." }
         createdAt: { type: string, format: date-time }
 
     CreateWhatsappThresholdRuleBody:
       type: object
-      required: [stepGb]
+      required: [minPlanGb, stepGb]
       properties:
-        minPlanGb: { type: number, nullable: true }
+        minPlanGb:
+          type: number
+          minimum: 0.0001
+          description: "Plan kotası alt sınırı (decimal GB, > 0). Catchall (null) artık desteklenmez; plan bilinmiyorsa e-posta fallback eşiği kullanılır."
         stepGb: { type: number, minimum: 1 }
 
     EmailSettings:

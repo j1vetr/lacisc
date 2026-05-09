@@ -106,22 +106,18 @@ router.post(
       res.status(400).json({ error: "stepGb >= 1 olmalı." });
       return;
     }
-    let finalMin: number | null;
-    if (minPlanGb === null || minPlanGb === undefined) {
-      finalMin = null;
-    } else if (
-      typeof minPlanGb === "number" &&
-      Number.isFinite(minPlanGb) &&
-      minPlanGb >= 0
+    if (
+      typeof minPlanGb !== "number" ||
+      !Number.isFinite(minPlanGb) ||
+      minPlanGb <= 0
     ) {
-      finalMin = minPlanGb;
-    } else {
       res.status(400).json({
-        error: "minPlanGb null (catchall) ya da >= 0 sayı olmalı.",
+        error:
+          "minPlanGb > 0 sayı olmalı (catchall kuralları desteklenmez — plan kotası bilinmiyorsa e-posta fallback eşiği kullanılır).",
       });
       return;
     }
-    const rule = await createThresholdRule({ minPlanGb: finalMin, stepGb });
+    const rule = await createThresholdRule({ minPlanGb, stepGb });
     await audit(req, {
       action: "whatsapp.rule.create",
       target: `whatsapp_rule:${rule.id}`,

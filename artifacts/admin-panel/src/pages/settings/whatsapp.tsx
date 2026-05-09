@@ -134,16 +134,12 @@ export default function WhatsappSettingsPage() {
       });
       return;
     }
-    const min =
-      newMinPlan.trim() === ""
-        ? null
-        : Number.isFinite(Number(newMinPlan))
-          ? Number(newMinPlan)
-          : NaN;
-    if (Number.isNaN(min)) {
+    const min = Number(newMinPlan);
+    if (newMinPlan.trim() === "" || !Number.isFinite(min) || min <= 0) {
       toast({
         title: "Geçersiz plan",
-        description: "Min plan boş ya da geçerli bir sayı olmalı.",
+        description:
+          "Min plan > 0 sayı olmalı. Plan kotası bilinmeyen KIT'ler için yedek eşik (E-posta ayarları) kullanılır.",
         variant: "destructive",
       });
       return;
@@ -285,8 +281,7 @@ export default function WhatsappSettingsPage() {
                   />
                   <p className="text-xs text-muted-foreground">
                     Plan kotası bilinmiyorsa veya aşağıdaki kurallardan hiçbiri
-                    eşleşmiyorsa devreye girer (catchall kuralı eklemeseniz
-                    dahi bu fallback aktiftir). Değer{" "}
+                    eşleşmiyorsa devreye girer. Değer{" "}
                     <span className="font-mono">/settings/email</span>{" "}
                     sayfasındaki "eşik adımı"ndan okunur; WhatsApp ve e-posta
                     tek ortak global eşiği paylaşır.
@@ -359,10 +354,11 @@ export default function WhatsappSettingsPage() {
             </CardTitle>
             <CardDescription className="mt-1 text-sm text-muted-foreground">
               Her kural: <span className="font-mono">min plan kotası</span> →{" "}
-              <span className="font-mono">eşik adımı</span>. Bir KIT'in kotası en
-              yüksek eşleşen kuralın adımını kullanır. Min plan boş ise{" "}
-              <strong>catchall</strong> (Satcom + planı bilinmeyen tüm KIT'ler bu
-              kurala düşer).
+              <span className="font-mono">eşik adımı</span>. Bir KIT'in kotası
+              en yüksek eşleşen (<span className="font-mono">min plan ≤ kota</span>)
+              kuralın adımını kullanır. Plan kotası bilinmeyen KIT'ler (Satcom
+              dahil) için kural değil, doğrudan yukarıdaki yedek eşik
+              (E-posta ayarları) devreye girer.
             </CardDescription>
           </CardHeader>
           <CardContent className="p-4 sm:p-6 lg:p-8">
@@ -370,7 +366,7 @@ export default function WhatsappSettingsPage() {
               <div className="flex flex-col sm:flex-row gap-2">
                 <div className="flex-1 space-y-1.5">
                   <Label className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Min Plan (GB) — boş = catchall
+                    Min Plan (GB) — zorunlu, &gt; 0
                   </Label>
                   <Input
                     type="number"
@@ -437,8 +433,9 @@ export default function WhatsappSettingsPage() {
                               <Badge
                                 variant="outline"
                                 className="font-mono text-[10px] uppercase"
+                                title="Legacy catchall satırı — yeni mantıkta yok sayılır."
                               >
-                                catchall
+                                legacy
                               </Badge>
                             ) : (
                               <span>{r.minPlanGb} GB</span>

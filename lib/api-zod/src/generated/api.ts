@@ -409,7 +409,9 @@ export const ListWhatsappThresholdRulesResponseItem = zod.object({
   minPlanGb: zod
     .number()
     .nullish()
-    .describe("Plan kotası (decimal GB). NULL = catchall."),
+    .describe(
+      "Plan kotası alt sınırı (decimal GB, > 0). NULL satırlar legacy\/yok sayılır — yeni kayıtlar için zorunludur.",
+    ),
   stepGb: zod.number().describe("Eşik adımı (decimal GB)."),
   createdAt: zod.coerce.date(),
 });
@@ -417,8 +419,15 @@ export const ListWhatsappThresholdRulesResponse = zod.array(
   ListWhatsappThresholdRulesResponseItem,
 );
 
+export const createWhatsappThresholdRuleBodyMinPlanGbMin = 0.0001;
+
 export const CreateWhatsappThresholdRuleBody = zod.object({
-  minPlanGb: zod.number().nullish(),
+  minPlanGb: zod
+    .number()
+    .min(createWhatsappThresholdRuleBodyMinPlanGbMin)
+    .describe(
+      "Plan kotası alt sınırı (decimal GB, > 0). Catchall (null) artık desteklenmez; plan bilinmiyorsa e-posta fallback eşiği kullanılır.",
+    ),
   stepGb: zod.number().min(1),
 });
 
@@ -427,7 +436,9 @@ export const CreateWhatsappThresholdRuleResponse = zod.object({
   minPlanGb: zod
     .number()
     .nullish()
-    .describe("Plan kotası (decimal GB). NULL = catchall."),
+    .describe(
+      "Plan kotası alt sınırı (decimal GB, > 0). NULL satırlar legacy\/yok sayılır — yeni kayıtlar için zorunludur.",
+    ),
   stepGb: zod.number().describe("Eşik adımı (decimal GB)."),
   createdAt: zod.coerce.date(),
 });

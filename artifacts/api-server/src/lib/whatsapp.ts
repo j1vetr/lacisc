@@ -199,39 +199,38 @@ export async function deleteThresholdRule(id: number): Promise<void> {
   await db.delete(whatsappThresholdRules).where(eq(whatsappThresholdRules.id, id));
 }
 
-// Plan kotası verili → en yüksek minPlanGb<=plan kuralını seç. Plan null →
-// catchall (minPlanGb IS NULL). Hiç eşleşme yoksa SETTINGS.globalThresholdGb
-// fallback olarak kullanılır; o da null ise uyarı gönderilmez.
+// Spec (kesin):
+//   planAllowanceGb null/unknown  → DOĞRUDAN email fallback (catchall yok).
+//   planAllowanceGb biliniyor      → minPlanGb NOT NULL ve <= plan olan
+//                                    en yüksek minPlanGb kuralı seç.
+//                                    Eşleşme yoksa email fallback.
+// minPlanGb=NULL satırlar (legacy) kasıtlı olarak değerlendirilmez —
+// route catchall kuralları reddeder; DB'de kalırsa pickStepGb tarafından
+// görmezden gelinir.
 async function pickStepGb(
   planAllowanceGb: number | null,
   globalFallbackGb: number | null
 ): Promise<number | null> {
-  let row:
-    | typeof whatsappThresholdRules.$inferSelect
-    | undefined;
   if (planAllowanceGb == null || !Number.isFinite(planAllowanceGb)) {
-    [row] = await db
-      .select()
-      .from(whatsappThresholdRules)
-      .where(isNull(whatsappThresholdRules.minPlanGb))
-      .orderBy(desc(whatsappThresholdRules.id))
-      .limit(1);
-  } else {
-    [row] = await db
-      .select()
-      .from(whatsappThresholdRules)
-      .where(
-        or(
-          isNull(whatsappThresholdRules.minPlanGb),
-          lte(whatsappThresholdRules.minPlanGb, planAllowanceGb)
-        )
-      )
-      .orderBy(sql`${whatsappThresholdRules.minPlanGb} DESC NULLS LAST`)
-      .limit(1);
+    return globalFallbackGb != null && globalFallbackGb >= 1
+      ? globalFallbackGb
+      : null;
   }
+  const [row] = await db
+    .select()
+    .from(whatsappThresholdRules)
+    .where(
+      and(
+        sql`${whatsappThresholdRules.minPlanGb} IS NOT NULL`,
+        lte(whatsappThresholdRules.minPlanGb, planAllowanceGb)
+      )
+    )
+    .orderBy(desc(whatsappThresholdRules.minPlanGb))
+    .limit(1);
   if (row?.stepGb && row.stepGb >= 1) return row.stepGb;
-  if (globalFallbackGb != null && globalFallbackGb >= 1) return globalFallbackGb;
-  return null;
+  return globalFallbackGb != null && globalFallbackGb >= 1
+    ? globalFallbackGb
+    : null;
 }
 
 // ---------------------------------------------------------------------------

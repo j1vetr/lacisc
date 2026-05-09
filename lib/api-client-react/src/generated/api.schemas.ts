@@ -630,7 +630,7 @@ export interface WhatsappTestResult {
 
 export interface WhatsappThresholdRule {
   id: number;
-  /** Plan kotası (decimal GB). NULL = catchall. */
+  /** Plan kotası alt sınırı (decimal GB, > 0). NULL satırlar legacy/yok sayılır — yeni kayıtlar için zorunludur. */
   minPlanGb?: number | null;
   /** Eşik adımı (decimal GB). */
   stepGb: number;
@@ -638,7 +638,11 @@ export interface WhatsappThresholdRule {
 }
 
 export interface CreateWhatsappThresholdRuleBody {
-  minPlanGb?: number | null;
+  /**
+   * Plan kotası alt sınırı (decimal GB, > 0). Catchall (null) artık desteklenmez; plan bilinmiyorsa e-posta fallback eşiği kullanılır.
+   * @minimum 0.0001
+   */
+  minPlanGb: number;
   /** @minimum 1 */
   stepGb: number;
 }
