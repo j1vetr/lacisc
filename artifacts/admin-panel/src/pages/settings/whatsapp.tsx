@@ -420,8 +420,10 @@ export default function WhatsappSettingsPage() {
                           colSpan={3}
                           className="py-6 text-center text-muted-foreground text-xs"
                         >
-                          Henüz kural yok. En az bir catchall kural ekleyin (min
-                          plan boş) — yoksa hiçbir KIT için bildirim gönderilmez.
+                          Henüz kural yok. Bu durumda yukarıdaki "Yedek Eşik
+                          (E-posta ayarlarından)" değeri tüm KIT'ler için
+                          fallback olarak kullanılır; bildirim göndermek
+                          istemiyorsanız e-posta eşiğini de boş bırakın.
                         </td>
                       </tr>
                     ) : (
