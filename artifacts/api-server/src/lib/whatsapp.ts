@@ -567,19 +567,36 @@ export async function maybeFireWhatsappAlert(opts: {
 
     const shipLabel = opts.shipName?.trim() || opts.kitNo;
     const periodLabel = `${opts.period.slice(0, 4)}-${opts.period.slice(4)}`;
-    const planLine =
-      opts.planAllowanceGb != null && Number.isFinite(opts.planAllowanceGb)
-        ? `Kota: ${opts.planAllowanceGb.toFixed(0)} GB`
-        : "Kota: belirtilmemiş";
+
+    const plan = opts.planAllowanceGb;
+    const hasPlan = plan != null && Number.isFinite(plan) && plan > 0;
+
+    let header: string;
+    let body: string;
+    if (hasPlan) {
+      const pct = Math.min(999, (opts.totalGb / plan) * 100);
+      const remaining = Math.max(0, plan - opts.totalGb);
+      const severity =
+        pct >= 95 ? "🔴" : pct >= 80 ? "🟠" : pct >= 50 ? "🟡" : "🟢";
+      const filled = Math.max(0, Math.min(10, Math.round(pct / 10)));
+      const bar = "[" + "|".repeat(filled) + "·".repeat(10 - filled) + "]";
+      header = `${severity} *Veri Uyarısı — %${pct.toFixed(0)}*`;
+      body =
+        `${bar}  ${opts.totalGb.toFixed(2)} / ${plan.toFixed(0)} GB\n` +
+        `🚨 Aşılan eşik: ${crossedStep} GB · Kalan ${remaining.toFixed(2)} GB`;
+    } else {
+      header = `⚠️ *Veri Uyarısı*`;
+      body =
+        `📊 ${opts.totalGb.toFixed(2)} GB kullanıldı\n` +
+        `🚨 Aşılan eşik: ${crossedStep} GB\n` +
+        `_Kota tanımsız — sabit eşik aralığı kullanıldı._`;
+    }
 
     const message =
-      `⚠️ Veri Eşiği Aşıldı\n\n` +
-      `🚢 Gemi: ${shipLabel}\n` +
-      `📡 KIT: ${opts.kitNo}\n` +
-      `📅 Dönem: ${periodLabel}\n\n` +
-      `📊 Kullanım: ${opts.totalGb.toFixed(2)} GB\n` +
-      `🚨 Aşılan eşik: ${crossedStep} GB\n` +
-      `${planLine}\n\n` +
+      `${header}\n\n` +
+      `🚢 ${shipLabel} (${opts.kitNo})\n` +
+      `📅 ${periodLabel}\n\n` +
+      `${body}\n\n` +
       `— sc.lacivertteknoloji.com`;
 
     for (const receiver of recipients) {
