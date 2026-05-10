@@ -1,0 +1,94 @@
+===== 2) SON 4 SAATLİK WHATSAPP + SYNC LOGLARI =====
+May 10 13:00:00 162-55-4-35.datahost.net.tr node[2483566]: {"level":30,"time":17                                                                                                                                                             78407200026,"pid":2483566,"hostname":"162-55-4-35.datahost.net.tr","msg":"Schedu                                                                                                                                                             led Starlink phase starting"}
+May 10 13:00:07 162-55-4-35.datahost.net.tr node[2483566]: {"level":30,"time":17                                                                                                                                                             78407207344,"pid":2483566,"hostname":"162-55-4-35.datahost.net.tr","msg":"Schedu                                                                                                                                                             led Leo Bridge phase starting"}
+May 10 13:00:08 162-55-4-35.datahost.net.tr node[2483566]: {"level":30,"time":17                                                                                                                                                             78407208198,"pid":2483566,"hostname":"162-55-4-35.datahost.net.tr","msg":"Schedu                                                                                                                                                             led Satcom phase starting (forceFull)"}
+May 10 14:00:00 162-55-4-35.datahost.net.tr node[2483566]: {"level":30,"time":17                                                                                                                                                             78410800009,"pid":2483566,"hostname":"162-55-4-35.datahost.net.tr","msg":"Schedu                                                                                                                                                             led Starlink phase starting"}
+May 10 14:00:07 162-55-4-35.datahost.net.tr node[2483566]: {"level":30,"time":17                                                                                                                                                             78410807469,"pid":2483566,"hostname":"162-55-4-35.datahost.net.tr","msg":"Schedu                                                                                                                                                             led Leo Bridge phase starting"}
+May 10 14:00:08 162-55-4-35.datahost.net.tr node[2483566]: {"level":30,"time":17                                                                                                                                                             78410808393,"pid":2483566,"hostname":"162-55-4-35.datahost.net.tr","msg":"Schedu                                                                                                                                                             led Satcom phase starting (forceFull)"}
+May 10 15:00:00 162-55-4-35.datahost.net.tr node[2483566]: {"level":30,"time":17                                                                                                                                                             78414400002,"pid":2483566,"hostname":"162-55-4-35.datahost.net.tr","msg":"Schedu                                                                                                                                                             led Starlink phase starting"}
+May 10 15:00:07 162-55-4-35.datahost.net.tr node[2483566]: {"level":30,"time":17                                                                                                                                                             78414407881,"pid":2483566,"hostname":"162-55-4-35.datahost.net.tr","msg":"Schedu                                                                                                                                                             led Leo Bridge phase starting"}
+May 10 15:00:08 162-55-4-35.datahost.net.tr node[2483566]: {"level":30,"time":17                                                                                                                                                             78414408734,"pid":2483566,"hostname":"162-55-4-35.datahost.net.tr","msg":"Schedu                                                                                                                                                             led Satcom phase starting (forceFull)"}
+May 10 16:00:00 162-55-4-35.datahost.net.tr node[3671929]: {"level":30,"time":17                                                                                                                                                             78418000002,"pid":3671929,"hostname":"162-55-4-35.datahost.net.tr","msg":"Schedu                                                                                                                                                             led Starlink phase starting"}
+May 10 16:00:07 162-55-4-35.datahost.net.tr node[3671929]: {"level":30,"time":17                                                                                                                                                             78418007121,"pid":3671929,"hostname":"162-55-4-35.datahost.net.tr","msg":"Schedu                                                                                                                                                             led Leo Bridge phase starting"}
+May 10 16:00:08 162-55-4-35.datahost.net.tr node[3671929]: {"level":30,"time":17                                                                                                                                                             78418008034,"pid":3671929,"hostname":"162-55-4-35.datahost.net.tr","msg":"Schedu                                                                                                                                                             led Satcom phase starting (forceFull)"}
+May 10 16:01:36 162-55-4-35.datahost.net.tr node[3671929]: {"level":30,"time":17                                                                                                                                                             78418096566,"pid":3671929,"hostname":"162-55-4-35.datahost.net.tr","source":"sat                                                                                                                                                             com","kitNo":"KITP00401809","period":"202605","crossedStep":225,"recipients":2,"                                                                                                                                                             msg":"WhatsApp eşik bildirimi digest'e eklendi"}
+May 10 16:08:26 162-55-4-35.datahost.net.tr node[3671929]: {"level":30,"time":17                                                                                                                                                             78418506915,"pid":3671929,"hostname":"162-55-4-35.datahost.net.tr","receiver":"9                                                                                                                                                             05395659902","kitCount":1,"messages":1,"queueDepth":0,"msg":"WhatsApp digest sır                                                                                                                                                             aya alındı"}
+May 10 16:08:26 162-55-4-35.datahost.net.tr node[3671929]: {"level":30,"time":17                                                                                                                                                             78418506917,"pid":3671929,"hostname":"162-55-4-35.datahost.net.tr","receiver":"9                                                                                                                                                             05419071618","kitCount":1,"messages":1,"queueDepth":1,"msg":"WhatsApp digest sır                                                                                                                                                             aya alındı"}
+May 10 16:08:27 162-55-4-35.datahost.net.tr node[3671929]: {"level":30,"time":17                                                                                                                                                             78418507784,"pid":3671929,"hostname":"162-55-4-35.datahost.net.tr","label":"dige                                                                                                                                                             st→905395659902[1KIT]","queueRemaining":1,"msg":"WhatsApp mesajı gönderildi"}
+May 10 16:08:58 162-55-4-35.datahost.net.tr node[3671929]: {"level":30,"time":17                                                                                                                                                             78418538464,"pid":3671929,"hostname":"162-55-4-35.datahost.net.tr","label":"dige                                                                                                                                                             st→905419071618[1KIT]","queueRemaining":0,"msg":"WhatsApp mesajı gönderildi"}
+
+===== 3) ALERT CLAIM TABLOSU (son 4 saat) =====
+ source |    kit_no    | period | last_alert_step_gb |       updated_at
+--------+--------------+--------+--------------------+-------------------------
+ satcom | KITP00401809 | 202605 |                225 | 2026-05-10 13:01:36.563
+(1 row)
+
+
+===== 4) MÜŞTERİ HESAPLARI + TELEFON + ATAMA SAYISI =====
+ERROR:  column cka.admin_user_id does not exist
+LINE 5:   LEFT JOIN customer_kit_assignments cka ON cka.admin_user_i...
+                                                    ^
+
+===== 5) WHATSAPP AYARLARI =====
+ id | enabled |               endpoint_url               | test_recipient | api_key_var_mi
+----+---------+------------------------------------------+----------------+----------------
+  1 | t       | https://app.wpileti.com/api/send-message | 905308616785   | t
+(1 row)
+
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+~
+(END)
