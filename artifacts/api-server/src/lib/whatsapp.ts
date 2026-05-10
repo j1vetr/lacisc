@@ -314,6 +314,203 @@ async function processSendQueue(): Promise<void> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Per-receiver digest buffer
+//
+// WhatsApp consumer apps (wpileti.com benzeri unofficial wrapper'lar dahil)
+// aynı kontağa kısa sürede arka arkaya çok mesaj atınca anti-spam motoruna
+// takılıp mesajları "Mesaj bekleniyor" pending durumuna düşürüyor (provider
+// 200 OK dönse bile teslim edilmiyor). Çözüm: aynı sync turunda aynı alıcıya
+// giden tüm KIT eşik bildirimlerini TEK mesajda birleştir.
+//
+// Akış: maybeFireWhatsappAlert(...) artık doğrudan sendOne enqueue etmek
+// yerine, alıcı başına PendingAlertItem buffer'ına ekler ve debounce timer
+// kurar. 5 sn yeni alert eklenmeyince flushDigest devreye girer; tek alıcı
+// için 1..N mesaj enqueueSend edilir (20 KIT'ten fazlası bölünür).
+// ---------------------------------------------------------------------------
+
+const DIGEST_DEBOUNCE_MS = 5_000;
+const MAX_KITS_PER_MESSAGE = 20;
+const BAR_SEGMENTS = 8;
+
+type PendingAlertItem = {
+  source: WhatsappAlertSource;
+  kitNo: string;
+  period: string;
+  totalGb: number;
+  planAllowanceGb: number | null;
+  shipName: string | null;
+  crossedStep: number;
+};
+
+const pendingDigest = new Map<
+  string,
+  { alerts: PendingAlertItem[]; flushTimer: ReturnType<typeof setTimeout> | null }
+>();
+
+function enqueueAlertForReceiver(
+  receiver: string,
+  alert: PendingAlertItem
+): void {
+  let entry = pendingDigest.get(receiver);
+  if (!entry) {
+    entry = { alerts: [], flushTimer: null };
+    pendingDigest.set(receiver, entry);
+  }
+  entry.alerts.push(alert);
+  if (entry.flushTimer) clearTimeout(entry.flushTimer);
+  entry.flushTimer = setTimeout(() => {
+    void flushDigestForReceiver(receiver);
+  }, DIGEST_DEBOUNCE_MS);
+}
+
+function severityFor(pct: number): string {
+  return pct >= 95 ? "🔴" : pct >= 80 ? "🟠" : pct >= 50 ? "🟡" : "🟢";
+}
+
+function renderBar(pct: number): string {
+  const filled = Math.max(
+    0,
+    Math.min(BAR_SEGMENTS, Math.round((pct / 100) * BAR_SEGMENTS))
+  );
+  return "▰".repeat(filled) + "▱".repeat(BAR_SEGMENTS - filled);
+}
+
+function buildSingleKitMessage(a: PendingAlertItem): string {
+  const shipLabel = a.shipName?.trim() || a.kitNo;
+  const periodLabel = `${a.period.slice(0, 4)}-${a.period.slice(4)}`;
+  const plan = a.planAllowanceGb;
+  const hasPlan = plan != null && plan > 0;
+
+  let header: string;
+  let body: string;
+  if (hasPlan) {
+    const pct = Math.min(999, (a.totalGb / (plan as number)) * 100);
+    const remaining = Math.max(0, (plan as number) - a.totalGb);
+    header = `${severityFor(pct)} *Veri Uyarısı | %${pct.toFixed(0)}*`;
+    body =
+      `${renderBar(pct)}  ${a.totalGb.toFixed(2)} / ${(plan as number).toFixed(0)} GB\n` +
+      `Aşılan Eşik : ${a.crossedStep} GB\n` +
+      `Kalan Kota : ${remaining.toFixed(2)} GB`;
+  } else {
+    header = `⚠️ *Veri Uyarısı*`;
+    body =
+      `${a.totalGb.toFixed(2)} GB kullanıldı\n` +
+      `Aşılan Eşik : ${a.crossedStep} GB\n` +
+      `_Kota tanımsız — sabit eşik aralığı kullanıldı._`;
+  }
+
+  return (
+    `${header}\n\n` +
+    `Gemi : ${shipLabel} (${a.kitNo})\n` +
+    `Dönem : ${periodLabel}\n\n` +
+    `${body}\n\n` +
+    `| sc.lacivertteknoloji.com`
+  );
+}
+
+function renderKitBlock(a: PendingAlertItem): string {
+  const shipLabel = a.shipName?.trim() || a.kitNo;
+  const plan = a.planAllowanceGb;
+  if (plan != null && plan > 0) {
+    const pct = Math.min(999, (a.totalGb / plan) * 100);
+    const remaining = Math.max(0, plan - a.totalGb);
+    return (
+      `${severityFor(pct)} ${shipLabel} (${a.kitNo})\n` +
+      `${renderBar(pct)} %${pct.toFixed(0)} · ${a.totalGb.toFixed(2)} / ${plan.toFixed(0)} GB\n` +
+      `Eşik : ${a.crossedStep} GB · Kalan : ${remaining.toFixed(2)} GB`
+    );
+  }
+  return (
+    `⚠️ ${shipLabel} (${a.kitNo})\n` +
+    `${a.totalGb.toFixed(2)} GB kullanıldı · eşik ${a.crossedStep} GB`
+  );
+}
+
+function buildDigestMessages(alerts: PendingAlertItem[]): string[] {
+  // En kritik üstte: planlı KIT'ler yüzde desc, plansızlar (Satcom çoğunluk)
+  // en alta totalGb desc.
+  const sorted = [...alerts].sort((a, b) => {
+    const aHas = a.planAllowanceGb != null && a.planAllowanceGb > 0;
+    const bHas = b.planAllowanceGb != null && b.planAllowanceGb > 0;
+    if (aHas !== bHas) return aHas ? -1 : 1;
+    if (aHas && bHas) {
+      const aPct = a.totalGb / (a.planAllowanceGb as number);
+      const bPct = b.totalGb / (b.planAllowanceGb as number);
+      return bPct - aPct;
+    }
+    return b.totalGb - a.totalGb;
+  });
+
+  const period = sorted[0]?.period ?? activePeriod();
+  const periodLabel = `${period.slice(0, 4)}-${period.slice(4)}`;
+
+  const chunks: PendingAlertItem[][] = [];
+  for (let i = 0; i < sorted.length; i += MAX_KITS_PER_MESSAGE) {
+    chunks.push(sorted.slice(i, i + MAX_KITS_PER_MESSAGE));
+  }
+
+  return chunks.map((chunk, idx) => {
+    const partLabel =
+      chunks.length > 1 ? ` (${idx + 1}/${chunks.length})` : "";
+    const header =
+      `🔔 *Veri Uyarısı | ${chunk.length} KIT*${partLabel}\n` +
+      `Dönem : ${periodLabel}`;
+    const blocks = chunk.map(renderKitBlock).join("\n\n");
+    return `${header}\n\n${blocks}\n\n| sc.lacivertteknoloji.com`;
+  });
+}
+
+async function flushDigestForReceiver(receiver: string): Promise<void> {
+  const entry = pendingDigest.get(receiver);
+  if (!entry || entry.alerts.length === 0) {
+    pendingDigest.delete(receiver);
+    return;
+  }
+  const alerts = entry.alerts;
+  pendingDigest.delete(receiver);
+
+  try {
+    const settings = await getWhatsappSettings();
+    if (!settings.enabled || !settings.hasApiKey) return;
+    const [row] = await db
+      .select({ apiKey: whatsappSettings.apiKeyEncrypted })
+      .from(whatsappSettings)
+      .where(eq(whatsappSettings.id, 1));
+    if (!row?.apiKey) return;
+    const apiKey = decrypt(row.apiKey);
+
+    const messages =
+      alerts.length === 1
+        ? [buildSingleKitMessage(alerts[0])]
+        : buildDigestMessages(alerts);
+
+    messages.forEach((message, idx) => {
+      const part =
+        messages.length > 1 ? `/${idx + 1}of${messages.length}` : "";
+      const label = `digest→${receiver}[${alerts.length}KIT${part}]`;
+      enqueueSend(label, () =>
+        sendOne({ endpointUrl: settings.endpointUrl, apiKey, receiver, message })
+      );
+    });
+
+    logger.info(
+      {
+        receiver,
+        kitCount: alerts.length,
+        messages: messages.length,
+        queueDepth: sendQueue.length,
+      },
+      "WhatsApp digest sıraya alındı"
+    );
+  } catch (err) {
+    logger.error(
+      { err, receiver, kitCount: alerts.length },
+      "WhatsApp digest flush hatası"
+    );
+  }
+}
+
 async function sendOne(opts: {
   endpointUrl: string;
   apiKey: string;
@@ -558,58 +755,20 @@ export async function maybeFireWhatsappAlert(opts: {
       return;
     }
 
-    const [row] = await db
-      .select({ apiKey: whatsappSettings.apiKeyEncrypted })
-      .from(whatsappSettings)
-      .where(eq(whatsappSettings.id, 1));
-    if (!row?.apiKey) return;
-    const apiKey = decrypt(row.apiKey);
-
-    const shipLabel = opts.shipName?.trim() || opts.kitNo;
-    const periodLabel = `${opts.period.slice(0, 4)}-${opts.period.slice(4)}`;
-
     const plan = opts.planAllowanceGb;
     const hasPlan = plan != null && Number.isFinite(plan) && plan > 0;
 
-    const BAR_SEGMENTS = 8;
-
-    let header: string;
-    let body: string;
-    if (hasPlan) {
-      const pct = Math.min(999, (opts.totalGb / plan) * 100);
-      const remaining = Math.max(0, plan - opts.totalGb);
-      const severity =
-        pct >= 95 ? "🔴" : pct >= 80 ? "🟠" : pct >= 50 ? "🟡" : "🟢";
-      const filled = Math.max(
-        0,
-        Math.min(BAR_SEGMENTS, Math.round((pct / 100) * BAR_SEGMENTS))
-      );
-      const bar = "▰".repeat(filled) + "▱".repeat(BAR_SEGMENTS - filled);
-      header = `${severity} *Veri Uyarısı | %${pct.toFixed(0)}*`;
-      body =
-        `${bar}  ${opts.totalGb.toFixed(2)} / ${plan.toFixed(0)} GB\n` +
-        `Aşılan Eşik : ${crossedStep} GB\n` +
-        `Kalan Kota : ${remaining.toFixed(2)} GB`;
-    } else {
-      header = `⚠️ *Veri Uyarısı*`;
-      body =
-        `${opts.totalGb.toFixed(2)} GB kullanıldı\n` +
-        `Aşılan Eşik : ${crossedStep} GB\n` +
-        `_Kota tanımsız — sabit eşik aralığı kullanıldı._`;
-    }
-
-    const message =
-      `${header}\n\n` +
-      `Gemi : ${shipLabel} (${opts.kitNo})\n` +
-      `Tarih : ${periodLabel}\n\n` +
-      `${body}\n\n` +
-      `| sc.lacivertteknoloji.com`;
-
+    const item: PendingAlertItem = {
+      source: opts.source,
+      kitNo: opts.kitNo,
+      period: opts.period,
+      totalGb: opts.totalGb,
+      planAllowanceGb: hasPlan ? (plan as number) : null,
+      shipName: opts.shipName ?? null,
+      crossedStep,
+    };
     for (const receiver of recipients) {
-      const label = `${opts.source}/${opts.kitNo}@${opts.period}=${crossedStep}GB→${receiver}`;
-      enqueueSend(label, () =>
-        sendOne({ endpointUrl: settings.endpointUrl, apiKey, receiver, message })
-      );
+      enqueueAlertForReceiver(receiver, item);
     }
 
     logger.info(
@@ -619,9 +778,8 @@ export async function maybeFireWhatsappAlert(opts: {
         period: opts.period,
         crossedStep,
         recipients: recipients.length,
-        queueDepth: sendQueue.length,
       },
-      "WhatsApp eşik bildirimi sıraya alındı"
+      "WhatsApp eşik bildirimi digest'e eklendi"
     );
   } catch (err) {
     logger.error(
