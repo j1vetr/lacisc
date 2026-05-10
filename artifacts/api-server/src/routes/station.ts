@@ -6,6 +6,16 @@ import {
   stationKits,
   stationKitDaily,
   stationKitPeriodTotal,
+  starlinkCredentials,
+  starlinkTerminals,
+  starlinkTerminalDaily,
+  starlinkTerminalPeriodTotal,
+  starlinkSyncLogs,
+  leobridgeCredentials,
+  leobridgeTerminals,
+  leobridgeTerminalDaily,
+  leobridgeTerminalPeriodTotal,
+  leobridgeSyncLogs,
 } from "@workspace/db";
 import { eq, asc, desc, sql, count } from "drizzle-orm";
 import { encrypt, decrypt } from "../lib/crypto";
@@ -517,7 +527,11 @@ router.get("/station/sync-progress", requireAuth, requireRole("viewer"), async (
 // =============================================================================
 
 router.post("/station/wipe-data", requireAuth, requireRole("admin"), async (req: AuthRequest, res): Promise<void> => {
-  if (isOrchestratorRunning()) {
+  if (
+    isOrchestratorRunning() ||
+    isStarlinkSyncRunning() ||
+    isLeobridgeSyncRunning()
+  ) {
     res
       .status(409)
       .json({ error: "Senkronizasyon devam ediyor — önce tamamlanmasını bekleyin." });
@@ -583,11 +597,72 @@ router.post("/station/wipe-data", requireAuth, requireRole("admin"), async (req:
       });
   }
 
+  // ── Starlink + Norway: yalnız "Tümünü Sil" akışında temizlenir.
+  // Per-account wipe Satcom-özel; Starlink/Norway için hesap silindiğinde
+  // zaten cascade çalışıyor.
+  let starlinkDeleted = { terminals: 0, daily: 0, periodTotal: 0, syncLogs: 0 };
+  let leobridgeDeleted = { terminals: 0, daily: 0, periodTotal: 0, syncLogs: 0 };
+  if (credentialId === null) {
+    const slDaily = await db
+      .delete(starlinkTerminalDaily)
+      .returning({ id: starlinkTerminalDaily.kitSerialNumber });
+    const slTotal = await db
+      .delete(starlinkTerminalPeriodTotal)
+      .returning({ id: starlinkTerminalPeriodTotal.kitSerialNumber });
+    const slTerm = await db
+      .delete(starlinkTerminals)
+      .returning({ id: starlinkTerminals.kitSerialNumber });
+    const slLogs = await db
+      .delete(starlinkSyncLogs)
+      .returning({ id: starlinkSyncLogs.id });
+    await db
+      .update(starlinkCredentials)
+      .set({
+        lastSuccessSyncAt: null,
+        lastErrorMessage: null,
+        updatedAt: new Date(),
+      });
+    starlinkDeleted = {
+      terminals: slTerm.length,
+      daily: slDaily.length,
+      periodTotal: slTotal.length,
+      syncLogs: slLogs.length,
+    };
+
+    const lbDaily = await db
+      .delete(leobridgeTerminalDaily)
+      .returning({ id: leobridgeTerminalDaily.kitSerialNumber });
+    const lbTotal = await db
+      .delete(leobridgeTerminalPeriodTotal)
+      .returning({ id: leobridgeTerminalPeriodTotal.kitSerialNumber });
+    const lbTerm = await db
+      .delete(leobridgeTerminals)
+      .returning({ id: leobridgeTerminals.kitSerialNumber });
+    const lbLogs = await db
+      .delete(leobridgeSyncLogs)
+      .returning({ id: leobridgeSyncLogs.id });
+    await db
+      .update(leobridgeCredentials)
+      .set({
+        lastSuccessSyncAt: null,
+        lastErrorMessage: null,
+        updatedAt: new Date(),
+      });
+    leobridgeDeleted = {
+      terminals: lbTerm.length,
+      daily: lbDaily.length,
+      periodTotal: lbTotal.length,
+      syncLogs: lbLogs.length,
+    };
+  }
+
   const deleted = {
     kitDaily: dailyDel.length,
     kitPeriodTotal: totalDel.length,
     kits: kitsDel.length,
     syncLogs: logsDel.length,
+    starlink: starlinkDeleted,
+    leobridge: leobridgeDeleted,
   };
   req.log.warn({ deleted, credentialId }, "Station data wiped by admin");
   await audit(req, {
@@ -601,7 +676,7 @@ router.post("/station/wipe-data", requireAuth, requireRole("admin"), async (req:
     message:
       credentialId !== null
         ? `Hesap #${credentialId}: ${deleted.kits} KIT, ${deleted.kitPeriodTotal} dönem toplamı, ${deleted.kitDaily} CDR, ${deleted.syncLogs} sync kaydı silindi.`
-        : `Tüm veriler temizlendi: ${deleted.kits} KIT, ${deleted.kitPeriodTotal} dönem toplamı, ${deleted.kitDaily} CDR, ${deleted.syncLogs} sync kaydı silindi.`,
+        : `Tüm veriler temizlendi — Satcom: ${deleted.kits} KIT / ${deleted.kitPeriodTotal} dönem / ${deleted.kitDaily} CDR · Starlink: ${starlinkDeleted.terminals} terminal / ${starlinkDeleted.periodTotal} dönem · Norway: ${leobridgeDeleted.terminals} terminal / ${leobridgeDeleted.periodTotal} dönem.`,
     deleted,
   });
 });
