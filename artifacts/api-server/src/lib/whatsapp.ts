@@ -571,6 +571,8 @@ export async function maybeFireWhatsappAlert(opts: {
     const plan = opts.planAllowanceGb;
     const hasPlan = plan != null && Number.isFinite(plan) && plan > 0;
 
+    const BAR_SEGMENTS = 8;
+
     let header: string;
     let body: string;
     if (hasPlan) {
@@ -578,24 +580,28 @@ export async function maybeFireWhatsappAlert(opts: {
       const remaining = Math.max(0, plan - opts.totalGb);
       const severity =
         pct >= 95 ? "🔴" : pct >= 80 ? "🟠" : pct >= 50 ? "🟡" : "🟢";
-      const filled = Math.max(0, Math.min(10, Math.round(pct / 10)));
-      const bar = "▰".repeat(filled) + "▱".repeat(10 - filled);
+      const filled = Math.max(
+        0,
+        Math.min(BAR_SEGMENTS, Math.round((pct / 100) * BAR_SEGMENTS))
+      );
+      const bar = "▰".repeat(filled) + "▱".repeat(BAR_SEGMENTS - filled);
       header = `${severity} *Veri Uyarısı | %${pct.toFixed(0)}*`;
       body =
         `${bar}  ${opts.totalGb.toFixed(2)} / ${plan.toFixed(0)} GB\n` +
-        `🚨 Aşılan eşik: ${crossedStep} GB · Kalan ${remaining.toFixed(2)} GB`;
+        `Aşılan Eşik : ${crossedStep} GB\n` +
+        `Kalan Kota : ${remaining.toFixed(2)} GB`;
     } else {
       header = `⚠️ *Veri Uyarısı*`;
       body =
-        `📊 ${opts.totalGb.toFixed(2)} GB kullanıldı\n` +
-        `🚨 Aşılan eşik: ${crossedStep} GB\n` +
+        `${opts.totalGb.toFixed(2)} GB kullanıldı\n` +
+        `Aşılan Eşik : ${crossedStep} GB\n` +
         `_Kota tanımsız — sabit eşik aralığı kullanıldı._`;
     }
 
     const message =
       `${header}\n\n` +
-      `🚢 ${shipLabel} (${opts.kitNo})\n` +
-      `📅 ${periodLabel}\n\n` +
+      `Gemi : ${shipLabel} (${opts.kitNo})\n` +
+      `Tarih : ${periodLabel}\n\n` +
       `${body}\n\n` +
       `| sc.lacivertteknoloji.com`;
 
@@ -674,12 +680,29 @@ export async function lookupLeobridgePlanAndShip(
   };
 }
 
-export async function lookupSatcomShipName(
+// Satcom plan adı (CardDetails enrichment) içinden kota tahmini.
+// Plan adları "Mobile Priority 1TB Pooling Plan_TURKEY", "StellaKonnect 50GB"
+// gibi rakam + birim taşır; ilk eşleşmeyi alıyoruz. TB → ×1000.
+// (records.ts'deki ile aynı mantık — burada tekrar tutuyoruz ki whatsapp.ts
+// route katmanına bağımlı olmasın.)
+function parseSatcomPlanAllowanceGb(name?: string | null): number | null {
+  if (!name) return null;
+  const m = name.match(/(\d+(?:[.,]\d+)?)\s*(TB|GB)\b/i);
+  if (!m) return null;
+  const n = parseFloat(m[1].replace(",", "."));
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return m[2].toUpperCase() === "TB" ? n * 1000 : n;
+}
+
+export async function lookupSatcomShipAndPlan(
   credentialId: number,
   kitNo: string
-): Promise<string | null> {
+): Promise<{ shipName: string | null; planAllowanceGb: number | null }> {
   const [row] = await db
-    .select({ shipName: stationKits.shipName })
+    .select({
+      shipName: stationKits.shipName,
+      activePlanName: stationKits.activePlanName,
+    })
     .from(stationKits)
     .where(
       and(
@@ -687,5 +710,17 @@ export async function lookupSatcomShipName(
         eq(stationKits.kitNo, kitNo)
       )
     );
-  return row?.shipName ?? null;
+  return {
+    shipName: row?.shipName ?? null,
+    planAllowanceGb: parseSatcomPlanAllowanceGb(row?.activePlanName ?? null),
+  };
+}
+
+// Geriye uyum: eski isim hâlâ ship name döndürür.
+export async function lookupSatcomShipName(
+  credentialId: number,
+  kitNo: string
+): Promise<string | null> {
+  const r = await lookupSatcomShipAndPlan(credentialId, kitNo);
+  return r.shipName;
 }

@@ -8,7 +8,7 @@ import {
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { checkAndSendUsageAlert } from "./alerts";
-import { maybeFireWhatsappAlert, lookupSatcomShipName } from "./whatsapp";
+import { maybeFireWhatsappAlert, lookupSatcomShipAndPlan } from "./whatsapp";
 import type { Page, Browser } from "playwright";
 import * as progress from "./sync-progress";
 import {
@@ -1484,11 +1484,15 @@ export async function runSync(opts: RunSyncOptions): Promise<SyncResult> {
             totalUsd,
           });
           // WhatsApp eşik bildirimi — tamamen ayrı sistem (kendi eşik
-          // kuralları + idempotency tablosu). Satcom'da plan kotası yok →
+          // kuralları + idempotency tablosu). Satcom'un plan adı (örn.
+          // "Mobile Priority 1TB Pooling Plan") `station_kits.active_plan_name`
+          // alanından çekilip GB kotasına parse edilir. Plan yoksa fallback
           // catchall kuralına düşer. totalGib (binary) → GB (decimal).
-          // Ship name DB'den okunur (KitListEntry'de yok).
           void (async () => {
-            const shipName = await lookupSatcomShipName(credentialId, kit.kitNo);
+            const { shipName, planAllowanceGb } = await lookupSatcomShipAndPlan(
+              credentialId,
+              kit.kitNo
+            );
             await maybeFireWhatsappAlert({
               source: "satcom",
               credentialId,
@@ -1496,7 +1500,7 @@ export async function runSync(opts: RunSyncOptions): Promise<SyncResult> {
               kitNo: kit.kitNo,
               period,
               totalGb: totalGib * 1.073741824,
-              planAllowanceGb: null,
+              planAllowanceGb,
               shipName,
             });
           })();
