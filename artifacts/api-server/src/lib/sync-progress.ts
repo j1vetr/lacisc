@@ -369,11 +369,15 @@ export function reportKitDone(
   state.rowsFound += rows;
   state.rowsInserted += inserted;
   state.rowsUpdated += updated;
+  // USD bilinçli olarak gösterilmiyor — sync ilerleme akışı operatör/müşteri
+  // birlikte izleyebilir ve fatura tutarı paylaşılmamalı (totalUsd parametresi
+  // imza uyumu için kalıyor; DB'ye yazılması etkilenmiyor).
+  void totalUsd;
   pushEvent(
     "success",
     `${kitNo} · ${period} → ${rows} satır${
       totalGib !== null ? `, ${totalGib.toFixed(2)} GiB` : ""
-    }${totalUsd !== null ? `, ${totalUsd.toFixed(2)} USD` : ""}`
+    }`
   );
 }
 
