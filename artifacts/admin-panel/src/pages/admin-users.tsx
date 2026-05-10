@@ -517,7 +517,7 @@ export default function AdminUsers() {
                 <Label>
                   Telefon{" "}
                   <span className="text-[11px] text-muted-foreground">
-                    (WhatsApp eşik bildirimi — boş bırakılabilir)
+                    (WHATSAPP İÇİN GEREKLİ)
                   </span>
                 </Label>
                 <Input
