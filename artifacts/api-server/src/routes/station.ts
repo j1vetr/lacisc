@@ -32,6 +32,7 @@ import {
 import { runStarlinkSync, isStarlinkSyncRunning } from "../lib/starlink-sync";
 import { runLeobridgeSync, isLeobridgeSyncRunning } from "../lib/leobridge-sync";
 import * as progress from "../lib/sync-progress";
+import { flushAllPendingDigests } from "../lib/whatsapp";
 import {
   getEmailSettings,
   saveEmailSettings,
@@ -498,6 +499,17 @@ router.post("/station/sync-now", requireAuth, requireRole("admin"), async (req: 
       logger.error({ err }, "Manual Satcom phase crashed");
       // Lock is held by runAllAccountsClaimed(); ensure we release on hard crash.
       try { releaseRun(); } catch { /* already released */ }
+    }
+
+    // WhatsApp digest: tur boyunca biriken tüm pending alert'leri tek seferde
+    // alıcı başına TEK mesajda topla. Debounce penceresi (60 sn) Satcom
+    // scraper'ının KIT'ler arası 30-60 sn boşluklarına takılabildiği için
+    // burada zorla flush ediyoruz — bir sync turu = her alıcıya en fazla 1
+    // (veya 20+ KIT'te bölünmüş seri) mesaj garantisi.
+    try {
+      await flushAllPendingDigests();
+    } catch (err) {
+      logger.error({ err }, "Manual run sonrası WhatsApp digest flush hatası");
     }
 
     const ok = starlinkOk && leobridgeOk && satcomOk;

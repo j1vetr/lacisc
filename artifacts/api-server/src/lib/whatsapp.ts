@@ -329,7 +329,15 @@ async function processSendQueue(): Promise<void> {
 // için 1..N mesaj enqueueSend edilir (20 KIT'ten fazlası bölünür).
 // ---------------------------------------------------------------------------
 
-const DIGEST_DEBOUNCE_MS = 5_000;
+// Tek gerçek flush yolu artık orchestrator'un tur sonu hook'u
+// (`flushAllPendingDigests()` — manual `/sync-now` ve cron tick'inde çağrılır).
+// Debounce timer pasif bir failsafe olarak duruyor: değer cron aralığından
+// (varsayılan 30 dk, MAX_INTERVAL_MINUTES=360 dk) yeterince büyük tutulur ki
+// normal akışta asla erken tetiklenmesin — yani bir sync turunda biriken her
+// alert ALICI BAŞINA TEK mesajda toplanır. Tur sonu hook'u herhangi bir nedenle
+// (orchestrator hard-crash sonrası mid-state vs.) atlanırsa, en kötü
+// `MAX_INTERVAL_MINUTES + 30 dk` sonra failsafe devreye girer.
+const DIGEST_DEBOUNCE_MS = 6 * 60 * 60 * 1000; // 6 saat
 const MAX_KITS_PER_MESSAGE = 20;
 const BAR_SEGMENTS = 8;
 
@@ -459,6 +467,24 @@ function buildDigestMessages(alerts: PendingAlertItem[]): string[] {
     const blocks = chunk.map(renderKitBlock).join("\n\n");
     return `${header}\n\n${blocks}\n\n| sc.lacivertteknoloji.com`;
   });
+}
+
+// Sync orchestrator'unun (hem manual `/sync-now` hem 30 dk cron) tur sonunda
+// çağırdığı flush. Bekleyen tüm alıcı buffer'larını HEMEN gönderim kuyruğuna
+// itmek için debounce timer'larını iptal edip flushDigestForReceiver çağırır.
+// Sonuç: bir sync turunda biriken her alert tek mesajda toplanır (KIT'ler
+// arası 30-60 sn'lik scraper boşluğu artık digest'i bölmez).
+export async function flushAllPendingDigests(): Promise<void> {
+  const receivers = Array.from(pendingDigest.keys());
+  if (receivers.length === 0) return;
+  for (const receiver of receivers) {
+    const entry = pendingDigest.get(receiver);
+    if (entry?.flushTimer) {
+      clearTimeout(entry.flushTimer);
+      entry.flushTimer = null;
+    }
+  }
+  await Promise.all(receivers.map((r) => flushDigestForReceiver(r)));
 }
 
 async function flushDigestForReceiver(receiver: string): Promise<void> {
