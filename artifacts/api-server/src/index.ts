@@ -142,7 +142,7 @@ app.listen(port, async (err) => {
 
   try {
     await seed();
-    startScheduler();
+    await startScheduler();
   } catch (seedErr) {
     logger.error({ err: seedErr }, "Seed error");
   }

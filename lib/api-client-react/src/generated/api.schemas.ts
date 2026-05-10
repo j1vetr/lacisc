@@ -599,6 +599,35 @@ export interface LeobridgeMonthlyPoint {
   scrapedAt?: string | null;
 }
 
+export interface SchedulerSettings {
+  /**
+   * @minimum 15
+   * @maximum 360
+   */
+  intervalMinutes: number;
+  enabled: boolean;
+  updatedAt?: string | null;
+  nextRunAt?: string | null;
+  isRunning: boolean;
+  minIntervalMinutes: number;
+  maxIntervalMinutes: number;
+}
+
+export interface SchedulerSettingsUpdate {
+  /**
+   * @minimum 15
+   * @maximum 360
+   */
+  intervalMinutes?: number;
+  enabled?: boolean;
+}
+
+export interface SchedulerCancelResult {
+  cancelledRows: number;
+  releasedFlags: string[];
+  message: string;
+}
+
 export interface WhatsappSettings {
   enabled: boolean;
   /** true → kayıtlı API anahtarı var (gerçek değer dönmez) */

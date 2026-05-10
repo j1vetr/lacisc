@@ -774,3 +774,18 @@ export const whatsappAlertState = pgTable(
   ]
 );
 export type WhatsappAlertState = typeof whatsappAlertState.$inferSelect;
+
+// ---------------------------------------------------------------------------
+// Otomatik senkronizasyon zamanlayıcı ayarları (singleton id=1)
+// ---------------------------------------------------------------------------
+// Cron interval ve enabled toggle admin panelden yönetilir. scheduler.ts
+// her tik öncesi DB'den okur (hot-reload), PATCH sonrası timer reset edilir.
+// intervalMinutes: 15..360 (Satcom Playwright run en kötü ~20dk; çakışma
+// in-memory `running` flag'i ile yutulur ama 15 altına inilmez).
+export const schedulerSettings = pgTable("scheduler_settings", {
+  id: integer("id").primaryKey(),
+  intervalMinutes: integer("interval_minutes").notNull().default(30),
+  enabled: boolean("enabled").notNull().default(true),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export type SchedulerSettings = typeof schedulerSettings.$inferSelect;

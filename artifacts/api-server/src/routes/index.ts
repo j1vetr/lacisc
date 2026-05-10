@@ -9,6 +9,7 @@ import recordsRouter from "./records";
 import starlinkRouter from "./starlink";
 import leobridgeRouter from "./leobridge";
 import whatsappRouter from "./whatsapp";
+import schedulerRouter from "./scheduler";
 import clientErrorsRouter from "./client-errors";
 
 const router: IRouter = Router();
@@ -23,6 +24,7 @@ router.use(recordsRouter);
 router.use(starlinkRouter);
 router.use(leobridgeRouter);
 router.use(whatsappRouter);
+router.use(schedulerRouter);
 router.use(clientErrorsRouter);
 
 export default router;

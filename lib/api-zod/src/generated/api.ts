@@ -452,6 +452,62 @@ export const DeleteWhatsappThresholdRuleResponse = zod.object({
 });
 
 /**
+ * @summary Cron senkronizasyon zamanlayıcı ayarları + canlı durum.
+ */
+export const getSchedulerSettingsResponseIntervalMinutesMin = 15;
+export const getSchedulerSettingsResponseIntervalMinutesMax = 360;
+
+export const GetSchedulerSettingsResponse = zod.object({
+  intervalMinutes: zod
+    .number()
+    .min(getSchedulerSettingsResponseIntervalMinutesMin)
+    .max(getSchedulerSettingsResponseIntervalMinutesMax),
+  enabled: zod.boolean(),
+  updatedAt: zod.coerce.date().nullish(),
+  nextRunAt: zod.coerce.date().nullish(),
+  isRunning: zod.boolean(),
+  minIntervalMinutes: zod.number(),
+  maxIntervalMinutes: zod.number(),
+});
+
+export const updateSchedulerSettingsBodyIntervalMinutesMin = 15;
+export const updateSchedulerSettingsBodyIntervalMinutesMax = 360;
+
+export const UpdateSchedulerSettingsBody = zod.object({
+  intervalMinutes: zod
+    .number()
+    .min(updateSchedulerSettingsBodyIntervalMinutesMin)
+    .max(updateSchedulerSettingsBodyIntervalMinutesMax)
+    .optional(),
+  enabled: zod.boolean().optional(),
+});
+
+export const updateSchedulerSettingsResponseIntervalMinutesMin = 15;
+export const updateSchedulerSettingsResponseIntervalMinutesMax = 360;
+
+export const UpdateSchedulerSettingsResponse = zod.object({
+  intervalMinutes: zod
+    .number()
+    .min(updateSchedulerSettingsResponseIntervalMinutesMin)
+    .max(updateSchedulerSettingsResponseIntervalMinutesMax),
+  enabled: zod.boolean(),
+  updatedAt: zod.coerce.date().nullish(),
+  nextRunAt: zod.coerce.date().nullish(),
+  isRunning: zod.boolean(),
+  minIntervalMinutes: zod.number(),
+  maxIntervalMinutes: zod.number(),
+});
+
+/**
+ * @summary Çalışan tüm sync'leri iptal eder (DB'de status=cancelled işaretler).
+ */
+export const CancelRunningSyncResponse = zod.object({
+  cancelledRows: zod.number(),
+  releasedFlags: zod.array(zod.string()),
+  message: zod.string(),
+});
+
+/**
  * @summary SMTP yapılandırması ve uyarı alıcılarını döner.
  */
 export const GetEmailSettingsResponse = zod.object({

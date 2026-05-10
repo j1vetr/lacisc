@@ -63,6 +63,9 @@ import type {
   ReadinessStatus,
   ResetPasswordBody,
   SaveStationSettingsBody,
+  SchedulerCancelResult,
+  SchedulerSettings,
+  SchedulerSettingsUpdate,
   StarlinkAccount,
   StarlinkDailyPoint,
   StarlinkMonthlyPoint,
@@ -2168,6 +2171,243 @@ export const useDeleteWhatsappThresholdRule = <
   TContext
 > => {
   return useMutation(getDeleteWhatsappThresholdRuleMutationOptions(options));
+};
+
+/**
+ * @summary Cron senkronizasyon zamanlayıcı ayarları + canlı durum.
+ */
+export const getGetSchedulerSettingsUrl = () => {
+  return `/api/scheduler/settings`;
+};
+
+export const getSchedulerSettings = async (
+  options?: RequestInit,
+): Promise<SchedulerSettings> => {
+  return customFetch<SchedulerSettings>(getGetSchedulerSettingsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSchedulerSettingsQueryKey = () => {
+  return [`/api/scheduler/settings`] as const;
+};
+
+export const getGetSchedulerSettingsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSchedulerSettings>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSchedulerSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSchedulerSettingsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getSchedulerSettings>>
+  > = ({ signal }) => getSchedulerSettings({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSchedulerSettings>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSchedulerSettingsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSchedulerSettings>>
+>;
+export type GetSchedulerSettingsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Cron senkronizasyon zamanlayıcı ayarları + canlı durum.
+ */
+
+export function useGetSchedulerSettings<
+  TData = Awaited<ReturnType<typeof getSchedulerSettings>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSchedulerSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSchedulerSettingsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getUpdateSchedulerSettingsUrl = () => {
+  return `/api/scheduler/settings`;
+};
+
+export const updateSchedulerSettings = async (
+  schedulerSettingsUpdate: SchedulerSettingsUpdate,
+  options?: RequestInit,
+): Promise<SchedulerSettings> => {
+  return customFetch<SchedulerSettings>(getUpdateSchedulerSettingsUrl(), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(schedulerSettingsUpdate),
+  });
+};
+
+export const getUpdateSchedulerSettingsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateSchedulerSettings>>,
+    TError,
+    { data: BodyType<SchedulerSettingsUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateSchedulerSettings>>,
+  TError,
+  { data: BodyType<SchedulerSettingsUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateSchedulerSettings"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateSchedulerSettings>>,
+    { data: BodyType<SchedulerSettingsUpdate> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateSchedulerSettings(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateSchedulerSettingsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateSchedulerSettings>>
+>;
+export type UpdateSchedulerSettingsMutationBody =
+  BodyType<SchedulerSettingsUpdate>;
+export type UpdateSchedulerSettingsMutationError = ErrorType<unknown>;
+
+export const useUpdateSchedulerSettings = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateSchedulerSettings>>,
+    TError,
+    { data: BodyType<SchedulerSettingsUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateSchedulerSettings>>,
+  TError,
+  { data: BodyType<SchedulerSettingsUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateSchedulerSettingsMutationOptions(options));
+};
+
+/**
+ * @summary Çalışan tüm sync'leri iptal eder (DB'de status=cancelled işaretler).
+ */
+export const getCancelRunningSyncUrl = () => {
+  return `/api/scheduler/cancel`;
+};
+
+export const cancelRunningSync = async (
+  options?: RequestInit,
+): Promise<SchedulerCancelResult> => {
+  return customFetch<SchedulerCancelResult>(getCancelRunningSyncUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getCancelRunningSyncMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cancelRunningSync>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof cancelRunningSync>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["cancelRunningSync"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof cancelRunningSync>>,
+    void
+  > = () => {
+    return cancelRunningSync(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CancelRunningSyncMutationResult = NonNullable<
+  Awaited<ReturnType<typeof cancelRunningSync>>
+>;
+
+export type CancelRunningSyncMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Çalışan tüm sync'leri iptal eder (DB'de status=cancelled işaretler).
+ */
+export const useCancelRunningSync = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cancelRunningSync>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof cancelRunningSync>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getCancelRunningSyncMutationOptions(options));
 };
 
 /**

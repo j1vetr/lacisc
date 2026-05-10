@@ -17,6 +17,7 @@ tags:
   - name: starlink
   - name: leobridge
   - name: whatsapp
+  - name: scheduler
 
 paths:
   /healthz:
@@ -519,6 +520,49 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/MessageResponse" }
+
+  /scheduler/settings:
+    get:
+      operationId: getSchedulerSettings
+      tags: [scheduler]
+      summary: Cron senkronizasyon zamanlayıcı ayarları + canlı durum.
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SchedulerSettings" }
+    patch:
+      operationId: updateSchedulerSettings
+      x-required-role: admin
+      tags: [scheduler]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SchedulerSettingsUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SchedulerSettings" }
+
+  /scheduler/cancel:
+    post:
+      operationId: cancelRunningSync
+      x-required-role: admin
+      tags: [scheduler]
+      summary: Çalışan tüm sync'leri iptal eder (DB'de status=cancelled işaretler).
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200":
+          description: Cancel result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SchedulerCancelResult" }
 
   /station/email-settings:
     get:
@@ -2330,6 +2374,39 @@ components:
         priorityGb: { type: number, nullable: true }
         standardGb: { type: number, nullable: true }
         scrapedAt: { type: string, format: date-time, nullable: true }
+
+    SchedulerSettings:
+      type: object
+      required:
+        - intervalMinutes
+        - enabled
+        - minIntervalMinutes
+        - maxIntervalMinutes
+        - isRunning
+      properties:
+        intervalMinutes: { type: integer, minimum: 15, maximum: 360 }
+        enabled: { type: boolean }
+        updatedAt: { type: string, format: date-time, nullable: true }
+        nextRunAt: { type: string, format: date-time, nullable: true }
+        isRunning: { type: boolean }
+        minIntervalMinutes: { type: integer }
+        maxIntervalMinutes: { type: integer }
+
+    SchedulerSettingsUpdate:
+      type: object
+      properties:
+        intervalMinutes: { type: integer, minimum: 15, maximum: 360 }
+        enabled: { type: boolean }
+
+    SchedulerCancelResult:
+      type: object
+      required: [cancelledRows, releasedFlags, message]
+      properties:
+        cancelledRows: { type: integer }
+        releasedFlags:
+          type: array
+          items: { type: string }
+        message: { type: string }
 
     WhatsappSettings:
       type: object
