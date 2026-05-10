@@ -579,8 +579,8 @@ export async function maybeFireWhatsappAlert(opts: {
       const severity =
         pct >= 95 ? "🔴" : pct >= 80 ? "🟠" : pct >= 50 ? "🟡" : "🟢";
       const filled = Math.max(0, Math.min(10, Math.round(pct / 10)));
-      const bar = "[" + "|".repeat(filled) + "·".repeat(10 - filled) + "]";
-      header = `${severity} *Veri Uyarısı — %${pct.toFixed(0)}*`;
+      const bar = "▰".repeat(filled) + "▱".repeat(10 - filled);
+      header = `${severity} *Veri Uyarısı | %${pct.toFixed(0)}*`;
       body =
         `${bar}  ${opts.totalGb.toFixed(2)} / ${plan.toFixed(0)} GB\n` +
         `🚨 Aşılan eşik: ${crossedStep} GB · Kalan ${remaining.toFixed(2)} GB`;
@@ -597,7 +597,7 @@ export async function maybeFireWhatsappAlert(opts: {
       `🚢 ${shipLabel} (${opts.kitNo})\n` +
       `📅 ${periodLabel}\n\n` +
       `${body}\n\n` +
-      `— sc.lacivertteknoloji.com`;
+      `| sc.lacivertteknoloji.com`;
 
     for (const receiver of recipients) {
       const label = `${opts.source}/${opts.kitNo}@${opts.period}=${crossedStep}GB→${receiver}`;
