@@ -984,44 +984,43 @@ async function isOnRatedCdrsGrid(page: Page): Promise<boolean> {
 }
 
 // ---------------------------------------------------------------------------
-// Ship-name enrichment (preserved from previous scraper). Only KITs without
-// a cached ship_name are visited; we click the link from ratedCdrs to keep
-// ASP.NET viewstate / iframe wrapper.
+// Ship-name enrichment — CardDetails.aspx?ICCID=<kitNo> ile doğrudan URL.
+// Tüm KIT formatları (KITP, KIT4, KIT3...) desteklenir; ratedCdrs grid
+// linkine tıklama gerekmez.
 // ---------------------------------------------------------------------------
 async function enrichShipNames(
   page: Page,
+  baseUrl: string,
   credentialId: number,
   kits: KitListEntry[]
 ): Promise<void> {
-  const havingHref = kits.filter((k) => k.detailHref);
-  if (havingHref.length === 0) return;
+  if (kits.length === 0) return;
   const cached = await db
     .select({ kitNo: stationKits.kitNo, shipName: stationKits.shipName })
     .from(stationKits)
     .where(
       and(
         eq(stationKits.credentialId, credentialId),
-        inArray(stationKits.kitNo, havingHref.map((k) => k.kitNo))
+        inArray(stationKits.kitNo, kits.map((k) => k.kitNo))
       )
     );
   const haveShipName = new Set(
     cached.filter((c) => c.shipName && c.shipName.trim() !== "").map((c) => c.kitNo)
   );
-  const toFetch = havingHref.filter((k) => !haveShipName.has(k.kitNo));
+  const toFetch = kits.filter((k) => !haveShipName.has(k.kitNo));
   logger.info(
-    { totalKits: havingHref.length, alreadyCached: haveShipName.size, toFetch: toFetch.length },
+    { totalKits: kits.length, alreadyCached: haveShipName.size, toFetch: toFetch.length },
     "Ship-name enrichment plan"
   );
 
   for (const k of toFetch) {
     try {
-      const href = k.detailHref!;
-      const link = page.locator(`a[href="${href}"]`).first();
-      if ((await link.count()) === 0) continue;
-      await Promise.all([
-        page.waitForNavigation({ waitUntil: "networkidle", timeout: 25000 }).catch(() => {}),
-        link.click({ timeout: 10000 }).catch(() => {}),
-      ]);
+      const detailUrl = `${baseUrl}/CardDetails.aspx?ICCID=${encodeURIComponent(k.kitNo)}`;
+      await page.goto(detailUrl, { waitUntil: "networkidle", timeout: 20000 });
+      if (/ErrorPage/i.test(page.url())) {
+        logger.warn({ kitNo: k.kitNo }, "Ship-name: CardDetails ErrorPage (atlandı)");
+        continue;
+      }
       const pairs: Record<string, string> = await page
         .evaluate(() => {
           const out: Record<string, string> = {};
@@ -1065,7 +1064,7 @@ async function enrichShipNames(
           kitNo: k.kitNo,
           credentialId,
           shipName,
-          detailUrl: href,
+          detailUrl,
           shipNameSyncedAt: shipName ? now : null,
           updatedAt: now,
         })
@@ -1073,23 +1072,12 @@ async function enrichShipNames(
           target: [stationKits.credentialId, stationKits.kitNo],
           set: {
             shipName: shipName ?? undefined,
-            detailUrl: href,
+            detailUrl,
             shipNameSyncedAt: shipName ? now : undefined,
             updatedAt: now,
           },
         });
       logger.info({ kitNo: k.kitNo, shipName }, "Ship-name fetched");
-
-      // Navigate back to ratedCdrs via menu so the next click works.
-      const cdrLink = page
-        .locator("a[href*='ratedCdrs.aspx' i], a[href*='RatedCdrs.aspx' i]")
-        .first();
-      if ((await cdrLink.count()) > 0) {
-        await Promise.all([
-          page.waitForNavigation({ waitUntil: "networkidle", timeout: 20000 }).catch(() => {}),
-          cdrLink.click(),
-        ]);
-      }
     } catch (e) {
       logger.warn({ kitNo: k.kitNo, err: (e as Error).message }, "Ship-name fetch failed (skipping)");
     }
@@ -1149,37 +1137,36 @@ export async function runSync(opts: RunSyncOptions): Promise<SyncResult> {
       };
     }
 
-    // 1) KIT listesi + ship-name enrichment (mevcut session üzerinden).
-    //    Bare grid is server-capped (~100 rows) so a low-activity KIT may
-    //    not appear in the current snapshot. Union with previously-known
-    //    KITs from the DB so they still get scraped.
-    const liveKits = await extractKitList(page);
+    // 1) KIT keşfi: harita önce → tüm formatları (KITP/KIT4/KIT3...) ilk
+    //    syncten itibaren station_kits'e seed eder. Ardından DB union ile
+    //    geçmiş senklerden bilinen KIT'ler eklenir. extractKitList'e gerek yok.
+    await fetchKitLocations(page, baseUrl, credentialId).catch((e) =>
+      logger.warn({ err: (e as Error).message }, "Map enrichment failed (non-fatal)")
+    );
     const dbKits = await db
-      .select({ kitNo: stationKits.kitNo, shipName: stationKits.shipName })
+      .select({ kitNo: stationKits.kitNo })
       .from(stationKits)
       .where(eq(stationKits.credentialId, credentialId));
-    const kitMap = new Map<string, KitListEntry>();
-    for (const k of liveKits) kitMap.set(k.kitNo, k);
-    for (const k of dbKits) {
-      if (!kitMap.has(k.kitNo)) {
-        kitMap.set(k.kitNo, { kitNo: k.kitNo, detailHref: null, iccid: null });
-      }
-    }
-    const kits = Array.from(kitMap.values());
+    const kits: KitListEntry[] = dbKits.map((k) => ({
+      kitNo: k.kitNo,
+      detailHref: null,
+      iccid: null,
+    }));
     logger.info(
-      { credentialId, liveCount: liveKits.length, dbCount: dbKits.length, totalCount: kits.length },
-      "Discovered KITs (union of live grid + DB)"
+      { credentialId, totalCount: kits.length },
+      "Discovered KITs (map + DB)"
     );
     if (kits.length === 0) {
       return {
         success: false,
-        message: "Rated CDRs sayfasında KITP linki bulunamadı (oturum/ payload sorunu).",
+        message: "Harita ve DB'de KIT bulunamadı (oturum sorunu olabilir).",
         recordsFound: 0,
         recordsInserted: 0,
         recordsUpdated: 0,
       };
     }
-    await enrichShipNames(page, credentialId, kits).catch((e) =>
+    // Ship-name enrichment — CardDetails doğrudan URL; tüm formatlar desteklenir.
+    await enrichShipNames(page, baseUrl, credentialId, kits).catch((e) =>
       logger.warn({ err: (e as Error).message }, "Ship-name enrichment failed (non-fatal)")
     );
 
@@ -1195,13 +1182,8 @@ export async function runSync(opts: RunSyncOptions): Promise<SyncResult> {
       .limit(1);
     const telemetryFullBackfill = !credsForEnrich?.firstFullSyncAt;
 
-    // Task #20 — Map + Measurements + CardDetails enrichment.
-    // Hepsi best-effort; CDR scraping akışını bloklamaz. Map ve Measurements
-    // tek hesap-genelidir (KIT döngüsünden bağımsız çalışır); CardDetails
-    // KIT başınadır.
-    await fetchKitLocations(page, baseUrl, credentialId).catch((e) =>
-      logger.warn({ err: (e as Error).message }, "Map enrichment failed (non-fatal)")
-    );
+    // Measurements + CardDetails enrichment (best-effort).
+    // Map zaten yukarıda çalıştı — burada tekrar çağırmaya gerek yok.
     await fetchHourlyTelemetry(
       page,
       baseUrl,
@@ -1216,18 +1198,6 @@ export async function runSync(opts: RunSyncOptions): Promise<SyncResult> {
     await enrichCardDetails(page, baseUrl, credentialId, kits).catch((e) =>
       logger.warn({ err: (e as Error).message }, "CardDetails enrichment failed (non-fatal)")
     );
-
-    // Sonraki adım ratedCdrs grid'inde olmamızı bekliyor — enrich bizi başka
-    // sayfalara götürdü, geri dön.
-    const cdrLinkBack = page
-      .locator("a[href*='ratedCdrs.aspx' i], a[href*='RatedCdrs.aspx' i]")
-      .first();
-    if ((await cdrLinkBack.count()) > 0) {
-      await Promise.all([
-        page.waitForNavigation({ waitUntil: "networkidle", timeout: 20000 }).catch(() => {}),
-        cdrLinkBack.click().catch(() => {}),
-      ]);
-    }
 
     // 2) Period listesi belirle + full vs incremental karar ver.
     // The bare /ratedCdrs.aspx grid does NOT render the period combo on this
