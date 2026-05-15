@@ -268,6 +268,17 @@ async function persistUsage(
   sl: LeoServiceLine,
 ): Promise<void> {
   const periods = await client.getDataUsage(sl.serviceLineNumber);
+  // Local import to avoid circular deps (whatsapp.ts imports leobridgeTerminals).
+  // Import döngü dışında bir kez yapılır; Node ESM cache sayesinde tekrar
+  // evaluate edilmez — sadece modül referansı alınır.
+  const { maybeFireWhatsappAlert, lookupLeobridgePlanAndShip } = await import(
+    "./whatsapp"
+  );
+  // Alert promise'lerini topla — flush öncesinde hepsinin tamamlanması şart.
+  // void / fire-and-forget olursa runLeobridgeSync() döndüğünde alertler henüz
+  // pendingDigest buffer'ına girmemiş olur; flush geldiğinde buffer boş görünür
+  // ve 6 saatlik debounce timer devreye girer (ayrı mesajlar gider).
+  const alertPromises: Promise<void>[] = [];
   for (const p of periods) {
     const periodKey = periodFromStartDate(p.startDate);
     if (!periodKey) continue;
@@ -297,22 +308,21 @@ async function persistUsage(
         },
       });
 
-    // WhatsApp eşik bildirimi — Leo Bridge persistTerminal sonrası
+    // WhatsApp eşik bildirimi — Leo Bridge persistUsage sonrası.
     // planAllowanceGb terminal satırına yazılı. Aktif dönem değilse no-op.
-    const { maybeFireWhatsappAlert, lookupLeobridgePlanAndShip } = await import(
-      "./whatsapp"
-    );
     const meta = await lookupLeobridgePlanAndShip(credentialId, kitSerialNumber);
-    void maybeFireWhatsappAlert({
-      source: "leobridge",
-      credentialId,
-      credentialLabel: `Norway #${credentialId}`,
-      kitNo: kitSerialNumber,
-      period: periodKey,
-      totalGb,
-      planAllowanceGb: meta.planAllowanceGb,
-      shipName: meta.shipName,
-    });
+    alertPromises.push(
+      maybeFireWhatsappAlert({
+        source: "leobridge",
+        credentialId,
+        credentialLabel: `Norway #${credentialId}`,
+        kitNo: kitSerialNumber,
+        period: periodKey,
+        totalGb,
+        planAllowanceGb: meta.planAllowanceGb,
+        shipName: meta.shipName,
+      })
+    );
 
     for (const d of p.dailyUsages ?? []) {
       const dailyTotal = (d.priorityGb ?? 0) + (d.standardGb ?? 0);
@@ -342,6 +352,10 @@ async function persistUsage(
         });
     }
   }
+  // Tüm alert'lerin atomic claim + enqueueAlertForReceiver tamamlanmasını bekle.
+  // Bu garantiyle runLeobridgeSync() döndüğünde pendingDigest buffer dolu olur
+  // ve tur sonu flushAllPendingDigests() hepsini tek mesajda toplar.
+  await Promise.all(alertPromises);
 }
 
 async function markCredential(

@@ -602,6 +602,11 @@ async function persistMonthlyTotals(
   const { maybeFireWhatsappAlert, lookupStarlinkPlanAndShip } = await import(
     "./whatsapp"
   );
+  // Alert promise'lerini topla — flush öncesinde hepsinin tamamlanması şart.
+  // void / fire-and-forget olursa runStarlinkSync() döndüğünde alertler henüz
+  // pendingDigest buffer'ına girmemiş olur; flush geldiğinde buffer boş görünür
+  // ve 6 saatlik debounce timer devreye girer (ayrı mesajlar gider).
+  const alertPromises: Promise<void>[] = [];
   for (const m of months) {
     const usage = pickField<RawTototheoDetail>(m, "usage");
     if (!usage) continue;
@@ -640,19 +645,25 @@ async function persistMonthlyTotals(
           scrapedAt: new Date(),
         },
       });
-    // WhatsApp eşik bildirimi — fire-and-forget. Plan kotası terminal
+    // WhatsApp eşik bildirimi — DB persist sonrası. Plan kotası terminal
     // satırından okunur (recurring data block toplamı). Aktif dönemde
     // değilse maybeFireWhatsappAlert kendi içinde no-op olur.
     const meta = await lookupStarlinkPlanAndShip(credentialId, kitSerialNumber);
-    void maybeFireWhatsappAlert({
-      source: "starlink",
-      credentialId,
-      credentialLabel: `Tototheo #${credentialId}`,
-      kitNo: kitSerialNumber,
-      period,
-      totalGb: total,
-      planAllowanceGb: meta.planAllowanceGb,
-      shipName: meta.shipName,
-    });
+    alertPromises.push(
+      maybeFireWhatsappAlert({
+        source: "starlink",
+        credentialId,
+        credentialLabel: `Tototheo #${credentialId}`,
+        kitNo: kitSerialNumber,
+        period,
+        totalGb: total,
+        planAllowanceGb: meta.planAllowanceGb,
+        shipName: meta.shipName,
+      })
+    );
   }
+  // Tüm alert'lerin atomic claim + enqueueAlertForReceiver tamamlanmasını bekle.
+  // Bu garantiyle runStarlinkSync() döndüğünde pendingDigest buffer dolu olur
+  // ve tur sonu flushAllPendingDigests() hepsini tek mesajda toplar.
+  await Promise.all(alertPromises);
 }
