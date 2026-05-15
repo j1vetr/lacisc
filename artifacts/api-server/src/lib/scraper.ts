@@ -201,32 +201,64 @@ async function loginAndOpenRatedCdrs(
 // href contains the ICCID (used later for direct ?FC=ICCID&FV=... URLs).
 // ---------------------------------------------------------------------------
 async function extractKitList(page: Page): Promise<KitListEntry[]> {
-  const rows: KitListEntry[] = await page.evaluate(() => {
-    const grid =
-      document.querySelector("#ctl00_ContentPlaceHolder1_gvRatedCdr") ||
-      document.querySelector("[id*='gvRatedCdr']") ||
-      document.querySelector("[id*='RatedCdr']") ||
-      document.body;
-    const links = Array.from(grid.querySelectorAll("a")) as HTMLAnchorElement[];
-    const seen = new Set<string>();
-    const out: {
-      kitNo: string;
-      detailHref: string | null;
-      iccid: string | null;
-    }[] = [];
-    for (const a of links) {
-      const text = (a.textContent || "").trim();
-      if (!text.startsWith("KITP")) continue;
-      if (seen.has(text)) continue;
-      seen.add(text);
-      const href = a.getAttribute("href");
-      // The portal's "ICCID" column actually stores the KITP code itself;
-      // the direct URL is `?FC=ICCID&FV=<KITP...>`. So `iccid` is just kitNo.
-      out.push({ kitNo: text, detailHref: href, iccid: text });
+  // Bump page size so the bare ratedCdrs grid shows as many KITs as possible
+  // per page — accounts with 50+ KITs would otherwise only yield the first
+  // 25-row page. Best-effort; non-fatal if the pager doesn't respond.
+  await setGridPageSize(page, 200).catch(() => {/* non-fatal */});
+
+  // Helper: collect all KITP links visible on the current grid page.
+  const collectCurrentPage = async (): Promise<KitListEntry[]> =>
+    page.evaluate(() => {
+      const grid =
+        document.querySelector("#ctl00_ContentPlaceHolder1_gvRatedCdr") ||
+        document.querySelector("[id*='gvRatedCdr']") ||
+        document.querySelector("[id*='RatedCdr']") ||
+        document.body;
+      const links = Array.from(grid.querySelectorAll("a")) as HTMLAnchorElement[];
+      const seen = new Set<string>();
+      const out: { kitNo: string; detailHref: string | null; iccid: string | null }[] = [];
+      for (const a of links) {
+        const text = (a.textContent || "").trim();
+        if (!text.startsWith("KITP")) continue;
+        if (seen.has(text)) continue;
+        seen.add(text);
+        // The portal's "ICCID" column stores the KITP code itself.
+        out.push({ kitNo: text, detailHref: a.getAttribute("href"), iccid: text });
+      }
+      return out;
+    });
+
+  // Determine how many pages the grid has after the size bump.
+  const pageCount = await page
+    .evaluate(() => {
+      const w = window as unknown as Record<string, unknown>;
+      const grid = w["gvRatedCdr"] as { GetPageCount?: () => number } | undefined;
+      return typeof grid?.GetPageCount === "function" ? grid.GetPageCount() : 1;
+    })
+    .catch(() => 1);
+
+  const allKits = new Map<string, KitListEntry>();
+  const HARD_PAGE_CAP = 50; // safety: never loop infinitely
+
+  for (let pi = 0; pi < Math.min(pageCount, HARD_PAGE_CAP); pi++) {
+    if (pi > 0) {
+      const ok = await gotoGridPage(page, pi);
+      if (!ok) {
+        logger.warn(
+          { pageIdx: pi, pageCount },
+          "extractKitList: gotoGridPage failed — stopping early"
+        );
+        break;
+      }
     }
-    return out;
-  });
-  return rows;
+    const rows = await collectCurrentPage();
+    for (const k of rows) {
+      if (!allKits.has(k.kitNo)) allKits.set(k.kitNo, k);
+    }
+    if (rows.length === 0) break; // empty page → done
+  }
+
+  return Array.from(allKits.values());
 }
 
 // ---------------------------------------------------------------------------
