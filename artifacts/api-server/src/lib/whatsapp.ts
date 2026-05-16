@@ -21,6 +21,7 @@ import {
   starlinkTerminals,
   leobridgeTerminals,
   stationKits,
+  stationKitSubscriptionHistory,
   emailSettings,
 } from "@workspace/db";
 import { decrypt, encrypt } from "./crypto";
@@ -894,9 +895,31 @@ export async function lookupSatcomShipAndPlan(
         eq(stationKits.kitNo, kitNo)
       )
     );
+
+  // Aktif abonelik paketlerinin GB toplamı — endDate IS NULL olan satırlar
+  // hâlâ devam eden paketlerdir. Birden fazla paket varsa (örn. 100 GB temel
+  // + 300 GB eklenti) doğru toplam kotayı verir ve eşik hesabına yansır.
+  const activeSubs = await db
+    .select({ pricePlanName: stationKitSubscriptionHistory.pricePlanName })
+    .from(stationKitSubscriptionHistory)
+    .where(
+      and(
+        eq(stationKitSubscriptionHistory.kitNo, kitNo),
+        isNull(stationKitSubscriptionHistory.endDate),
+      )
+    );
+  const subTotalGb = activeSubs.reduce(
+    (sum, s) => sum + (parseSatcomPlanAllowanceGb(s.pricePlanName) ?? 0),
+    0,
+  );
+  const planAllowanceGb =
+    subTotalGb > 0
+      ? subTotalGb
+      : parseSatcomPlanAllowanceGb(row?.activePlanName ?? null);
+
   return {
     shipName: row?.shipName ?? null,
-    planAllowanceGb: parseSatcomPlanAllowanceGb(row?.activePlanName ?? null),
+    planAllowanceGb,
   };
 }
 

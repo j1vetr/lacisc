@@ -10,7 +10,7 @@ import {
   stationKitTelemetryHourly,
   stationKitSubscriptionHistory,
 } from "@workspace/db";
-import { eq, desc, asc, and, gte, inArray, sql, count, max } from "drizzle-orm";
+import { eq, desc, asc, and, gte, inArray, sql, count, max, isNull } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
 import {
   getAssignedKits,
@@ -206,6 +206,28 @@ router.get("/station/kits/:kitNo", requireAuth, async (req: AuthRequest, res): P
     return;
   }
 
+  // Aktif abonelik paketlerinin GB toplamı — endDate IS NULL olan satırlar
+  // hâlâ devam eden paketlerdir. Birden fazla aktif paket varsa (örn. 100 GB
+  // temel + 300 GB eklenti) pricePlanName içinden GB değeri çekip toplanır.
+  // Toplam > 0 ise activePlanName parse'ını geçersiz kılar.
+  const activeSubs = await db
+    .select({ pricePlanName: stationKitSubscriptionHistory.pricePlanName })
+    .from(stationKitSubscriptionHistory)
+    .where(
+      and(
+        eq(stationKitSubscriptionHistory.kitNo, kitNo),
+        isNull(stationKitSubscriptionHistory.endDate),
+      ),
+    );
+  const subTotalGb = activeSubs.reduce(
+    (sum, s) => sum + (parseSatcomPlanAllowanceGb(s.pricePlanName) ?? 0),
+    0,
+  );
+  const planAllowanceGb =
+    subTotalGb > 0
+      ? subTotalGb
+      : parseSatcomPlanAllowanceGb(kitMeta?.activePlanName ?? null);
+
   res.json({
     kitNo,
     shipName: kitMeta?.shipName ?? null,
@@ -226,7 +248,7 @@ router.get("/station/kits/:kitNo", requireAuth, async (req: AuthRequest, res): P
     activeSubscriptionId: kitMeta?.activeSubscriptionId ?? null,
     optOutGib: kitMeta?.optOutGib ?? null,
     stepAlertGib: kitMeta?.stepAlertGib ?? null,
-    planAllowanceGb: parseSatcomPlanAllowanceGb(kitMeta?.activePlanName ?? null),
+    planAllowanceGb,
     lastSessionStart: kitMeta?.lastSessionStart ?? null,
     lastSessionEnd: kitMeta?.lastSessionEnd ?? null,
     lastSessionActive: kitMeta?.lastSessionActive ?? null,
