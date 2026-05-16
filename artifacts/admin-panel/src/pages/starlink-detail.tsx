@@ -360,15 +360,9 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                 </div>
                 {usedPct != null && (
                   <div className="mt-4">
-                    <div className="relative h-2.5 bg-secondary rounded-full overflow-hidden">
+                    <div className="relative h-3 bg-secondary rounded-full overflow-hidden">
                       <div
-                        className={`absolute inset-y-0 left-0 rounded-full transition-[width] duration-500 ${
-                          usedPct > 90
-                            ? "bg-[#f54e00]"
-                            : usedPct > 75
-                              ? "bg-[#dfa88f]"
-                              : "bg-foreground"
-                        }`}
+                        className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500 bg-[#f54e00]"
                         style={{ width: `${Math.min(usedPct, 100)}%` }}
                       />
                     </div>
@@ -468,7 +462,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                   axisLine={{ stroke: "#e6e5e0" }}
                 />
                 <YAxis
-                  stroke="#9fbbe0"
+                  stroke="#a8a79e"
                   tick={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}
                   tickLine={false}
                   axisLine={false}

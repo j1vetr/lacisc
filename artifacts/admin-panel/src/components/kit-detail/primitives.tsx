@@ -25,9 +25,9 @@ export function Pill({
 }) {
   const tones: Record<PillTone, string> = {
     neutral: "bg-secondary text-muted-foreground border-border",
-    ok: "bg-[#9fc9a2]/30 text-foreground border-[#9fc9a2]",
+    ok: "bg-card text-foreground border-[#e6e5e0]",
     warn: "bg-[#dfa88f]/30 text-foreground border-[#dfa88f]",
-    info: "bg-[#dde9f7] text-[#2563a6] border-[#9fbbe0]",
+    info: "bg-[#eeede9] text-muted-foreground border-[#e6e5e0]",
   };
   return (
     <span
@@ -91,17 +91,21 @@ export function MetricTile({
 }) {
   const accents: Record<MetricTileTone, string> = {
     neutral: "border-l-border",
-    ok: "border-l-[#9fc9a2]",
+    ok: "border-l-border",
     warn: "border-l-[#dfa88f]",
-    info: "border-l-[#9fbbe0]",
+    info: "border-l-border",
   };
   return (
     <div
       className={`rounded-lg border border-border border-l-2 ${accents[tone]} bg-card px-3 py-2.5 min-w-0 overflow-hidden`}
     >
       <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-        <span className="flex items-center gap-1 min-w-0 truncate">
-          {icon}
+        <span className="flex items-center gap-1.5 min-w-0 truncate">
+          {icon && (
+            <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-[#eeede9] text-muted-foreground shrink-0">
+              {icon}
+            </span>
+          )}
           <span className="truncate">{label}</span>
         </span>
       </div>

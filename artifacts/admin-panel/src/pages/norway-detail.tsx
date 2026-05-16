@@ -22,8 +22,6 @@ import {
 } from "lucide-react";
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
   BarChart,
   Bar,
   XAxis,
@@ -231,15 +229,9 @@ export default function NorwayDetail({ kit }: { kit: string }) {
             {/* Kullanım / Kota progress — yalnızca recurring data block toplamı varsa. */}
             {!detailLoading && planAllowanceGb != null && (
               <div className="mt-5">
-                <div className="relative h-2.5 bg-secondary rounded-full overflow-hidden">
+                <div className="relative h-3 bg-secondary rounded-full overflow-hidden">
                   <div
-                    className={`absolute inset-y-0 left-0 rounded-full transition-[width] duration-500 ${
-                      (usedPct ?? 0) > 90
-                        ? "bg-[#f54e00]"
-                        : (usedPct ?? 0) > 75
-                          ? "bg-[#dfa88f]"
-                          : "bg-foreground"
-                    }`}
+                    className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500 bg-[#f54e00]"
                     style={{ width: `${usedPct ?? 0}%` }}
                   />
                 </div>
@@ -302,7 +294,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
                     title={`Öncelikli ${formatNumber(priority, 1)} GB`}
                   />
                   <div
-                    className="h-full bg-[#9fbbe0]"
+                    className="h-full bg-[#c4c2bc]"
                     style={{ width: `${Math.max(0, 100 - priorityPct)}%` }}
                     title={`Standart ${formatNumber(standard, 1)} GB`}
                   />
@@ -313,7 +305,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
                     Öncelikli
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-sm bg-[#9fbbe0]" />
+                    <span className="w-2 h-2 rounded-sm bg-[#c4c2bc]" />
                     Standart
                   </span>
                 </div>
@@ -384,32 +376,11 @@ export default function NorwayDetail({ kit }: { kit: string }) {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
+              <BarChart
                 data={dailyChart}
                 margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
+                barCategoryGap="30%"
               >
-                <defs>
-                  <linearGradient
-                    id="ssa-norway-prio"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop offset="0%" stopColor="#f54e00" stopOpacity={0.4} />
-                    <stop offset="100%" stopColor="#f54e00" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient
-                    id="ssa-norway-std"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop offset="0%" stopColor="#9fbbe0" stopOpacity={0.5} />
-                    <stop offset="100%" stopColor="#9fbbe0" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
                 <CartesianGrid
                   stroke="#e6e5e0"
                   strokeDasharray="2 4"
@@ -452,23 +423,21 @@ export default function NorwayDetail({ kit }: { kit: string }) {
                         : "Toplam",
                   ]}
                 />
-                <Area
-                  type="monotone"
+                <Bar
                   stackId="1"
                   dataKey="priority"
-                  stroke="#f54e00"
-                  strokeWidth={2}
-                  fill="url(#ssa-norway-prio)"
+                  fill="#f54e00"
+                  radius={[0, 0, 0, 0]}
+                  isAnimationActive={false}
                 />
-                <Area
-                  type="monotone"
+                <Bar
                   stackId="1"
                   dataKey="standard"
-                  stroke="#9fbbe0"
-                  strokeWidth={2}
-                  fill="url(#ssa-norway-std)"
+                  fill="#c4c2bc"
+                  radius={[3, 3, 0, 0]}
+                  isAnimationActive={false}
                 />
-              </AreaChart>
+              </BarChart>
             </ResponsiveContainer>
           )}
         </div>
