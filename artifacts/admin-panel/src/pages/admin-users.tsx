@@ -663,20 +663,28 @@ function AssignKitsDialog({
   const [search, setSearch] = useState("");
   const [touched, setTouched] = useState(false);
 
-  // Modal hedefi (userId) değiştiğinde veya server'dan yeni atama listesi
-  // geldiğinde local seçim setini SERVER ile senkronize et — kullanıcı
-  // henüz dokunmadıysa. İki müşterinin atanmış sayıları eşit ama setleri
-  // farklıysa boyut eşitliği yetmez; yeni `target.id` ile her zaman
-  // resetlenir + assignedData içerikten sıfırdan kurulur.
+  // Farklı bir müşteri seçildiğinde her zaman sıfırla (touched dahil).
+  // assignedData henüz gelmemiş olabilir, bu yüzden sadece touched'ı temizle;
+  // veri gelince aşağıdaki effect doldurur.
+  useEffect(() => {
+    if (!open) return;
+    setTouched(false);
+    setSelected(new Set());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target?.id]);
+
+  // Server'dan yeni atama listesi geldiğinde YALNIZ kullanıcı henüz
+  // dokunmadıysa (touched === false) yerel seçimi senkronize et.
+  // touched === true iken gelen arka plan refetch'leri kullanıcının
+  // değişikliklerini ezmemeli — bu olmadığında "Kaydet" yanlış listeyi
+  // (eski atamayı) gönderebilir, GEMİ-1→GEMİ-2 değişikliği DB'e yansımaz.
   useEffect(() => {
     if (!open) return;
     if (!assignedData) return;
-    setTouched(false);
+    if (touched) return;
     setSelected(new Set(initialSelected));
-    // initialSelected reference değişimi bağımlı: assignedData ya da target
-    // değiştiğinde useMemo onu yeniler.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target?.id, assignedData]);
+  }, [assignedData]);
 
   const updateMut = useUpdateAssignedKits({
     mutation: {
