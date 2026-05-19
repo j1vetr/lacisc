@@ -135,16 +135,16 @@ export default function Login() {
           <div className="relative z-10 flex-1 flex flex-col justify-center space-y-8">
             <div className="space-y-3 max-w-[420px]">
               <div className="text-[11px] uppercase tracking-[0.22em] text-primary font-semibold">
-                UYDU OPERASYON PANELİ
+                FİLO YÖNETİM PANELİ
               </div>
               <h1 className="text-[28px] xl:text-[32px] leading-[1.15] font-semibold tracking-tight text-foreground uppercase">
-                ÜÇ UYDU SAĞLAYICISI,
+                FİLONUZ,
                 <br />
-                TEK PANEL.
+                TEK EKRANDA.
               </h1>
               <p className="text-[13px] leading-relaxed text-muted-foreground normal-case">
-                Tüm uydu hatlarınızın kotası, faturası ve telemetrisi tek ekranda;
-                her zaman güncel, her zaman erişilebilir.
+                Filonuzun konumunu, kota kullanımını ve telemetri bilgilerini
+                gerçek zamanlı olarak tek panelden takip edin.
               </p>
             </div>
 
