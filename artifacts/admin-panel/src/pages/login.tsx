@@ -101,37 +101,29 @@ export default function Login() {
             />
           </div>
 
-          <div className="space-y-8 max-w-[440px]">
-            <div className="space-y-3">
+          <div className="space-y-10 max-w-[440px]">
+            <div className="space-y-4">
               <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">
-                Uydu Operasyon Paneli
+                Uydu operasyon paneli
               </div>
               <h1 className="text-[2.5rem] leading-[1.1] font-normal tracking-[-0.025em] text-foreground">
                 Filonuzun tüm uydu hattı,{" "}
                 <span className="text-primary">tek panelde</span>.
               </h1>
-              <p className="text-[15px] leading-relaxed text-muted-foreground">
-                Satcom, Tototheo Starlink ve Leo Bridge hatlarınızı gerçek
-                zamanlı kota, lokasyon ve fatura görünürlüğüyle tek yerden
-                yönetin.
-              </p>
             </div>
 
-            <div className="space-y-4 pt-4">
+            <div className="space-y-4">
               <FeatureRow
                 icon={<Globe2 className="w-4 h-4" />}
-                label="Üç kaynak, tek görünüm"
-                hint="Satcom · Starlink · Norway"
+                label="Tüm hatlar tek görünümde"
               />
               <FeatureRow
                 icon={<Activity className="w-4 h-4" />}
                 label="Gerçek zamanlı kota takibi"
-                hint="WhatsApp & e-posta eşik uyarıları"
               />
               <FeatureRow
                 icon={<ShieldCheck className="w-4 h-4" />}
-                label="Müşteri bazlı erişim"
-                hint="Yalnız kendi KIT'leriniz"
+                label="Müşteri bazlı güvenli erişim"
               />
             </div>
           </div>
@@ -216,7 +208,7 @@ export default function Login() {
               />
               <Button
                 type="submit"
-                className="w-full h-11 rounded-lg font-medium text-sm bg-primary text-primary-foreground hover:bg-primary/90 shadow-none transition-colors mt-2"
+                className="w-full h-12 rounded-lg font-semibold text-[15px] bg-primary text-primary-foreground hover:bg-primary/90 transition-all mt-3 shadow-[0_8px_24px_-8px_rgba(245,78,0,0.55)] hover:shadow-[0_10px_28px_-8px_rgba(245,78,0,0.7)] hover:-translate-y-[1px] active:translate-y-0"
                 disabled={loginMutation.isPending}
               >
                 {loginMutation.isPending ? "Giriş yapılıyor…" : "Giriş yap"}
@@ -248,22 +240,17 @@ export default function Login() {
 function FeatureRow({
   icon,
   label,
-  hint,
 }: {
   icon: React.ReactNode;
   label: string;
-  hint: string;
 }) {
   return (
-    <div className="flex items-start gap-3">
+    <div className="flex items-center gap-3">
       <div className="flex-shrink-0 w-8 h-8 rounded-md bg-[#eeede9] dark:bg-white/5 flex items-center justify-center text-foreground/80">
         {icon}
       </div>
-      <div className="flex-1 pt-0.5">
-        <div className="text-sm font-medium text-foreground leading-tight">
-          {label}
-        </div>
-        <div className="text-xs text-muted-foreground mt-0.5">{hint}</div>
+      <div className="text-sm font-medium text-foreground leading-tight">
+        {label}
       </div>
     </div>
   );
