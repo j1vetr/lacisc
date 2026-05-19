@@ -135,39 +135,30 @@ export default function Login() {
             <img
               src={brandSrc}
               alt="Lacivert Teknoloji"
-              className="h-14 w-auto object-contain"
+              className="h-20 w-auto object-contain"
             />
           </div>
 
-          {/* Spacer: uydu için boş alan */}
-          <div className="flex-1 min-h-[260px]" />
-
-          {/* Özellikler için temiz beyaz arka plan bandı */}
-          <div className="relative z-10">
-            <div
-              aria-hidden
-              className="absolute -inset-x-12 -inset-y-4 bg-gradient-to-t from-white via-white to-white/0 dark:from-card dark:via-card dark:to-card/0 pointer-events-none"
+          {/* Özellikler — dikey ortalı */}
+          <div className="relative z-10 flex-1 flex flex-col justify-center space-y-4">
+            <FeatureRow
+              icon={<Globe2 className="w-4 h-4" />}
+              label="TÜM HATLAR TEK GÖRÜNÜMDE"
             />
-            <div className="relative space-y-3.5 mb-6">
-              <FeatureRow
-                icon={<Globe2 className="w-4 h-4" />}
-                label="TÜM HATLAR TEK GÖRÜNÜMDE"
-              />
-              <FeatureRow
-                icon={<Activity className="w-4 h-4" />}
-                label="GERÇEK ZAMANLI KOTA TAKİBİ"
-              />
-            </div>
+            <FeatureRow
+              icon={<Activity className="w-4 h-4" />}
+              label="GERÇEK ZAMANLI KOTA TAKİBİ"
+            />
+          </div>
 
-            {/* Geliştirici */}
-            <div className="relative flex items-center gap-3 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-              <span className="font-semibold">GELİŞTİRİCİ</span>
-              <img
-                src={toovSrc}
-                alt="TOOV"
-                className="h-5 w-auto object-contain opacity-90"
-              />
-            </div>
+          {/* Geliştirici — altta */}
+          <div className="relative z-10 flex items-center gap-3 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+            <span className="font-semibold">GELİŞTİRİCİ</span>
+            <img
+              src={toovSrc}
+              alt="TOOV"
+              className="h-5 w-auto object-contain opacity-90"
+            />
           </div>
         </aside>
 
