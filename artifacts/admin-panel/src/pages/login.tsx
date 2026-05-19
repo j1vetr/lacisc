@@ -28,8 +28,8 @@ import { useToast } from "@/hooks/use-toast";
 const loginSchema = z.object({
   identifier: z
     .string()
-    .min(1, { message: "Kullanıcı adı veya e-posta zorunludur." }),
-  password: z.string().min(1, { message: "Şifre zorunludur." }),
+    .min(1, { message: "KULLANICI ADI VEYA E-POSTA ZORUNLUDUR." }),
+  password: z.string().min(1, { message: "ŞİFRE ZORUNLUDUR." }),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -37,7 +37,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
 export default function Login() {
-  useDocumentTitle("Giriş");
+  useDocumentTitle("GİRİŞ");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const loginMutation = useLogin();
@@ -58,8 +58,8 @@ export default function Login() {
         },
         onError: (err: Error) => {
           toast({
-            title: "Erişim Reddedildi",
-            description: err.message || "Geçersiz kimlik bilgileri.",
+            title: "ERİŞİM REDDEDİLDİ",
+            description: err.message || "GEÇERSİZ KİMLİK BİLGİLERİ.",
             variant: "destructive",
           });
         },
@@ -104,32 +104,32 @@ export default function Login() {
           <div className="space-y-10 max-w-[440px]">
             <div className="space-y-4">
               <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">
-                Uydu operasyon paneli
+                UYDU OPERASYON PANELİ
               </div>
-              <h1 className="text-[2.5rem] leading-[1.1] font-normal tracking-[-0.025em] text-foreground">
-                Filonuzun tüm uydu hattı,{" "}
-                <span className="text-primary">tek panelde</span>.
+              <h1 className="text-[2.5rem] leading-[1.1] font-normal tracking-[-0.025em] text-foreground uppercase">
+                FİLONUZUN TÜM UYDU HATTI,{" "}
+                <span className="text-primary">TEK PANELDE</span>.
               </h1>
             </div>
 
             <div className="space-y-4">
               <FeatureRow
                 icon={<Globe2 className="w-4 h-4" />}
-                label="Tüm hatlar tek görünümde"
+                label="TÜM HATLAR TEK GÖRÜNÜMDE"
               />
               <FeatureRow
                 icon={<Activity className="w-4 h-4" />}
-                label="Gerçek zamanlı kota takibi"
+                label="GERÇEK ZAMANLI KOTA TAKİBİ"
               />
               <FeatureRow
                 icon={<ShieldCheck className="w-4 h-4" />}
-                label="Müşteri bazlı güvenli erişim"
+                label="MÜŞTERİ BAZLI GÜVENLİ ERİŞİM"
               />
             </div>
           </div>
 
           <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-            <span className="font-medium">Geliştirici</span>
+            <span className="font-medium">GELİŞTİRİCİ</span>
             <img
               src={toovSrc}
               alt="TOOV"
@@ -153,13 +153,13 @@ export default function Login() {
 
           <div className="space-y-2 mb-10">
             <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">
-              Hoş geldiniz
+              HOŞ GELDİNİZ
             </div>
-            <h2 className="text-[28px] leading-tight font-normal tracking-[-0.02em] text-foreground">
-              Hesabınıza giriş yapın
+            <h2 className="text-[28px] leading-tight font-normal tracking-[-0.02em] text-foreground uppercase">
+              HESABINIZA GİRİŞ YAPIN
             </h2>
-            <p className="text-sm text-muted-foreground">
-              Operasyon panelinize erişmek için kimlik bilgilerinizi girin.
+            <p className="text-sm text-muted-foreground uppercase">
+              OPERASYON PANELİNİZE ERİŞMEK İÇİN KİMLİK BİLGİLERİNİZİ GİRİN.
             </p>
           </div>
 
@@ -171,14 +171,14 @@ export default function Login() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      Kullanıcı adı veya e-posta
+                      KULLANICI ADI VEYA E-POSTA
                     </FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Kullanıcı adınız"
+                        placeholder="KULLANICI ADINIZ"
                         {...field}
                         autoComplete="username"
-                        className="bg-background border-border h-11 rounded-lg text-sm focus-visible:ring-primary shadow-none"
+                        className="bg-background border-border h-11 rounded-lg text-sm uppercase placeholder:normal-case placeholder:uppercase focus-visible:ring-primary shadow-none"
                       />
                     </FormControl>
                     <FormMessage />
@@ -191,7 +191,7 @@ export default function Login() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      Şifre
+                      ŞİFRE
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -211,19 +211,19 @@ export default function Login() {
                 className="w-full h-12 rounded-lg font-semibold text-[15px] bg-primary text-primary-foreground hover:bg-primary/90 transition-all mt-3 shadow-[0_8px_24px_-8px_rgba(245,78,0,0.55)] hover:shadow-[0_10px_28px_-8px_rgba(245,78,0,0.7)] hover:-translate-y-[1px] active:translate-y-0"
                 disabled={loginMutation.isPending}
               >
-                {loginMutation.isPending ? "Giriş yapılıyor…" : "Giriş yap"}
+                {loginMutation.isPending ? "GİRİŞ YAPILIYOR…" : "GİRİŞ YAP"}
               </Button>
             </form>
           </Form>
 
-          <p className="mt-10 text-xs text-muted-foreground text-center leading-relaxed">
-            Erişim sorunları için lütfen yöneticinizle iletişime geçin.
+          <p className="mt-10 text-xs text-muted-foreground text-center leading-relaxed uppercase tracking-wide">
+            ERİŞİM SORUNLARI İÇİN LÜTFEN YÖNETİCİNİZLE İLETİŞİME GEÇİN.
           </p>
 
           {/* Mobilde alt: TOOV */}
           <div className="lg:hidden mt-12 pt-6 border-t border-border flex items-center justify-center gap-3">
             <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-medium">
-              Geliştirici
+              GELİŞTİRİCİ
             </span>
             <img
               src={toovSrc}
