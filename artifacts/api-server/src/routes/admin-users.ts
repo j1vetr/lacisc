@@ -46,10 +46,11 @@ const router: IRouter = Router();
 type Role = "owner" | "admin" | "viewer" | "customer";
 const ROLES: ReadonlySet<Role> = new Set(["owner", "admin", "viewer", "customer"]);
 
-// Lowercase a-z, 0-9 ve `_.-`; 3..32 karakter. Boşluk/Türkçe karakter yok.
-// E-posta lokal parçasından üretilen değerler de bu regex'e uyacak şekilde
+// Permissive: 1..64 karakter, boşluk yok. Türkçe/büyük harf/özel karakter
+// serbest — login akışı `.toLowerCase()` ile case-insensitive eşleştirir.
+// E-posta lokal parçasından üretilen değerler de bu kurala uyacak şekilde
 // sanitize edilir (bkz. `slugifyForUsername` aşağıda).
-const USERNAME_RE = /^[a-z0-9_.-]{3,32}$/;
+const USERNAME_RE = /^\S{1,64}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function publicUser(u: typeof adminUsers.$inferSelect) {
@@ -160,7 +161,7 @@ router.post(
       const u = String(username).trim().toLowerCase();
       if (!USERNAME_RE.test(u)) {
         res.status(400).json({
-          error: "Kullanıcı adı 3-32 karakter, küçük harf / rakam / `_.-` olmalı.",
+          error: "Kullanıcı adı 1-64 karakter arasında olmalı ve boşluk içermemeli.",
         });
         return;
       }
@@ -279,7 +280,7 @@ router.patch(
         const u = String(username).trim().toLowerCase();
         if (!USERNAME_RE.test(u)) {
           res.status(400).json({
-            error: "Kullanıcı adı 3-32 karakter, küçük harf / rakam / `_.-` olmalı.",
+            error: "Kullanıcı adı 1-64 karakter arasında olmalı ve boşluk içermemeli.",
           });
           return;
         }
