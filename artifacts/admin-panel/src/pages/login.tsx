@@ -8,8 +8,6 @@ import brandLogo from "@assets/1_1778023047729.png";
 import brandLogoWhite from "@assets/2_1778184166378.png";
 import toovLogo from "@assets/TOOV_1778023131850.png";
 import toovLogoWhite from "@assets/TOOV_(1)_1778184135138.png";
-import satelliteImg from "@assets/ChatGPT_Image_19_May_2026_16_56_23_(1)_1779199000195.png";
-import earthImg from "@assets/ChatGPT_Image_19_May_2026_16_56_24_(2)_1779199000196.png";
 import { useThemedAsset } from "@/hooks/use-themed-asset";
 import { useLogin } from "@workspace/api-client-react";
 import {
@@ -132,26 +130,6 @@ export default function Login() {
             <circle cx="200" cy="80" r="1.5" fill="#cbd5e1" />
             <circle cx="470" cy="50" r="2" fill="#cbd5e1" />
           </svg>
-
-          {/* Dünya — alt kısmın en altında, hafif görünür */}
-          <img
-            src={earthImg}
-            alt=""
-            aria-hidden
-            className="absolute bottom-0 -left-8 w-[115%] max-w-none object-contain pointer-events-none select-none opacity-80 mix-blend-multiply dark:mix-blend-screen"
-            style={{ maxHeight: "55%", objectPosition: "bottom" }}
-          />
-
-          {/* Uydu — orta üst */}
-          <img
-            src={satelliteImg}
-            alt=""
-            aria-hidden
-            className="absolute top-[18%] left-[-4%] w-[78%] max-w-none object-contain pointer-events-none select-none mix-blend-multiply dark:mix-blend-screen"
-            style={{
-              filter: "drop-shadow(0 20px 30px rgba(15,23,42,0.15))",
-            }}
-          />
 
           {/* Logo — üstte */}
           <div className="relative z-10">
