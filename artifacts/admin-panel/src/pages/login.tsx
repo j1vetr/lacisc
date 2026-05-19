@@ -131,16 +131,40 @@ export default function Login() {
             />
           </div>
 
-          {/* Özellikler — dikey ortalı */}
-          <div className="relative z-10 flex-1 flex flex-col justify-center space-y-4">
-            <FeatureRow
-              icon={<Globe2 className="w-4 h-4" />}
-              label="TÜM HATLAR TEK GÖRÜNÜMDE"
-            />
-            <FeatureRow
-              icon={<Activity className="w-4 h-4" />}
-              label="GERÇEK ZAMANLI KOTA TAKİBİ"
-            />
+          {/* Hero + özellikler — dikey ortalı */}
+          <div className="relative z-10 flex-1 flex flex-col justify-center space-y-8">
+            <div className="space-y-3 max-w-[420px]">
+              <div className="text-[11px] uppercase tracking-[0.22em] text-primary font-semibold">
+                UYDU OPERASYON PANELİ
+              </div>
+              <h1 className="text-[28px] xl:text-[32px] leading-[1.15] font-semibold tracking-tight text-foreground uppercase">
+                ÜÇ UYDU SAĞLAYICISI,
+                <br />
+                TEK PANEL.
+              </h1>
+              <p className="text-[13px] leading-relaxed text-muted-foreground normal-case">
+                Satcom CDR, Tototheo Starlink ve Leo Bridge Norway verilerini tek
+                ekranda birleştirir; kota, fatura ve telemetri her zaman güncel
+                kalır.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <SourcePill color="#f54e00" label="SATCOM" />
+              <SourcePill color="#2563eb" label="STARLINK" />
+              <SourcePill color="#0ea5e9" label="NORWAY" />
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <FeatureRow
+                icon={<Globe2 className="w-4 h-4" />}
+                label="TÜM HATLAR TEK GÖRÜNÜMDE"
+              />
+              <FeatureRow
+                icon={<Activity className="w-4 h-4" />}
+                label="GERÇEK ZAMANLI KOTA TAKİBİ"
+              />
+            </div>
           </div>
 
           {/* Geliştirici — altta */}
@@ -281,6 +305,20 @@ export default function Login() {
           </div>
         </main>
       </div>
+    </div>
+  );
+}
+
+function SourcePill({ color, label }: { color: string; label: string }) {
+  return (
+    <div className="inline-flex items-center gap-2 rounded-full border border-[#e6e9ef] dark:border-border bg-white dark:bg-white/5 px-3 py-1.5 shadow-[0_2px_6px_-2px_rgba(15,23,42,0.06)]">
+      <span
+        className="w-1.5 h-1.5 rounded-full"
+        style={{ backgroundColor: color }}
+      />
+      <span className="text-[11px] font-semibold tracking-[0.16em] text-foreground">
+        {label}
+      </span>
     </div>
   );
 }
