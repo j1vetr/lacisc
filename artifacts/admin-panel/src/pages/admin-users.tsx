@@ -581,27 +581,57 @@ export default function AdminUsers() {
           <AlertDialogHeader>
             <AlertDialogTitle>Şifreyi sıfırla</AlertDialogTitle>
             <AlertDialogDescription>
-              {resetOpen?.label} için yeni bir şifre belirleyin. Politika gereksinimlerini karşılamalıdır.
+              {resetOpen?.label} için yeni bir şifre belirleyin. Aşağıdaki tüm gereksinimleri karşılamalıdır.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <Input
-            type="password"
-            value={resetPw}
-            onChange={(e) => setResetPw(e.target.value)}
-            placeholder="Yeni şifre"
-            autoComplete="new-password"
-          />
-          <PasswordStrength password={resetPw} />
+          <div className="space-y-3">
+            <Input
+              type="password"
+              value={resetPw}
+              onChange={(e) => setResetPw(e.target.value)}
+              placeholder="Yeni şifre"
+              autoComplete="new-password"
+              autoFocus
+            />
+            <PasswordStrength password={resetPw} />
+            <ul className="text-[12px] space-y-1 rounded-md border bg-muted/40 p-2.5">
+              {(
+                [
+                  { ok: resetPw.length >= 12, text: "En az 12 karakter" },
+                  { ok: /[A-Z]/.test(resetPw), text: "En az bir BÜYÜK harf (A-Z)" },
+                  { ok: /[a-z]/.test(resetPw), text: "En az bir küçük harf (a-z)" },
+                  { ok: /[0-9]/.test(resetPw), text: "En az bir rakam (0-9)" },
+                  { ok: /[^A-Za-z0-9]/.test(resetPw), text: "En az bir özel karakter (örn: !@#$)" },
+                ] as const
+              ).map((r, i) => (
+                <li
+                  key={i}
+                  className={`flex items-center gap-2 ${r.ok ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}
+                >
+                  <span className="font-mono text-sm leading-none w-3">{r.ok ? "✓" : "·"}</span>
+                  <span>{r.text}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>İptal</AlertDialogCancel>
             <AlertDialogAction
+              disabled={
+                resetMut.isPending ||
+                resetPw.length < 12 ||
+                !/[A-Z]/.test(resetPw) ||
+                !/[a-z]/.test(resetPw) ||
+                !/[0-9]/.test(resetPw) ||
+                !/[^A-Za-z0-9]/.test(resetPw)
+              }
               onClick={(e) => {
                 e.preventDefault();
                 if (!resetOpen) return;
                 resetMut.mutate({ id: resetOpen.id, data: { newPassword: resetPw } });
               }}
             >
-              Sıfırla
+              {resetMut.isPending ? "Sıfırlanıyor…" : "Sıfırla"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
