@@ -76,14 +76,6 @@ export default function Login() {
     );
   };
 
-  const onForgotPassword = () => {
-    toast({
-      title: "ŞİFRE SIFIRLAMA",
-      description:
-        "ŞİFRENİZİ SIFIRLAMAK İÇİN LÜTFEN YÖNETİCİNİZLE İLETİŞİME GEÇİN.",
-    });
-  };
-
   return (
     <div className="min-h-screen w-full bg-[#eef2f7] dark:bg-background flex items-center justify-center p-4 sm:p-8">
       <div className="w-full max-w-[1080px] bg-white dark:bg-card rounded-3xl border border-[#e6e9ef] dark:border-border overflow-hidden shadow-[0_30px_80px_-30px_rgba(15,23,42,0.18)] grid lg:grid-cols-[1.05fr_1fr]">
@@ -253,16 +245,6 @@ export default function Login() {
                   </FormItem>
                 )}
               />
-
-              <div className="flex items-center justify-end pt-1">
-                <button
-                  type="button"
-                  onClick={onForgotPassword}
-                  className="text-sm text-primary hover:underline font-medium"
-                >
-                  Şifremi unuttum
-                </button>
-              </div>
 
               <Button
                 type="submit"
