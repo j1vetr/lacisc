@@ -1,5 +1,6 @@
 import { useLocation } from "wouter";
 import { useState } from "react";
+
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,7 +34,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
@@ -54,7 +54,6 @@ export default function Login() {
   const toovSrc = useThemedAsset(toovLogo, toovLogoWhite);
   const brandSrc = useThemedAsset(brandLogo, brandLogoWhite);
 
-  const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<LoginFormValues>({
@@ -291,15 +290,7 @@ export default function Login() {
                 )}
               />
 
-              <div className="flex items-center justify-between pt-1">
-                <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer select-none">
-                  <Checkbox
-                    checked={rememberMe}
-                    onCheckedChange={(v) => setRememberMe(v === true)}
-                    className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                  />
-                  <span>Beni hatırla</span>
-                </label>
+              <div className="flex items-center justify-end pt-1">
                 <button
                   type="button"
                   onClick={onForgotPassword}
