@@ -12,7 +12,6 @@ import { useThemedAsset } from "@/hooks/use-themed-asset";
 import { useLogin } from "@workspace/api-client-react";
 import {
   Globe2,
-  ShieldCheck,
   Activity,
   User,
   Lock,
@@ -157,10 +156,6 @@ export default function Login() {
               <FeatureRow
                 icon={<Activity className="w-4 h-4" />}
                 label="GERÇEK ZAMANLI KOTA TAKİBİ"
-              />
-              <FeatureRow
-                icon={<ShieldCheck className="w-4 h-4" />}
-                label="MÜŞTERİ BAZLI GÜVENLİ ERİŞİM"
               />
             </div>
 
