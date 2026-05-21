@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef } from "react";
-import { Link } from "wouter";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
@@ -18,11 +17,6 @@ const SOURCE_COLOR: Record<Source, string> = {
   satcom: "#a4400a",
   starlink: "#2563a6",
   leobridge: "#3a3aa6",
-};
-const SOURCE_LABEL: Record<Source, string> = {
-  satcom: "SATCOM",
-  starlink: "TOTOTHEO",
-  leobridge: "NORWAY",
 };
 const SOURCE_DETAIL: Record<Source, (k: string) => string> = {
   satcom: (k) => `/kits/${encodeURIComponent(k)}`,
@@ -190,7 +184,6 @@ export default function FleetMap({
       m.bindPopup(
         `
         <div class="ssa-fleet-popup" data-source="${p.source}">
-          <div class="ssa-fleet-popup__badge" style="background:${SOURCE_COLOR[p.source]};">${SOURCE_LABEL[p.source]}</div>
           ${titleLine}
           ${accountLine}
           ${statusLine}
@@ -265,20 +258,6 @@ export default function FleetMap({
           Henüz konum verisi olan terminal yok.
         </div>
       )}
-      {/* Pin renk açıklaması — küçük editöryel legend */}
-      <div className="absolute left-3 bottom-3 z-[400] flex items-center gap-3 rounded-md bg-card/90 backdrop-blur px-2.5 py-1.5 border border-border text-[10px] font-mono uppercase tracking-[0.10em] text-muted-foreground pointer-events-none">
-        {(Object.keys(SOURCE_LABEL) as Source[]).map((s) => (
-          <span key={s} className="inline-flex items-center gap-1.5">
-            <span
-              className="inline-block w-2 h-2 rounded-full"
-              style={{ background: SOURCE_COLOR[s] }}
-            />
-            {SOURCE_LABEL[s]}
-          </span>
-        ))}
-      </div>
-      {/* Link referansını TS unused-import uyarısı için tutuyoruz (gelecek geliştirme için hazır). */}
-      <span className="hidden">{Link ? null : null}</span>
     </div>
   );
 }

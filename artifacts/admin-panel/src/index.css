@@ -198,15 +198,15 @@
   animation: none;
 }
 @keyframes ssa-pin-pulse {
-  0%   { transform: scale(0.7); opacity: 0.85; }
-  100% { transform: scale(2.2); opacity: 0; }
+  0%   { transform: scale(0.85); opacity: 0.55; }
+  100% { transform: scale(1.45); opacity: 0; }
 }
 
 /* === Fleet map (birleşik harita) — Cursor.com editorial tonu === */
 .ssa-fleet-pin { position: relative; }
 .ssa-fleet-pin__halo {
-  position: absolute; inset: -8px; border-radius: 9999px;
-  animation: ssa-pin-pulse 2.6s ease-out infinite;
+  position: absolute; inset: -2px; border-radius: 9999px;
+  animation: ssa-pin-pulse 2.8s ease-out infinite;
 }
 .ssa-fleet-pin--offline .ssa-fleet-pin__halo { animation: none; opacity: 0 !important; }
 .ssa-fleet-pin__dot {
