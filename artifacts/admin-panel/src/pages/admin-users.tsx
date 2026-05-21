@@ -12,6 +12,7 @@ import {
   getListAssignableKitsQueryKey,
   useGetAssignedKits,
   getGetAssignedKitsQueryKey,
+  getGetFleetMapQueryKey,
   useUpdateAssignedKits,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -85,6 +86,8 @@ export default function AdminUsers() {
     mutation: {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getListAdminUsersQueryKey() });
+        // Telefon/rol değişimi → filo haritası alıcı listesi etkilenebilir.
+        qc.invalidateQueries({ queryKey: getGetFleetMapQueryKey() });
         toast({ title: "Güncellendi" });
         setEditOpen(null);
       },
@@ -95,6 +98,7 @@ export default function AdminUsers() {
     mutation: {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getListAdminUsersQueryKey() });
+        qc.invalidateQueries({ queryKey: getGetFleetMapQueryKey() });
         toast({ title: "Silindi" });
       },
       onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
@@ -162,12 +166,16 @@ export default function AdminUsers() {
             variant: "destructive",
           });
           qc.invalidateQueries({ queryKey: getListAdminUsersQueryKey() });
+          qc.invalidateQueries({ queryKey: getGetFleetMapQueryKey() });
           setCreateOpen(false);
           resetCreateForm();
           return;
         }
       }
       qc.invalidateQueries({ queryKey: getListAdminUsersQueryKey() });
+      // Yeni müşteri + KIT ataması → admin filo haritası kapsamı değişmez ama
+      // müşteri kendi panelinde haritayı görmek için fresh data ister.
+      qc.invalidateQueries({ queryKey: getGetFleetMapQueryKey() });
       toast({ title: "Kullanıcı oluşturuldu" });
       setCreateOpen(false);
       resetCreateForm();
@@ -720,6 +728,8 @@ function AssignKitsDialog({
     mutation: {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getGetAssignedKitsQueryKey(userId) });
+        // Atama değişimi müşteri-scope filo haritasını etkiler — invalidate.
+        qc.invalidateQueries({ queryKey: getGetFleetMapQueryKey() });
         onSaved();
         toast({ title: "Atamalar güncellendi" });
         onClose();

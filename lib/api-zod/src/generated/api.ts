@@ -747,6 +747,31 @@ export const GetKitLocationsResponseItem = zod.object({
 export const GetKitLocationsResponse = zod.array(GetKitLocationsResponseItem);
 
 /**
+ * Satcom + Starlink + Norway terminallerinin en güncel konumlarını
+tek listede döner. Konum verisi olmayan KIT'ler (lat/lng NULL)
+sessizce çıkarılır. Müşteri rolü yalnız kendisine atanmış KIT'leri
+görür. Aynı (source, kitNo) birden çok credential'da varsa en son
+güncellenen satır kazanır (KIT detay endpoint'leriyle aynı kural).
+
+ * @summary Üç kaynaktan birleşik filo haritası noktaları (yetki dahilinde)
+ */
+export const GetFleetMapResponseItem = zod
+  .object({
+    source: zod.enum(["satcom", "starlink", "leobridge"]),
+    kitNo: zod.string(),
+    shipName: zod.string().nullish(),
+    lat: zod.number(),
+    lng: zod.number(),
+    online: zod.boolean().nullish(),
+    lastSeenAt: zod.coerce.date().nullish(),
+    accountLabel: zod.string().nullish(),
+  })
+  .describe(
+    "Tek bir KIT'in son bilinen konumu. `source` Satcom\/Starlink\/Norway\nayrımıdır — frontend pin rengini ve detay URL'sini buna göre seçer.\n`accountLabel` çok-hesap kurulumlarında kullanıcıya hangi credential'a\nait olduğunu gösterir.\n",
+  );
+export const GetFleetMapResponse = zod.array(GetFleetMapResponseItem);
+
+/**
  * @summary Satcom KIT için saatlik telemetri (DL/UL/Latency/PingDrop/Obstruction/Signal)
  */
 export const GetKitTelemetryHourlyParams = zod.object({

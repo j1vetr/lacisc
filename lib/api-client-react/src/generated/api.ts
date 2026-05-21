@@ -33,6 +33,7 @@ import type {
   EmailSettings,
   EmailSettingsUpdate,
   ErrorResponse,
+  FleetMapPoint,
   GetKitDailyParams,
   GetKitTelemetryHourlyParams,
   GetKitsParams,
@@ -3268,6 +3269,87 @@ export function useGetKitLocations<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetKitLocationsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Satcom + Starlink + Norway terminallerinin en güncel konumlarını
+tek listede döner. Konum verisi olmayan KIT'ler (lat/lng NULL)
+sessizce çıkarılır. Müşteri rolü yalnız kendisine atanmış KIT'leri
+görür. Aynı (source, kitNo) birden çok credential'da varsa en son
+güncellenen satır kazanır (KIT detay endpoint'leriyle aynı kural).
+
+ * @summary Üç kaynaktan birleşik filo haritası noktaları (yetki dahilinde)
+ */
+export const getGetFleetMapUrl = () => {
+  return `/api/station/fleet-map`;
+};
+
+export const getFleetMap = async (
+  options?: RequestInit,
+): Promise<FleetMapPoint[]> => {
+  return customFetch<FleetMapPoint[]>(getGetFleetMapUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetFleetMapQueryKey = () => {
+  return [`/api/station/fleet-map`] as const;
+};
+
+export const getGetFleetMapQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFleetMap>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getFleetMap>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetFleetMapQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getFleetMap>>> = ({
+    signal,
+  }) => getFleetMap({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getFleetMap>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetFleetMapQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFleetMap>>
+>;
+export type GetFleetMapQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Üç kaynaktan birleşik filo haritası noktaları (yetki dahilinde)
+ */
+
+export function useGetFleetMap<
+  TData = Awaited<ReturnType<typeof getFleetMap>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getFleetMap>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetFleetMapQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

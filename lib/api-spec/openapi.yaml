@@ -808,6 +808,30 @@ paths:
                 items:
                   $ref: "#/components/schemas/KitLocation"
 
+  /station/fleet-map:
+    get:
+      operationId: getFleetMap
+      tags: [records]
+      summary: Üç kaynaktan birleşik filo haritası noktaları (yetki dahilinde)
+      description: |
+        Satcom + Starlink + Norway terminallerinin en güncel konumlarını
+        tek listede döner. Konum verisi olmayan KIT'ler (lat/lng NULL)
+        sessizce çıkarılır. Müşteri rolü yalnız kendisine atanmış KIT'leri
+        görür. Aynı (source, kitNo) birden çok credential'da varsa en son
+        güncellenen satır kazanır (KIT detay endpoint'leriyle aynı kural).
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Harita noktaları
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FleetMapPoint"
+
   /station/kits/{kitNo}/telemetry/hourly:
     get:
       operationId: getKitTelemetryHourly
@@ -2584,6 +2608,26 @@ components:
         shipName: { type: string, nullable: true }
         lastSeenAt: { type: string, format: date-time }
       required: [kitNo, lat, lng, active, offline, lastSeenAt]
+
+    FleetMapPoint:
+      type: object
+      description: |
+        Tek bir KIT'in son bilinen konumu. `source` Satcom/Starlink/Norway
+        ayrımıdır — frontend pin rengini ve detay URL'sini buna göre seçer.
+        `accountLabel` çok-hesap kurulumlarında kullanıcıya hangi credential'a
+        ait olduğunu gösterir.
+      properties:
+        source:
+          type: string
+          enum: [satcom, starlink, leobridge]
+        kitNo: { type: string }
+        shipName: { type: string, nullable: true }
+        lat: { type: number }
+        lng: { type: number }
+        online: { type: boolean, nullable: true }
+        lastSeenAt: { type: string, format: date-time, nullable: true }
+        accountLabel: { type: string, nullable: true }
+      required: [source, kitNo, lat, lng]
 
     KitTelemetryHourlyPoint:
       type: object

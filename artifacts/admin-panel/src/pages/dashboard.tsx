@@ -1,6 +1,9 @@
-import { useMemo } from "react";
+import { lazy, Suspense, useMemo } from "react";
 import { Link } from "wouter";
 import { AlertCircle, ArrowRight } from "lucide-react";
+
+// Leaflet + markercluster ~80kb gz — bundle'ı şişirmemek için lazy.
+const FleetMap = lazy(() => import("@/components/fleet-map"));
 import {
   useGetDashboardSummary,
   getGetDashboardSummaryQueryKey,
@@ -285,6 +288,22 @@ export default function Dashboard() {
             </>
           )}
         </KpiCard>
+      </div>
+
+      {/* === FİLO HARİTASI: üç kaynaktan birleşik konumlar === */}
+      <div className="rounded-xl border border-border bg-card p-5 sm:p-6">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-medium">
+            FİLO HARİTASI · CANLI KONUM
+          </span>
+        </div>
+        <Suspense
+          fallback={
+            <div className="h-[360px] sm:h-[440px] rounded-lg bg-secondary/30 animate-pulse" />
+          }
+        >
+          <FleetMap />
+        </Suspense>
       </div>
 
       {/* === KAYNAK DAĞILIMI: tek satır stacked bar === */}

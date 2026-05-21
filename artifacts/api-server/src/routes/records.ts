@@ -314,6 +314,206 @@ router.get(
   }
 );
 
+// Üç kaynaktan birleşik filo haritası — Dashboard + Müşteri panel için.
+// Konumu olmayan KIT'ler sessizce çıkarılır; aynı (source, kitNo) birden çok
+// hesapta görünüyorsa en son güncellenen kazanır (KIT detay endpoint'leriyle
+// tutarlı). Müşteri yalnız kendisine atanmış KIT'leri görür.
+router.get(
+  "/station/fleet-map",
+  requireAuth,
+  async (req: AuthRequest, res): Promise<void> => {
+    const customer = isCustomer(req.userRole);
+    const scope = customer ? await getAssignedKits(req.userId!) : null;
+
+    // Satcom: station_kit_location ⋈ station_kits ⋈ station_credentials.
+    // Aynı KIT birden fazla credential'da olabilir → DISTINCT ON kit_no
+    // ORDER BY last_seen_at DESC ile en güncel snapshot kazanır.
+    const satcomScope = scope?.satcom ?? null;
+    const satcomRows =
+      customer && (!satcomScope || satcomScope.length === 0)
+        ? []
+        : ((
+            (await db.execute(sql`
+              SELECT * FROM (
+                SELECT DISTINCT ON (l.kit_no)
+                  l.kit_no       AS "kitNo",
+                  l.lat          AS "lat",
+                  l.lng          AS "lng",
+                  l.offline      AS "offline",
+                  l.active       AS "active",
+                  l.last_seen_at AS "lastSeenAt",
+                  k.ship_name    AS "shipName",
+                  c.label        AS "accountLabel"
+                FROM station_kit_location l
+                LEFT JOIN station_kits k
+                  ON k.kit_no = l.kit_no AND k.credential_id = l.credential_id
+                LEFT JOIN station_credentials c ON c.id = l.credential_id
+                ORDER BY l.kit_no, l.last_seen_at DESC NULLS LAST
+              ) t
+              ${
+                satcomScope
+                  ? sql`WHERE t."kitNo" IN (${sql.join(
+                      satcomScope.map((v) => sql`${v}`),
+                      sql`, `,
+                    )})`
+                  : sql``
+              }
+            `)) as unknown as {
+              rows: Array<{
+                kitNo: string;
+                lat: number;
+                lng: number;
+                offline: boolean | null;
+                active: boolean | null;
+                lastSeenAt: string | Date | null;
+                shipName: string | null;
+                accountLabel: string | null;
+              }>;
+            }
+          ).rows.map((r) => ({
+            source: "satcom" as const,
+            kitNo: r.kitNo,
+            shipName: r.shipName,
+            lat: r.lat,
+            lng: r.lng,
+            // Satcom location row carries `offline` flag; online = active && !offline.
+            online: r.active != null ? !!r.active && !r.offline : null,
+            lastSeenAt:
+              r.lastSeenAt == null
+                ? null
+                : r.lastSeenAt instanceof Date
+                  ? r.lastSeenAt.toISOString()
+                  : new Date(
+                      /[zZ]|[+-]\d{2}:?\d{2}$/.test(r.lastSeenAt)
+                        ? r.lastSeenAt
+                        : r.lastSeenAt.replace(" ", "T") + "Z",
+                    ).toISOString(),
+            accountLabel: r.accountLabel,
+          })));
+
+    // Starlink: lat/lng nullable → IS NOT NULL filter. DISTINCT ON kit_serial.
+    const starlinkScope = scope?.starlink ?? null;
+    const starlinkRowsRaw =
+      customer && (!starlinkScope || starlinkScope.length === 0)
+        ? { rows: [] as Array<Record<string, unknown>> }
+        : ((await db.execute(sql`
+            SELECT
+              t.kit_serial_number AS "kitNo",
+              t.nickname          AS "nickname",
+              t.asset_name        AS "assetName",
+              t.lat               AS "lat",
+              t.lng               AS "lng",
+              t.is_online         AS "isOnline",
+              t.last_seen_at      AS "lastSeenAt",
+              c.label             AS "accountLabel"
+            FROM (
+              -- Aynı KIT birden çok credential'da görülüyorsa harita pini için
+              -- EN GÜNCEL GÖZLEM (last_seen_at) kazanır; tie-break updated_at.
+              -- Bu, online/lastSeenAt/accountLabel'in en taze konum satırından
+              -- gelmesini garanti eder (Task #30 spec'i).
+              SELECT DISTINCT ON (kit_serial_number) *
+              FROM starlink_terminals
+              WHERE lat IS NOT NULL AND lng IS NOT NULL
+              ORDER BY kit_serial_number, last_seen_at DESC NULLS LAST, updated_at DESC
+            ) t
+            LEFT JOIN starlink_credentials c ON c.id = t.credential_id
+            ${
+              starlinkScope
+                ? sql`WHERE t.kit_serial_number IN (${sql.join(
+                    starlinkScope.map((v) => sql`${v}`),
+                    sql`, `,
+                  )})`
+                : sql``
+            }
+          `)) as unknown as {
+            rows: Array<{
+              kitNo: string;
+              nickname: string | null;
+              assetName: string | null;
+              lat: number;
+              lng: number;
+              isOnline: boolean | null;
+              lastSeenAt: string | Date | null;
+              accountLabel: string | null;
+            }>;
+          });
+    const starlinkRows = starlinkRowsRaw.rows.map((r) => ({
+      source: "starlink" as const,
+      kitNo: r.kitNo,
+      shipName: r.nickname || r.assetName || null,
+      lat: r.lat,
+      lng: r.lng,
+      online: r.isOnline,
+      lastSeenAt:
+        r.lastSeenAt == null
+          ? null
+          : r.lastSeenAt instanceof Date
+            ? r.lastSeenAt.toISOString()
+            : new Date(r.lastSeenAt).toISOString(),
+      accountLabel: r.accountLabel,
+    }));
+
+    // Norway (Leo Bridge): aynı pattern.
+    const leoScope = scope?.leobridge ?? null;
+    const leoRowsRaw =
+      customer && (!leoScope || leoScope.length === 0)
+        ? { rows: [] as Array<Record<string, unknown>> }
+        : ((await db.execute(sql`
+            SELECT
+              t.kit_serial_number AS "kitNo",
+              t.nickname          AS "nickname",
+              t.lat               AS "lat",
+              t.lng               AS "lng",
+              t.is_online         AS "isOnline",
+              t.last_seen_at      AS "lastSeenAt",
+              c.label             AS "accountLabel"
+            FROM (
+              -- last_seen_at önce — Starlink ile aynı taze-pin politikası.
+              SELECT DISTINCT ON (kit_serial_number) *
+              FROM leobridge_terminals
+              WHERE lat IS NOT NULL AND lng IS NOT NULL
+              ORDER BY kit_serial_number, last_seen_at DESC NULLS LAST, updated_at DESC
+            ) t
+            LEFT JOIN leobridge_credentials c ON c.id = t.credential_id
+            ${
+              leoScope
+                ? sql`WHERE t.kit_serial_number IN (${sql.join(
+                    leoScope.map((v) => sql`${v}`),
+                    sql`, `,
+                  )})`
+                : sql``
+            }
+          `)) as unknown as {
+            rows: Array<{
+              kitNo: string;
+              nickname: string | null;
+              lat: number;
+              lng: number;
+              isOnline: boolean | null;
+              lastSeenAt: string | Date | null;
+              accountLabel: string | null;
+            }>;
+          });
+    const leoRows = leoRowsRaw.rows.map((r) => ({
+      source: "leobridge" as const,
+      kitNo: r.kitNo,
+      shipName: r.nickname,
+      lat: r.lat,
+      lng: r.lng,
+      online: r.isOnline,
+      lastSeenAt:
+        r.lastSeenAt == null
+          ? null
+          : r.lastSeenAt instanceof Date
+            ? r.lastSeenAt.toISOString()
+            : new Date(r.lastSeenAt).toISOString(),
+      accountLabel: r.accountLabel,
+    }));
+
+    res.json([...satcomRows, ...starlinkRows, ...leoRows]);
+  },
+);
+
 // Tüm Satcom KIT konumları — Map widget'i için.
 router.get(
   "/station/locations",

@@ -782,6 +782,33 @@ export interface KitLocation {
   lastSeenAt: string;
 }
 
+export type FleetMapPointSource =
+  (typeof FleetMapPointSource)[keyof typeof FleetMapPointSource];
+
+export const FleetMapPointSource = {
+  satcom: "satcom",
+  starlink: "starlink",
+  leobridge: "leobridge",
+} as const;
+
+/**
+ * Tek bir KIT'in son bilinen konumu. `source` Satcom/Starlink/Norway
+ayrımıdır — frontend pin rengini ve detay URL'sini buna göre seçer.
+`accountLabel` çok-hesap kurulumlarında kullanıcıya hangi credential'a
+ait olduğunu gösterir.
+
+ */
+export interface FleetMapPoint {
+  source: FleetMapPointSource;
+  kitNo: string;
+  shipName?: string | null;
+  lat: number;
+  lng: number;
+  online?: boolean | null;
+  lastSeenAt?: string | null;
+  accountLabel?: string | null;
+}
+
 export interface KitTelemetryHourlyPoint {
   intervalStart: string;
   downloadMinMbps?: number | null;

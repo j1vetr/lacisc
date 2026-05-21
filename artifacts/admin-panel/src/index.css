@@ -201,3 +201,84 @@
   0%   { transform: scale(0.7); opacity: 0.85; }
   100% { transform: scale(2.2); opacity: 0; }
 }
+
+/* === Fleet map (birleşik harita) — Cursor.com editorial tonu === */
+.ssa-fleet-pin { position: relative; }
+.ssa-fleet-pin__halo {
+  position: absolute; inset: -8px; border-radius: 9999px;
+  animation: ssa-pin-pulse 2.6s ease-out infinite;
+}
+.ssa-fleet-pin--offline .ssa-fleet-pin__halo { animation: none; opacity: 0 !important; }
+.ssa-fleet-pin__dot {
+  position: absolute; inset: 0; border-radius: 9999px;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.18);
+}
+
+.ssa-fleet-cluster {
+  background: transparent;
+  border: none;
+}
+.ssa-fleet-cluster__inner {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  background: #f7f7f4;
+  color: #26251e;
+  border: 1px solid #e6e5e0;
+  border-radius: 9999px;
+  font: 600 12px/1 'JetBrains Mono', ui-monospace, monospace;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.10);
+}
+.dark .ssa-fleet-cluster__inner {
+  background: #1f1f1c;
+  color: #f5f5f0;
+  border-color: #3a3a35;
+}
+
+.ssa-fleet-map .leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  padding: 0;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+  border: 1px solid #e6e5e0;
+}
+.dark .ssa-fleet-map .leaflet-popup-content-wrapper {
+  background: #1f1f1c;
+  border-color: #3a3a35;
+}
+.ssa-fleet-map .leaflet-popup-content { margin: 0; }
+.ssa-fleet-map .leaflet-popup-tip { display: none; }
+.ssa-fleet-popup {
+  padding: 10px 12px;
+  min-width: 180px;
+  font: 13px/1.4 Inter, system-ui, sans-serif;
+  color: #26251e;
+}
+.dark .ssa-fleet-popup { color: #f5f5f0; }
+.ssa-fleet-popup__badge {
+  display: inline-block; padding: 1px 6px;
+  border-radius: 9999px;
+  color: #fff;
+  font: 600 9px/1.5 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.ssa-fleet-popup__title {
+  font-weight: 600; font-size: 14px; line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.ssa-fleet-popup__sub {
+  font: 11px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  color: #7d7c74; margin-top: 2px;
+}
+.dark .ssa-fleet-popup__sub { color: #aaa9a0; }
+.ssa-fleet-popup__row {
+  margin-top: 4px; font-size: 12px; color: #5a5953;
+}
+.dark .ssa-fleet-popup__row { color: #bbbab1; }
+.ssa-fleet-popup__link {
+  display: inline-block; margin-top: 8px;
+  font: 500 12px/1 Inter, system-ui, sans-serif;
+  color: #f54e00; text-decoration: none;
+}
+.ssa-fleet-popup__link:hover { text-decoration: underline; }

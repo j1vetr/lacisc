@@ -1,7 +1,12 @@
+import { lazy, Suspense } from "react";
 import { useLocation } from "wouter";
 import { ArrowUpRight } from "lucide-react";
 
 import { useDocumentTitle } from "@/hooks/use-document-title";
+
+// Leaflet + markercluster lazy — müşteri ilk yüklemede kartları görür,
+// harita bir tick sonra mount eder.
+const FleetMap = lazy(() => import("@/components/fleet-map"));
 import {
   useCustomerFleetContext,
   detailHref,
@@ -205,6 +210,31 @@ export default function CustomerPanel() {
               )}
             </span>
           </div>
+        </div>
+      </section>
+
+      {/* Filo haritası — atanmış KIT'lerin konumları */}
+      <section className="sd-main-pad px-10 pb-8">
+        <div className="sd-card p-4 sm:p-5">
+          <div
+            className="flex items-center justify-between mb-3 text-[11px] uppercase"
+            style={{
+              color: "var(--sd-muted)",
+              letterSpacing: "0.12em",
+            }}
+          >
+            <span>Filonuz · Canlı konum</span>
+          </div>
+          <Suspense
+            fallback={
+              <div
+                className="h-[320px] sm:h-[420px] rounded-lg animate-pulse"
+                style={{ background: "var(--sd-hairline)" }}
+              />
+            }
+          >
+            <FleetMap heightClass="h-[320px] sm:h-[420px]" />
+          </Suspense>
         </div>
       </section>
 
