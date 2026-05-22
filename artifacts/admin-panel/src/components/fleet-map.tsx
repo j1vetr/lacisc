@@ -108,7 +108,7 @@ export default function FleetMap({
       minZoom: 2,
       maxZoom: 10,
       worldCopyJump: true,
-      scrollWheelZoom: false,
+      scrollWheelZoom: true,
       attributionControl: false,
     });
     if (!hideTiles) {
