@@ -177,19 +177,12 @@ export default function FleetMap({
         ? `<div class="ssa-fleet-popup__title">${escapeHtml(p.shipName)}</div>
            <div class="ssa-fleet-popup__sub">${escapeHtml(p.kitNo)}</div>`
         : `<div class="ssa-fleet-popup__title">${escapeHtml(p.kitNo)}</div>`;
-      const statusLine =
-        p.online == null
-          ? ""
-          : `<div class="ssa-fleet-popup__row">${p.online ? "Çevrimiçi" : "Çevrimdışı"}${
-              p.lastSeenAt ? ` · ${escapeHtml(relTime(p.lastSeenAt))}` : ""
-            }</div>`;
       const href = SOURCE_DETAIL[p.source](p.kitNo);
       m.bindPopup(
         `
         <div class="ssa-fleet-popup" data-source="${p.source}">
           ${titleLine}
-          ${statusLine}
-          <a class="ssa-fleet-popup__link" data-ssa-fleet-href="${href}" href="${href}">Detayı aç →</a>
+          <a class="ssa-fleet-popup__link" data-ssa-fleet-href="${href}" href="${href}">Detayı Aç</a>
         </div>
         `,
         { closeButton: false, maxWidth: 240 },
