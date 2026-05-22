@@ -212,7 +212,13 @@
 .ssa-fleet-pin__dot {
   position: absolute; inset: 0; border-radius: 9999px;
   border: 2px solid #fff;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.18);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.22);
+  display: flex; align-items: center; justify-content: center;
+}
+.ssa-fleet-pin__dot > svg {
+  /* Gemi ikonu pin'in içinde ortalı, kenarlardan biraz boşluk. */
+  display: block; width: 64%; height: 64%;
+  filter: drop-shadow(0 0.5px 0 rgba(0,0,0,0.15));
 }
 
 .ssa-fleet-cluster {
