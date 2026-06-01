@@ -372,13 +372,13 @@ export default function Kits() {
                     <>
                       <div className="hidden sm:block flex-1 max-w-[110px] h-[3px] rounded-full bg-border overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all ${warn ? "bg-primary" : "bg-foreground"}`}
+                          className={`h-full rounded-full transition-all ${warn ? "bg-warning" : "bg-foreground"}`}
                           style={{ width: `${pct}%` }}
                         />
                       </div>
                       <span
                         className={`font-mono text-[11px] sm:text-[12px] whitespace-nowrap tabular-nums ${
-                          warn ? "text-primary" : "text-muted-foreground"
+                          warn ? "text-warning" : "text-muted-foreground"
                         }`}
                       >
                         <span className="sm:hidden">%{Math.round(pct)} · </span>

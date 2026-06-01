@@ -54,7 +54,7 @@ export function QuotaStat({
   const valueClass: Record<QuotaStatTone, string> = {
     primary: "text-foreground",
     ok: "text-[#5fa67c]",
-    warn: "text-[#f54e00]",
+    warn: "text-warning",
     muted: "text-muted-foreground",
   };
   return (

@@ -410,7 +410,7 @@ export default function Dashboard() {
                           <>
                             <div className="h-[3px] w-full rounded-full bg-border overflow-hidden">
                               <div
-                                className={`h-full rounded-full ${warn ? "bg-primary" : "bg-foreground"}`}
+                                className={`h-full rounded-full ${warn ? "bg-warning" : "bg-foreground"}`}
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
