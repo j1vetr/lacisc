@@ -5,8 +5,9 @@ import {
   leobridgeTerminals,
   leobridgeTerminalDaily,
   leobridgeTerminalPeriodTotal,
+  whatsappAlertState,
 } from "@workspace/db";
-import { asc, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
 import { audit } from "../lib/audit";
 import { encrypt, decrypt } from "../lib/crypto";
@@ -325,6 +326,67 @@ router.delete(
       target: `account:${id}`,
     });
     res.json({ message: "Hesap ve tüm verisi silindi." });
+  },
+);
+
+// Tek bir Leo Bridge (Norway) terminalini tüm verisiyle sil. KIT başka kaynağa
+// taşındığında bayat satırı elle temizlemek için. Child tablolar credential'a
+// FK ile bağlı (terminal'e değil) — manuel sileriz.
+router.delete(
+  "/leobridge/terminals/:kit",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const kit = String(req.params.kit ?? "").trim();
+    if (!kit) {
+      res.status(400).json({ error: "Geçersiz KIT." });
+      return;
+    }
+    const { daily, periodTotal, alertState, term } = await db.transaction(
+      async (tx) => {
+        const daily = await tx
+          .delete(leobridgeTerminalDaily)
+          .where(eq(leobridgeTerminalDaily.kitSerialNumber, kit))
+          .returning({ id: leobridgeTerminalDaily.kitSerialNumber });
+        const periodTotal = await tx
+          .delete(leobridgeTerminalPeriodTotal)
+          .where(eq(leobridgeTerminalPeriodTotal.kitSerialNumber, kit))
+          .returning({ id: leobridgeTerminalPeriodTotal.kitSerialNumber });
+        const alertState = await tx
+          .delete(whatsappAlertState)
+          .where(
+            and(
+              eq(whatsappAlertState.source, "leobridge"),
+              eq(whatsappAlertState.kitNo, kit),
+            ),
+          )
+          .returning({ id: whatsappAlertState.kitNo });
+        const term = await tx
+          .delete(leobridgeTerminals)
+          .where(eq(leobridgeTerminals.kitSerialNumber, kit))
+          .returning({ id: leobridgeTerminals.kitSerialNumber });
+        return { daily, periodTotal, alertState, term };
+      },
+    );
+    if (term.length === 0) {
+      res.status(404).json({ error: "Terminal bulunamadı." });
+      return;
+    }
+    req.log.warn(
+      {
+        kit,
+        terminals: term.length,
+        daily: daily.length,
+        periodTotal: periodTotal.length,
+        alertState: alertState.length,
+      },
+      "Leobridge terminal deleted manually",
+    );
+    await audit(req, {
+      action: "leobridge.terminal.delete",
+      target: `terminal:${kit}`,
+    });
+    res.json({ message: "Terminal ve tüm verisi silindi." });
   },
 );
 

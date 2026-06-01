@@ -395,7 +395,18 @@ router.get(
     const starlinkScope = scope?.starlink ?? null;
     const starlinkRowsRaw =
       customer && (!starlinkScope || starlinkScope.length === 0)
-        ? { rows: [] as Array<Record<string, unknown>> }
+        ? {
+            rows: [] as Array<{
+              kitNo: string;
+              nickname: string | null;
+              assetName: string | null;
+              lat: number;
+              lng: number;
+              isOnline: boolean | null;
+              lastSeenAt: string | Date | null;
+              accountLabel: string | null;
+            }>,
+          }
         : ((await db.execute(sql`
             SELECT
               t.kit_serial_number AS "kitNo",
@@ -457,7 +468,17 @@ router.get(
     const leoScope = scope?.leobridge ?? null;
     const leoRowsRaw =
       customer && (!leoScope || leoScope.length === 0)
-        ? { rows: [] as Array<Record<string, unknown>> }
+        ? {
+            rows: [] as Array<{
+              kitNo: string;
+              nickname: string | null;
+              lat: number;
+              lng: number;
+              isOnline: boolean | null;
+              lastSeenAt: string | Date | null;
+              accountLabel: string | null;
+            }>,
+          }
         : ((await db.execute(sql`
             SELECT
               t.kit_serial_number AS "kitNo",
@@ -510,7 +531,34 @@ router.get(
       accountLabel: r.accountLabel,
     }));
 
-    res.json([...satcomRows, ...starlinkRows, ...leoRows]);
+    // Kaynaklar-arası tekilleştirme: bir KIT birden fazla kaynakta görünebilir
+    // (örn. Tototheo'dan Norway'e taşınmış ama eski Starlink satırı silinmemiş).
+    // Harita pini için kit_no başına TEK satır — en taze lastSeenAt kazanır;
+    // zaman damgası eşit/yoksa SOURCE_PRIO (starlink>leobridge>satcom) tie-break.
+    const SRC_PRIO: Record<string, number> = {
+      starlink: 3,
+      leobridge: 2,
+      satcom: 1,
+    };
+    const tsOf = (v: string | null): number =>
+      v ? new Date(v).getTime() : 0;
+    type FleetRow =
+      | (typeof satcomRows)[number]
+      | (typeof starlinkRows)[number]
+      | (typeof leoRows)[number];
+    const byKit = new Map<string, FleetRow>();
+    for (const row of [...satcomRows, ...starlinkRows, ...leoRows] as FleetRow[]) {
+      const prev = byKit.get(row.kitNo);
+      if (
+        !prev ||
+        tsOf(row.lastSeenAt) > tsOf(prev.lastSeenAt) ||
+        (tsOf(row.lastSeenAt) === tsOf(prev.lastSeenAt) &&
+          SRC_PRIO[row.source] > SRC_PRIO[prev.source])
+      ) {
+        byKit.set(row.kitNo, row);
+      }
+    }
+    res.json(Array.from(byKit.values()));
   },
 );
 

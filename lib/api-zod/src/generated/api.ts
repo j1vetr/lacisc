@@ -1084,6 +1084,17 @@ export const GetStarlinkTerminalDetailResponse = zod.object({
   accountLabel: zod.string().nullish(),
 });
 
+/**
+ * @summary Tek bir Starlink terminalini tüm verisiyle siler (admin).
+ */
+export const DeleteStarlinkTerminalParams = zod.object({
+  kit: zod.coerce.string(),
+});
+
+export const DeleteStarlinkTerminalResponse = zod.object({
+  message: zod.string(),
+});
+
 export const GetStarlinkTerminalDailyParams = zod.object({
   kit: zod.coerce.string(),
 });
@@ -1328,6 +1339,17 @@ export const GetLeobridgeTerminalDetailResponse = zod.object({
     ),
   accountId: zod.number().nullish(),
   accountLabel: zod.string().nullish(),
+});
+
+/**
+ * @summary Tek bir Leo Bridge terminalini tüm verisiyle siler (admin).
+ */
+export const DeleteLeobridgeTerminalParams = zod.object({
+  kit: zod.coerce.string(),
+});
+
+export const DeleteLeobridgeTerminalResponse = zod.object({
+  message: zod.string(),
 });
 
 export const GetLeobridgeTerminalDailyParams = zod.object({

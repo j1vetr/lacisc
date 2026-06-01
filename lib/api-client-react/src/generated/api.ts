@@ -4611,6 +4611,90 @@ export function useGetStarlinkTerminalDetail<
   return { ...query, queryKey: queryOptions.queryKey };
 }
 
+/**
+ * @summary Tek bir Starlink terminalini tüm verisiyle siler (admin).
+ */
+export const getDeleteStarlinkTerminalUrl = (kit: string) => {
+  return `/api/starlink/terminals/${kit}`;
+};
+
+export const deleteStarlinkTerminal = async (
+  kit: string,
+  options?: RequestInit,
+): Promise<MessageResponse> => {
+  return customFetch<MessageResponse>(getDeleteStarlinkTerminalUrl(kit), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteStarlinkTerminalMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteStarlinkTerminal>>,
+    TError,
+    { kit: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteStarlinkTerminal>>,
+  TError,
+  { kit: string },
+  TContext
+> => {
+  const mutationKey = ["deleteStarlinkTerminal"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteStarlinkTerminal>>,
+    { kit: string }
+  > = (props) => {
+    const { kit } = props ?? {};
+
+    return deleteStarlinkTerminal(kit, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteStarlinkTerminalMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteStarlinkTerminal>>
+>;
+
+export type DeleteStarlinkTerminalMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Tek bir Starlink terminalini tüm verisiyle siler (admin).
+ */
+export const useDeleteStarlinkTerminal = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteStarlinkTerminal>>,
+    TError,
+    { kit: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteStarlinkTerminal>>,
+  TError,
+  { kit: string },
+  TContext
+> => {
+  return useMutation(getDeleteStarlinkTerminalMutationOptions(options));
+};
+
 export const getGetStarlinkTerminalDailyUrl = (
   kit: string,
   params?: GetStarlinkTerminalDailyParams,
@@ -5703,6 +5787,90 @@ export function useGetLeobridgeTerminalDetail<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Tek bir Leo Bridge terminalini tüm verisiyle siler (admin).
+ */
+export const getDeleteLeobridgeTerminalUrl = (kit: string) => {
+  return `/api/leobridge/terminals/${kit}`;
+};
+
+export const deleteLeobridgeTerminal = async (
+  kit: string,
+  options?: RequestInit,
+): Promise<MessageResponse> => {
+  return customFetch<MessageResponse>(getDeleteLeobridgeTerminalUrl(kit), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteLeobridgeTerminalMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteLeobridgeTerminal>>,
+    TError,
+    { kit: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteLeobridgeTerminal>>,
+  TError,
+  { kit: string },
+  TContext
+> => {
+  const mutationKey = ["deleteLeobridgeTerminal"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteLeobridgeTerminal>>,
+    { kit: string }
+  > = (props) => {
+    const { kit } = props ?? {};
+
+    return deleteLeobridgeTerminal(kit, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteLeobridgeTerminalMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteLeobridgeTerminal>>
+>;
+
+export type DeleteLeobridgeTerminalMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Tek bir Leo Bridge terminalini tüm verisiyle siler (admin).
+ */
+export const useDeleteLeobridgeTerminal = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteLeobridgeTerminal>>,
+    TError,
+    { kit: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteLeobridgeTerminal>>,
+  TError,
+  { kit: string },
+  TContext
+> => {
+  return useMutation(getDeleteLeobridgeTerminalMutationOptions(options));
+};
 
 export const getGetLeobridgeTerminalDailyUrl = (
   kit: string,

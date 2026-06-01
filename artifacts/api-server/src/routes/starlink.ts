@@ -5,8 +5,9 @@ import {
   starlinkTerminals,
   starlinkTerminalDaily,
   starlinkTerminalPeriodTotal,
+  whatsappAlertState,
 } from "@workspace/db";
-import { eq, asc, desc, sql, count } from "drizzle-orm";
+import { eq, and, asc, desc, sql, count } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
 import { audit } from "../lib/audit";
 import { logger } from "../lib/logger";
@@ -283,6 +284,69 @@ router.delete(
       target: `account:${id}`,
     });
     res.json({ message: "Hesap ve tüm verisi silindi." });
+  },
+);
+
+// Tek bir Starlink terminalini (tüm credential'lardaki kayıtlarıyla) sil.
+// Kullanım: KIT başka bir kaynağa (örn. Norway) taşındığında bayat Tototheo
+// satırını elle temizlemek. Bir sonraki sync KIT hâlâ Tototheo'daysa tekrar
+// ekler; değilse kalıcı temiz kalır. Child tablolar terminal'e değil
+// credential'a FK ile bağlı olduğundan manuel sileriz (cascade çalışmaz).
+router.delete(
+  "/starlink/terminals/:kit",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const kit = String(req.params.kit ?? "").trim();
+    if (!kit) {
+      res.status(400).json({ error: "Geçersiz KIT." });
+      return;
+    }
+    const { daily, periodTotal, alertState, term } = await db.transaction(
+      async (tx) => {
+        const daily = await tx
+          .delete(starlinkTerminalDaily)
+          .where(eq(starlinkTerminalDaily.kitSerialNumber, kit))
+          .returning({ id: starlinkTerminalDaily.kitSerialNumber });
+        const periodTotal = await tx
+          .delete(starlinkTerminalPeriodTotal)
+          .where(eq(starlinkTerminalPeriodTotal.kitSerialNumber, kit))
+          .returning({ id: starlinkTerminalPeriodTotal.kitSerialNumber });
+        const alertState = await tx
+          .delete(whatsappAlertState)
+          .where(
+            and(
+              eq(whatsappAlertState.source, "starlink"),
+              eq(whatsappAlertState.kitNo, kit),
+            ),
+          )
+          .returning({ id: whatsappAlertState.kitNo });
+        const term = await tx
+          .delete(starlinkTerminals)
+          .where(eq(starlinkTerminals.kitSerialNumber, kit))
+          .returning({ id: starlinkTerminals.kitSerialNumber });
+        return { daily, periodTotal, alertState, term };
+      },
+    );
+    if (term.length === 0) {
+      res.status(404).json({ error: "Terminal bulunamadı." });
+      return;
+    }
+    req.log.warn(
+      {
+        kit,
+        terminals: term.length,
+        daily: daily.length,
+        periodTotal: periodTotal.length,
+        alertState: alertState.length,
+      },
+      "Starlink terminal deleted manually",
+    );
+    await audit(req, {
+      action: "starlink.terminal.delete",
+      target: `terminal:${kit}`,
+    });
+    res.json({ message: "Terminal ve tüm verisi silindi." });
   },
 );
 

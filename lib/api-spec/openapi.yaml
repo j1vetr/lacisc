@@ -1160,6 +1160,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteStarlinkTerminal
+      tags: [starlink]
+      summary: Tek bir Starlink terminalini tüm verisiyle siler (admin).
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: kit
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Silindi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /starlink/terminals/{kit}/daily:
     get:
@@ -1435,6 +1460,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LeobridgeTerminalDetail"
+        "404":
+          description: Terminal not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteLeobridgeTerminal
+      tags: [leobridge]
+      summary: Tek bir Leo Bridge terminalini tüm verisiyle siler (admin).
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: kit
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Silindi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
         "404":
           description: Terminal not found
           content:

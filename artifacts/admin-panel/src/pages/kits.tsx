@@ -15,18 +15,35 @@ import {
   getGetLeobridgeSettingsQueryKey,
   useGetMe,
   getGetMeQueryKey,
+  useDeleteStarlinkTerminal,
+  useDeleteLeobridgeTerminal,
 } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Search,
   Terminal,
   Server,
   Plus,
   Satellite,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 import { formatNumber, gibToGb } from "@/lib/format";
 
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -300,12 +317,18 @@ export default function Kits() {
                 ? Math.min(100, (r.totalGb / r.planGb) * 100)
                 : null;
             const warn = pct !== null && pct >= 80;
+            const canDelete =
+              canManageAccounts &&
+              (r.source === "starlink" || r.source === "leobridge");
             return (
-              <button
+              <div
                 key={`${r.source}:${r.kitNo}`}
-                onClick={() => handleRowClick(r.kitNo, r.source)}
-                className={`${GRID} w-full text-left px-1 py-3.5 border-b border-border hover:bg-secondary/60 transition-colors cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1`}
+                className="relative group border-b border-border"
               >
+                <button
+                  onClick={() => handleRowClick(r.kitNo, r.source)}
+                  className={`${GRID} w-full text-left px-1 py-3.5 hover:bg-secondary/60 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${canDelete ? "pr-9" : ""}`}
+                >
                 {/* Terminal */}
                 <div className="flex items-center gap-3 min-w-0">
                   <span
@@ -368,7 +391,15 @@ export default function Kits() {
                     </span>
                   )}
                 </div>
-              </button>
+                </button>
+                {canDelete && r.source !== "satcom" && (
+                  <KitDeleteButton
+                    source={r.source}
+                    kitNo={r.kitNo}
+                    shipName={r.shipName}
+                  />
+                )}
+              </div>
             );
           })
         )}
@@ -389,6 +420,87 @@ export default function Kits() {
         )}
       </div>
     </div>
+  );
+}
+
+function KitDeleteButton({
+  source,
+  kitNo,
+  shipName,
+}: {
+  source: "starlink" | "leobridge";
+  kitNo: string;
+  shipName: string | null;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const deleteStarlink = useDeleteStarlinkTerminal();
+  const deleteLeobridge = useDeleteLeobridgeTerminal();
+  const mutation = source === "starlink" ? deleteStarlink : deleteLeobridge;
+  const sourceLabel = source === "starlink" ? "Tototheo (Starlink)" : "Norway (Leo Bridge)";
+
+  const handleDelete = () => {
+    mutation.mutate(
+      { kit: kitNo },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Terminal Silindi",
+            description: `${kitNo} ${sourceLabel} kaynağından temizlendi.`,
+          });
+          queryClient.invalidateQueries();
+        },
+        onError: (err: unknown) => {
+          toast({
+            title: "Silme Başarısız",
+            description:
+              (err instanceof Error ? err.message : null) ||
+              "Terminal silinemedi.",
+            variant: "destructive",
+          });
+        },
+      },
+    );
+  };
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <button
+          type="button"
+          title="Terminali sil"
+          aria-label="Terminali sil"
+          className="absolute right-1 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {mutation.isPending ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Trash2 className="w-3.5 h-3.5" />
+          )}
+        </button>
+      </AlertDialogTrigger>
+      <AlertDialogContent className="rounded-xl">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Terminali sil?</AlertDialogTitle>
+          <AlertDialogDescription>
+            <span className="font-mono">{kitNo}</span>
+            {shipName ? ` (${shipName})` : ""} terminali ve tüm geçmişi{" "}
+            <strong>{sourceLabel}</strong> kaynağından kalıcı olarak silinecek.
+            KIT hâlâ bu kaynakta aktifse bir sonraki senkronizasyonda tekrar
+            eklenir.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="rounded-lg">Vazgeç</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleDelete}
+            className="rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Sil
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
