@@ -299,7 +299,7 @@ export default function Dashboard() {
         </div>
         <Suspense
           fallback={
-            <div className="h-[360px] sm:h-[440px] rounded-lg bg-secondary/30 animate-pulse" />
+            <div className="h-[300px] sm:h-[420px] rounded-lg bg-secondary/30 animate-pulse" />
           }
         >
           <FleetMap />

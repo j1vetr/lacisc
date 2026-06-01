@@ -23,6 +23,11 @@ const SOURCE_DETAIL: Record<Source, (k: string) => string> = {
   starlink: (k) => `/starlink/${encodeURIComponent(k)}`,
   leobridge: (k) => `/norway/${encodeURIComponent(k)}`,
 };
+const SOURCE_LABEL: Record<Source, string> = {
+  satcom: "SATCOM",
+  starlink: "STARLINK",
+  leobridge: "NORWAY",
+};
 
 function escapeHtml(s: string): string {
   return s
@@ -83,7 +88,7 @@ export interface FleetMapProps {
  * filtresi). Konum verisi olmayan KIT sessizce gizlenir.
  */
 export default function FleetMap({
-  heightClass = "h-[360px] sm:h-[440px]",
+  heightClass = "h-[300px] sm:h-[420px]",
   hideTiles = false,
 }: FleetMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -172,17 +177,21 @@ export default function FleetMap({
     const markers: L.Marker[] = [];
     for (const p of visiblePoints) {
       const icon = makePinIcon(p.source, p.online ?? null);
-      const m = L.marker([p.lat, p.lng], { icon });
-      const titleLine = p.shipName
-        ? `<div class="ssa-fleet-popup__title">${escapeHtml(p.shipName)}</div>
-           <div class="ssa-fleet-popup__sub">${escapeHtml(p.kitNo)}</div>`
-        : `<div class="ssa-fleet-popup__title">${escapeHtml(p.kitNo)}</div>`;
+      const title = p.shipName ? p.shipName : p.kitNo;
+      // keyboard:true → leaflet pin'e tabindex=0 ekler, Enter popup'ı açar (a11y).
+      const m = L.marker([p.lat, p.lng], { icon, keyboard: true, alt: title });
+      const sourceLabel = SOURCE_LABEL[p.source];
+      const acct = p.accountLabel
+        ? ` · Hesap: ${escapeHtml(p.accountLabel)}`
+        : "";
       const href = SOURCE_DETAIL[p.source](p.kitNo);
       m.bindPopup(
         `
         <div class="ssa-fleet-popup" data-source="${p.source}">
-          ${titleLine}
-          <a class="ssa-fleet-popup__link" data-ssa-fleet-href="${href}" href="${href}">Detayı Aç</a>
+          <div class="ssa-fleet-popup__title">${escapeHtml(title)}</div>
+          <div class="ssa-fleet-popup__sub">KIT: ${escapeHtml(p.kitNo)} · ${sourceLabel}${acct}</div>
+          <div class="ssa-fleet-popup__sub">Son konum: ${escapeHtml(relTime(p.lastSeenAt))}</div>
+          <a class="ssa-fleet-popup__link" data-ssa-fleet-href="${href}" href="${href}">Detaya git →</a>
         </div>
         `,
         { closeButton: false, maxWidth: 240 },
@@ -250,9 +259,13 @@ export default function FleetMap({
       )}
       {empty && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[12px] text-muted-foreground px-6 text-center">
-          Henüz konum verisi olan terminal yok.
+          Henüz konum verisi alınan KIT yok — bir sonraki sync sonrasında burada
+          gözükecekler.
         </div>
       )}
+      <p className="sr-only" aria-live="polite">
+        {visiblePoints.length} gemi haritada
+      </p>
     </div>
   );
 }
