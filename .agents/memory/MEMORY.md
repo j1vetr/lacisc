@@ -1,1 +1,3 @@
-- [Monochrome-primary design migration](design-monochrome-primary.md) — when the brand accent is removed and `--primary` goes monochrome, any state distinguished only by `bg-primary` vs `bg-foreground` collapses; needs a dedicated semantic token.
+# Memory Index
+
+- [Source selection: freshest wins](source-selection-freshest-wins.md) — multi-source KIT conflicts resolve by latest updated_at, source priority only tie-breaks; stale rows cleared by manual delete, not auto-dedup in lists.

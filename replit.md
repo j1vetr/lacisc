@@ -58,15 +58,11 @@ See `lib/db/src/schema/index.ts` and `lib/api-spec/openapi.yaml` for source-of-t
 
 ## Design system
 
-- **Framer dark** marketing sistemi (2026-06-01 token migrasyonu): near-black warm canvas (#0b0a09) + monochrome ink (#fafafa); surface lift canvas → surface-1 (#161513) → surface-2 (#232220) ile hiyerarşi. `next-themes` light/dark toggle KORUNDU (persist `ssa-theme`); light mod = monochrome inverse (beyaz canvas + ink). Tüm token'lar `src/index.css` `:root`/`.dark` HSL değişkenleri.
-- Tek kromatik aksan: **Sky Blue #0099ff** — yalnız sinyal rolünde (focus ring `--ring`, link `--link`, selection). ASLA buton dolgusu/glow değil (CTA shadow nötr).
-- Birincil CTA = **monochrome pill** (`--primary`: dark'ta beyaz, light'ta near-black). Tüm butonlar pill (`button.tsx` base `rounded-full`), icon butonlar tam daire.
-- Semantik durumlar: success yeşil, **warning amber (`--warning` #d97706 / dark #f7a836)**, destructive kırmızı. Kota ≥%80 uyarı çubukları `bg-warning`/`text-warning` (artık `bg-primary` DEĞİL — monochrome primary'ye çökmesin diye).
-- Tipografi: **Mona Sans** display (`--app-font-display`, h1-h3, tracking -0.03em) + Inter body (OpenType: cv01/05/09/11, ss03/07, dlig) + JetBrains Mono (`--app-font-mono`, sayısal/KIT ID). Fontlar `index.html` Google Fonts link.
-- Radius ölçeği Framer: sm 6 / md 10 / lg 15 / xl 20 / pill 9999; `--radius` 15px.
-- Hairline-only depth, drop-shadow yok.
-- tr-TR (`src/lib/format.ts`); tüm UI Türkçe.
-- `editorial.css` hiçbir yerde import edilmiyor (ölü dosya) — migrasyonda atlandı; `customer-sade.css` paleti Framer'a güncellendi.
+- Cursor.com inspired warm cream (#f7f7f4) + warm ink (#26251e); dark mode via `next-themes` (persist `ssa-theme`)
+- Tek CTA rengi: Cursor Orange (#f54e00)
+- Inter (UI) + JetBrains Mono (sayısal/KIT ID)
+- Hairline-only depth (1px #e6e5e0), drop-shadow yok
+- tr-TR (`src/lib/format.ts`); tüm UI Türkçe
 
 ## User preferences
 

@@ -231,7 +231,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
               <div className="mt-5">
                 <div className="relative h-3 bg-secondary rounded-full overflow-hidden">
                   <div
-                    className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500 bg-[#0099ff]"
+                    className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500 bg-[#f54e00]"
                     style={{ width: `${usedPct ?? 0}%` }}
                   />
                 </div>
@@ -289,7 +289,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
               <div className="mt-5">
                 <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-border">
                   <div
-                    className="h-full bg-[#0099ff]"
+                    className="h-full bg-[#f54e00]"
                     style={{ width: `${priorityPct}%` }}
                     title={`Öncelikli ${formatNumber(priority, 1)} GB`}
                   />
@@ -301,7 +301,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
                 </div>
                 <div className="mt-2 flex items-center gap-4 text-[11px] font-mono text-muted-foreground">
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-sm bg-[#0099ff]" />
+                    <span className="w-2 h-2 rounded-sm bg-[#f54e00]" />
                     Öncelikli
                   </span>
                   <span className="inline-flex items-center gap-1.5">
@@ -426,7 +426,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
                 <Bar
                   stackId="1"
                   dataKey="priority"
-                  fill="#0099ff"
+                  fill="#f54e00"
                   radius={[0, 0, 0, 0]}
                   isAnimationActive={false}
                 />
@@ -504,7 +504,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
                       <Cell
                         key={m.period}
                         fill={
-                          m.period === activePeriod ? "#0099ff" : "#dfa88f"
+                          m.period === activePeriod ? "#f54e00" : "#dfa88f"
                         }
                         cursor="pointer"
                         onClick={() => setSelectedPeriod(m.period)}

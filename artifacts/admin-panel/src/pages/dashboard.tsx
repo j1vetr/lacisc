@@ -299,7 +299,7 @@ export default function Dashboard() {
         </div>
         <Suspense
           fallback={
-            <div className="h-[300px] sm:h-[420px] rounded-lg bg-secondary/30 animate-pulse" />
+            <div className="h-[360px] sm:h-[440px] rounded-lg bg-secondary/30 animate-pulse" />
           }
         >
           <FleetMap />
@@ -410,7 +410,7 @@ export default function Dashboard() {
                           <>
                             <div className="h-[3px] w-full rounded-full bg-border overflow-hidden">
                               <div
-                                className={`h-full rounded-full ${warn ? "bg-warning" : "bg-foreground"}`}
+                                className={`h-full rounded-full ${warn ? "bg-primary" : "bg-foreground"}`}
                                 style={{ width: `${pct}%` }}
                               />
                             </div>

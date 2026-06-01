@@ -228,12 +228,12 @@ export default function CustomerPanel() {
           <Suspense
             fallback={
               <div
-                className="h-[300px] sm:h-[420px] rounded-lg animate-pulse"
+                className="h-[320px] sm:h-[420px] rounded-lg animate-pulse"
                 style={{ background: "var(--sd-hairline)" }}
               />
             }
           >
-            <FleetMap heightClass="h-[300px] sm:h-[420px]" />
+            <FleetMap heightClass="h-[320px] sm:h-[420px]" />
           </Suspense>
         </div>
       </section>

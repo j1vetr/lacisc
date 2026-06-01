@@ -265,7 +265,7 @@ export default function Login() {
 
               <Button
                 type="submit"
-                className="group w-full h-12 rounded-xl font-semibold text-[15px] bg-primary text-primary-foreground hover:bg-primary/90 transition-all mt-2 shadow-[0_10px_28px_-8px_rgba(0,0,0,0.28)] hover:shadow-[0_14px_34px_-8px_rgba(0,0,0,0.4)] hover:-translate-y-[1px] active:translate-y-0 tracking-wide"
+                className="group w-full h-12 rounded-xl font-semibold text-[15px] bg-primary text-primary-foreground hover:bg-primary/90 transition-all mt-2 shadow-[0_10px_28px_-8px_rgba(245,78,0,0.55)] hover:shadow-[0_14px_34px_-8px_rgba(245,78,0,0.7)] hover:-translate-y-[1px] active:translate-y-0 tracking-wide"
                 disabled={loginMutation.isPending}
               >
                 <span className="inline-flex items-center gap-2">

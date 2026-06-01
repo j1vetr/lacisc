@@ -362,7 +362,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                   <div className="mt-4">
                     <div className="relative h-3 bg-secondary rounded-full overflow-hidden">
                       <div
-                        className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500 bg-[#0099ff]"
+                        className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500 bg-[#f54e00]"
                         style={{ width: `${Math.min(usedPct, 100)}%` }}
                       />
                     </div>
@@ -449,8 +449,8 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
               >
                 <defs>
                   <linearGradient id="ssa-starlink-grad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#0099ff" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#0099ff" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#f54e00" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#f54e00" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid stroke="#e6e5e0" strokeDasharray="2 4" vertical={false} />
@@ -480,7 +480,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                 <Area
                   type="monotone"
                   dataKey="gib"
-                  stroke="#0099ff"
+                  stroke="#f54e00"
                   strokeWidth={2}
                   fill="url(#ssa-starlink-grad)"
                 />
