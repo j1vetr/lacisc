@@ -37,6 +37,8 @@ router.patch(
     if (body.endpointUrl !== undefined) patch.endpointUrl = body.endpointUrl;
     if (body.testRecipient !== undefined)
       patch.testRecipient = body.testRecipient;
+    if (typeof body.dailySendHour === "number")
+      patch.dailySendHour = body.dailySendHour;
     if (body.apiKey !== undefined) patch.apiKey = body.apiKey;
     try {
       const settings = await saveWhatsappSettings(patch);

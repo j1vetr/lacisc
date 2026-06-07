@@ -2484,7 +2484,7 @@ components:
 
     WhatsappSettings:
       type: object
-      required: [enabled, hasApiKey, endpointUrl, updatedAt]
+      required: [enabled, hasApiKey, endpointUrl, dailySendHour, updatedAt]
       properties:
         enabled: { type: boolean }
         hasApiKey: { type: boolean, description: "true → kayıtlı API anahtarı var (gerçek değer dönmez)" }
@@ -2494,6 +2494,11 @@ components:
           type: number
           nullable: true
           description: "Plan kotası bilinmediğinde / kural eşleşmediğinde fallback olarak kullanılan e-posta eşiği (email_settings.thresholdStepGib). Read-only — e-posta ayarlarından yönetilir."
+        dailySendHour:
+          type: integer
+          minimum: 0
+          maximum: 23
+          description: "Günlük özet gönderim saati (0-23, Türkiye saati). Eşik bildirimleri her sync turunda değil, günde bir kez bu saatte toplu gider."
         updatedAt: { type: string, format: date-time }
 
     WhatsappSettingsUpdate:
@@ -2506,6 +2511,11 @@ components:
           description: "undefined → değişmez, '' veya null → temizler, dolu → yeni anahtar."
         endpointUrl: { type: string }
         testRecipient: { type: string, nullable: true }
+        dailySendHour:
+          type: integer
+          minimum: 0
+          maximum: 23
+          description: "Günlük özet gönderim saati (0-23, Türkiye saati). Aralık dışı değerler clamp edilir."
 
     WhatsappTestResult:
       type: object

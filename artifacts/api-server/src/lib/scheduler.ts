@@ -10,7 +10,6 @@ import {
 import { runStarlinkSync, isStarlinkSyncRunning } from "./starlink-sync";
 import { runLeobridgeSync, isLeobridgeSyncRunning } from "./leobridge-sync";
 import * as progress from "./sync-progress";
-import { flushAllPendingDigests } from "./whatsapp";
 
 let schedulerTimer: ReturnType<typeof setTimeout> | null = null;
 let cachedIntervalMinutes = 30;
@@ -258,13 +257,9 @@ async function runScheduledTick(): Promise<void> {
     logger.error({ err }, "Scheduled Satcom phase crashed");
   }
 
-  // WhatsApp digest: cron tur sonunda alıcı başına biriken tüm pending
-  // alert'leri tek mesajda topla — manual /sync-now ile aynı davranış.
-  try {
-    await flushAllPendingDigests();
-  } catch (err) {
-    logger.error({ err }, "Cron tur sonrası WhatsApp digest flush hatası");
-  }
+  // WhatsApp bildirimleri artık tur sonunda DEĞİL, günde bir kez ayarlanan
+  // saatte (whatsapp.ts::runDailyDigestIfDue) gönderilir. Sync turu sadece
+  // whatsapp_pending_alert kuyruğuna yazar.
 
   const ok = starlinkOk && leobridgeOk && satcomOk;
   progress.finishCombinedRun(

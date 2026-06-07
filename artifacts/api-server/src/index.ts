@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startScheduler } from "./lib/scheduler";
+import { startWhatsappDailyDigest } from "./lib/whatsapp";
 import { db, adminUsers } from "@workspace/db";
 import { eq, isNull, and, isNotNull } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -143,6 +144,7 @@ app.listen(port, async (err) => {
   try {
     await seed();
     await startScheduler();
+    startWhatsappDailyDigest();
   } catch (seedErr) {
     logger.error({ err: seedErr }, "Seed error");
   }

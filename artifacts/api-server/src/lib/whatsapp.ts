@@ -10,7 +10,7 @@
 // sınırlanır (history backfill spam etmez).
 // ---------------------------------------------------------------------------
 
-import { and, eq, isNull, sql, or, lte, desc } from "drizzle-orm";
+import { and, eq, isNull, sql, or, lte, desc, asc, inArray } from "drizzle-orm";
 import {
   db,
   adminUsers,
@@ -18,6 +18,7 @@ import {
   whatsappSettings,
   whatsappThresholdRules,
   whatsappAlertState,
+  whatsappPendingAlert,
   starlinkTerminals,
   leobridgeTerminals,
   stationKits,
@@ -40,6 +41,9 @@ export type WhatsappSettingsView = {
   // Plan kotası bilinmiyorsa veya hiçbir whatsapp_threshold_rules kuralı
   // eşleşmiyorsa pickStepGb bu değeri kullanır.
   emailFallbackThresholdGb: number | null;
+  // Günlük özet gönderim saati (0-23, Türkiye saati). Eşik bildirimleri her
+  // sync turunda değil, günde bir kez bu saatte toplu gider.
+  dailySendHour: number;
   updatedAt: Date;
 };
 
@@ -66,6 +70,7 @@ export async function getWhatsappSettings(): Promise<WhatsappSettingsView> {
       endpointUrl: DEFAULT_WHATSAPP_ENDPOINT,
       testRecipient: null,
       emailFallbackThresholdGb: emailFallback,
+      dailySendHour: 13,
       updatedAt: new Date(),
     };
   }
@@ -79,6 +84,7 @@ export async function getWhatsappSettings(): Promise<WhatsappSettingsView> {
     endpointUrl: safeEndpoint,
     testRecipient: row.testRecipient,
     emailFallbackThresholdGb: emailFallback,
+    dailySendHour: row.dailySendHour ?? 13,
     updatedAt: row.updatedAt,
   };
 }
@@ -89,6 +95,8 @@ export type WhatsappSettingsUpdate = {
   apiKey?: string | null;
   endpointUrl?: string;
   testRecipient?: string | null;
+  // 0-23 (Türkiye saati). Aralık dışı değerler clamp edilir.
+  dailySendHour?: number;
 };
 
 // Güvenlik: SSRF + API anahtarı sızıntısını önlemek için endpoint URL
@@ -122,6 +130,9 @@ export async function saveWhatsappSettings(
   }
   if (patch.testRecipient !== undefined)
     update.testRecipient = patch.testRecipient;
+  if (patch.dailySendHour !== undefined && Number.isFinite(patch.dailySendHour)) {
+    update.dailySendHour = Math.max(0, Math.min(23, Math.trunc(patch.dailySendHour)));
+  }
   if (patch.apiKey !== undefined) {
     update.apiKeyEncrypted =
       patch.apiKey === null || patch.apiKey === ""
@@ -142,6 +153,7 @@ export async function saveWhatsappSettings(
       opsRecipients: null,
       testRecipient:
         (update.testRecipient as string | null | undefined) ?? null,
+      dailySendHour: (update.dailySendHour as number | undefined) ?? 13,
       globalThresholdGb: null,
       updatedAt: update.updatedAt as Date,
     })
@@ -316,29 +328,25 @@ async function processSendQueue(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Per-receiver digest buffer
+// Günlük özet (daily digest)
 //
 // WhatsApp consumer apps (wpileti.com benzeri unofficial wrapper'lar dahil)
 // aynı kontağa kısa sürede arka arkaya çok mesaj atınca anti-spam motoruna
 // takılıp mesajları "Mesaj bekleniyor" pending durumuna düşürüyor (provider
-// 200 OK dönse bile teslim edilmiyor). Çözüm: aynı sync turunda aynı alıcıya
-// giden tüm KIT eşik bildirimlerini TEK mesajda birleştir.
+// 200 OK dönse bile teslim edilmiyor). Çözüm: eşik bildirimlerini her sync
+// turunda göndermek yerine GÜNDE BİR KEZ, panelden ayarlanabilir saatte
+// (dailySendHour, varsayılan 13:00 Türkiye saati) alıcı başına tek mesajda
+// topla.
 //
-// Akış: maybeFireWhatsappAlert(...) artık doğrudan sendOne enqueue etmek
-// yerine, alıcı başına PendingAlertItem buffer'ına ekler ve debounce timer
-// kurar. 5 sn yeni alert eklenmeyince flushDigest devreye girer; tek alıcı
-// için 1..N mesaj enqueueSend edilir (20 KIT'ten fazlası bölünür).
+// Akış: maybeFireWhatsappAlert(...) eşik geçişini atomic claim ile işaretler
+// ve alert'i kalıcı `whatsapp_pending_alert` tablosuna yazar (gönderim YOK).
+// startWhatsappDailyDigest() dakikada bir runDailyDigestIfDue() çalıştırır;
+// Istanbul saati >= dailySendHour ve o gün henüz flush yapılmadıysa pencere
+// atomic claim edilir (lastDailyFlushDate = bugün) ve flushPendingDigests()
+// bekleyen tüm alert'leri alıcı başına tek mesajda (20+ KIT'te bölünmüş seri)
+// gönderim kuyruğuna iter, ardından satırları siler.
 // ---------------------------------------------------------------------------
 
-// Tek gerçek flush yolu artık orchestrator'un tur sonu hook'u
-// (`flushAllPendingDigests()` — manual `/sync-now` ve cron tick'inde çağrılır).
-// Debounce timer pasif bir failsafe olarak duruyor: değer cron aralığından
-// (varsayılan 30 dk, MAX_INTERVAL_MINUTES=360 dk) yeterince büyük tutulur ki
-// normal akışta asla erken tetiklenmesin — yani bir sync turunda biriken her
-// alert ALICI BAŞINA TEK mesajda toplanır. Tur sonu hook'u herhangi bir nedenle
-// (orchestrator hard-crash sonrası mid-state vs.) atlanırsa, en kötü
-// `MAX_INTERVAL_MINUTES + 30 dk` sonra failsafe devreye girer.
-const DIGEST_DEBOUNCE_MS = 6 * 60 * 60 * 1000; // 6 saat
 const MAX_KITS_PER_MESSAGE = 20;
 const BAR_SEGMENTS = 8;
 
@@ -352,26 +360,11 @@ type PendingAlertItem = {
   crossedStep: number;
 };
 
-const pendingDigest = new Map<
-  string,
-  { alerts: PendingAlertItem[]; flushTimer: ReturnType<typeof setTimeout> | null }
->();
-
-function enqueueAlertForReceiver(
-  receiver: string,
-  alert: PendingAlertItem
-): void {
-  let entry = pendingDigest.get(receiver);
-  if (!entry) {
-    entry = { alerts: [], flushTimer: null };
-    pendingDigest.set(receiver, entry);
-  }
-  entry.alerts.push(alert);
-  if (entry.flushTimer) clearTimeout(entry.flushTimer);
-  entry.flushTimer = setTimeout(() => {
-    void flushDigestForReceiver(receiver);
-  }, DIGEST_DEBOUNCE_MS);
-}
+// Eşik geçişi atomic claim'i geçtikten sonra alert kalıcı DB kuyruğuna
+// (whatsapp_pending_alert) yazılır — gönderim ANINDA YAPILMAZ.
+// runDailyDigestIfDue() ayarlanan saatte (dailySendHour) alıcı başına tek
+// mesajda toplayıp gönderir. INSERT, idempotency claim'iyle aynı
+// transaction'da yapılır (maybeFireWhatsappAlert) — bkz. atomiklik notu.
 
 function severityFor(pct: number): string {
   return pct >= 95 ? "🔴" : pct >= 80 ? "🟠" : pct >= 50 ? "🟡" : "🟢";
@@ -470,72 +463,162 @@ function buildDigestMessages(alerts: PendingAlertItem[]): string[] {
   });
 }
 
-// Sync orchestrator'unun (hem manual `/sync-now` hem 30 dk cron) tur sonunda
-// çağırdığı flush. Bekleyen tüm alıcı buffer'larını HEMEN gönderim kuyruğuna
-// itmek için debounce timer'larını iptal edip flushDigestForReceiver çağırır.
-// Sonuç: bir sync turunda biriken her alert tek mesajda toplanır (KIT'ler
-// arası 30-60 sn'lik scraper boşluğu artık digest'i bölmez).
-export async function flushAllPendingDigests(): Promise<void> {
-  const receivers = Array.from(pendingDigest.keys());
-  if (receivers.length === 0) return;
-  for (const receiver of receivers) {
-    const entry = pendingDigest.get(receiver);
-    if (entry?.flushTimer) {
-      clearTimeout(entry.flushTimer);
-      entry.flushTimer = null;
-    }
-  }
-  await Promise.all(receivers.map((r) => flushDigestForReceiver(r)));
+// Istanbul (Europe/Istanbul) saatine göre bugünün tarihini (YYYY-MM-DD) ve
+// saatini (0-23) döner. Server TZ ne olursa olsun gönderim saati operatörün
+// yerel saatine sabitlenir.
+function istanbulNow(): { dateStr: string; hour: number } {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Istanbul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  const dateStr = `${get("year")}-${get("month")}-${get("day")}`;
+  // Intl bazı ortamlarda gece yarısını "24" döndürebilir — 0'a normalize et.
+  const rawHour = Number(get("hour"));
+  const hour = Number.isFinite(rawHour) ? rawHour % 24 : 0;
+  return { dateStr, hour };
 }
 
-async function flushDigestForReceiver(receiver: string): Promise<void> {
-  const entry = pendingDigest.get(receiver);
-  if (!entry || entry.alerts.length === 0) {
-    pendingDigest.delete(receiver);
-    return;
-  }
-  const alerts = entry.alerts;
-  pendingDigest.delete(receiver);
-
+// startWhatsappDailyDigest()'in dakikada bir çağırdığı kontrol. Istanbul saati
+// dailySendHour'a ulaştıysa ve bugün henüz flush yapılmadıysa, pencereyi atomic
+// olarak claim eder (lastDailyFlushDate = bugün) ve flushPendingDigests()
+// çalıştırır. Atomic claim sayesinde örtüşen tick'ler çift göndermez; downtime
+// sonrası saat geçilmişse ilk tick yakalar (catch-up). Flush başarısız olsa bile
+// pending satırlar silinmediği için en kötü ertesi güne ertelenir.
+export async function runDailyDigestIfDue(): Promise<void> {
   try {
-    const settings = await getWhatsappSettings();
-    if (!settings.enabled || !settings.hasApiKey) return;
     const [row] = await db
-      .select({ apiKey: whatsappSettings.apiKeyEncrypted })
+      .select({
+        enabled: whatsappSettings.enabled,
+        hour: whatsappSettings.dailySendHour,
+        last: whatsappSettings.lastDailyFlushDate,
+      })
       .from(whatsappSettings)
       .where(eq(whatsappSettings.id, 1));
-    if (!row?.apiKey) return;
-    const apiKey = decrypt(row.apiKey);
+    if (!row || !row.enabled) return;
 
+    const sendHour = row.hour ?? 13;
+    const { dateStr, hour } = istanbulNow();
+    if (hour < sendHour) return;
+    if (row.last === dateStr) return;
+
+    // Pencereyi atomic claim et: yalnız son flush bugün değilse güncelle.
+    const claimed = await db
+      .update(whatsappSettings)
+      .set({ lastDailyFlushDate: dateStr })
+      .where(
+        and(
+          eq(whatsappSettings.id, 1),
+          sql`(${whatsappSettings.lastDailyFlushDate} IS DISTINCT FROM ${dateStr})`
+        )
+      )
+      .returning({ id: whatsappSettings.id });
+    if (claimed.length === 0) return;
+
+    try {
+      await flushPendingDigests();
+    } catch (flushErr) {
+      // Flush başarısız → pencere claim'ini geri al ki bir sonraki dakikalık
+      // tick aynı gün tekrar denesin. Aksi halde gün "gönderildi" işaretli
+      // kalır ve o gün hiç bildirim gitmez (pending satırları korunsa bile
+      // ertesi güne ertelenir). Claim hâlâ bizimse geri al.
+      await db
+        .update(whatsappSettings)
+        .set({ lastDailyFlushDate: row.last ?? null })
+        .where(
+          and(
+            eq(whatsappSettings.id, 1),
+            eq(whatsappSettings.lastDailyFlushDate, dateStr)
+          )
+        );
+      throw flushErr;
+    }
+  } catch (err) {
+    logger.error({ err }, "runDailyDigestIfDue hatası");
+  }
+}
+
+// Bekleyen tüm pending alert'leri DB'den oku, alıcıya göre grupla, alıcı başına
+// tek mesajda (20+ KIT'te bölünmüş seri) gönderim kuyruğuna it ve gönderilen
+// satırları sil.
+async function flushPendingDigests(): Promise<void> {
+  const settings = await getWhatsappSettings();
+  if (!settings.enabled || !settings.hasApiKey) return;
+  const [keyRow] = await db
+    .select({ apiKey: whatsappSettings.apiKeyEncrypted })
+    .from(whatsappSettings)
+    .where(eq(whatsappSettings.id, 1));
+  if (!keyRow?.apiKey) return;
+  const apiKey = decrypt(keyRow.apiKey);
+
+  const pending = await db
+    .select()
+    .from(whatsappPendingAlert)
+    .orderBy(asc(whatsappPendingAlert.createdAt));
+  if (pending.length === 0) return;
+
+  const byReceiver = new Map<string, PendingAlertItem[]>();
+  const flushedIds: number[] = [];
+  for (const p of pending) {
+    flushedIds.push(p.id);
+    const list = byReceiver.get(p.receiver) ?? [];
+    list.push({
+      source: p.source as WhatsappAlertSource,
+      kitNo: p.kitNo,
+      period: p.period,
+      totalGb: p.totalGb,
+      planAllowanceGb: p.planAllowanceGb,
+      shipName: p.shipName,
+      crossedStep: p.crossedStep,
+    });
+    byReceiver.set(p.receiver, list);
+  }
+
+  let totalMessages = 0;
+  for (const [receiver, alerts] of byReceiver) {
     const messages =
       alerts.length === 1
         ? [buildSingleKitMessage(alerts[0])]
         : buildDigestMessages(alerts);
-
     messages.forEach((message, idx) => {
-      const part =
-        messages.length > 1 ? `/${idx + 1}of${messages.length}` : "";
+      const part = messages.length > 1 ? `/${idx + 1}of${messages.length}` : "";
       const label = `digest→${receiver}[${alerts.length}KIT${part}]`;
       enqueueSend(label, () =>
         sendOne({ endpointUrl: settings.endpointUrl, apiKey, receiver, message })
       );
     });
-
-    logger.info(
-      {
-        receiver,
-        kitCount: alerts.length,
-        messages: messages.length,
-        queueDepth: sendQueue.length,
-      },
-      "WhatsApp digest sıraya alındı"
-    );
-  } catch (err) {
-    logger.error(
-      { err, receiver, kitCount: alerts.length },
-      "WhatsApp digest flush hatası"
-    );
+    totalMessages += messages.length;
   }
+
+  // Kuyruğa alındı → DB'den temizle (idempotent — aynı gün tekrar flush olmaz).
+  await db
+    .delete(whatsappPendingAlert)
+    .where(inArray(whatsappPendingAlert.id, flushedIds));
+
+  logger.info(
+    {
+      receivers: byReceiver.size,
+      kits: flushedIds.length,
+      messages: totalMessages,
+      queueDepth: sendQueue.length,
+    },
+    "WhatsApp günlük özet sıraya alındı"
+  );
+}
+
+// Boot'ta çağrılır: dakikada bir runDailyDigestIfDue() çalıştırır + açılışta
+// bir kez kontrol eder (downtime catch-up).
+let dailyDigestTimer: ReturnType<typeof setInterval> | null = null;
+export function startWhatsappDailyDigest(): void {
+  if (dailyDigestTimer) clearInterval(dailyDigestTimer);
+  dailyDigestTimer = setInterval(() => {
+    void runDailyDigestIfDue();
+  }, 60_000);
+  void runDailyDigestIfDue();
 }
 
 async function sendOne(opts: {
@@ -737,54 +820,15 @@ export async function maybeFireWhatsappAlert(opts: {
 
     // Atomic claim: UPSERT + WHERE last < crossed garantisi.
     // Önce mevcut satırı dene; yoksa insert (çakışma → update şartı kontrolü).
-    const claimUpdate = await db
-      .update(whatsappAlertState)
-      .set({ lastAlertStepGb: crossedStep, updatedAt: new Date() })
-      .where(
-        and(
-          eq(whatsappAlertState.source, opts.source),
-          eq(whatsappAlertState.credentialId, opts.credentialId),
-          eq(whatsappAlertState.kitNo, opts.kitNo),
-          eq(whatsappAlertState.period, opts.period),
-          sql`${whatsappAlertState.lastAlertStepGb} < ${crossedStep}`
-        )
-      )
-      .returning({ source: whatsappAlertState.source });
-
-    let claimed = claimUpdate.length > 0;
-    if (!claimed) {
-      // Satır hiç yoksa insert et — çakışma varsa zaten >= crossed demektir.
-      const inserted = await db
-        .insert(whatsappAlertState)
-        .values({
-          source: opts.source,
-          credentialId: opts.credentialId,
-          kitNo: opts.kitNo,
-          period: opts.period,
-          lastAlertStepGb: crossedStep,
-          updatedAt: new Date(),
-        })
-        .onConflictDoNothing()
-        .returning({ source: whatsappAlertState.source });
-      claimed = inserted.length > 0;
-    }
-    if (!claimed) return;
-
+    // Alıcıları claim ÖNCESİ (read-only) çöz — boş ise claim'i yine de kalıcı
+    // yapıp döneriz (tekrar tetiklenmesin).
     const recipients = await resolveRecipientsForKit({
       kitNo: opts.kitNo,
       source: opts.source,
     });
-    if (recipients.length === 0) {
-      logger.info(
-        { source: opts.source, kitNo: opts.kitNo, crossedStep },
-        "WhatsApp eşik geçildi ama alıcı yok — claim kalıcı."
-      );
-      return;
-    }
 
     const plan = opts.planAllowanceGb;
     const hasPlan = plan != null && Number.isFinite(plan) && plan > 0;
-
     const item: PendingAlertItem = {
       source: opts.source,
       kitNo: opts.kitNo,
@@ -794,8 +838,68 @@ export async function maybeFireWhatsappAlert(opts: {
       shipName: opts.shipName ?? null,
       crossedStep,
     };
-    for (const receiver of recipients) {
-      enqueueAlertForReceiver(receiver, item);
+
+    // Atomic: idempotency claim (whatsapp_alert_state) ile pending alert INSERT'i
+    // TEK transaction'da yapılır. Aksi halde ikisinin arasında crash olursa
+    // claim kalıcı kalıp pending oluşmaz → eşik kaybolur (kullanıcı mesajı
+    // hiç almaz). Transaction sayesinde ya ikisi de commit olur ya hiçbiri.
+    const claimed = await db.transaction(async (tx) => {
+      const claimUpdate = await tx
+        .update(whatsappAlertState)
+        .set({ lastAlertStepGb: crossedStep, updatedAt: new Date() })
+        .where(
+          and(
+            eq(whatsappAlertState.source, opts.source),
+            eq(whatsappAlertState.credentialId, opts.credentialId),
+            eq(whatsappAlertState.kitNo, opts.kitNo),
+            eq(whatsappAlertState.period, opts.period),
+            sql`${whatsappAlertState.lastAlertStepGb} < ${crossedStep}`
+          )
+        )
+        .returning({ source: whatsappAlertState.source });
+
+      let ok = claimUpdate.length > 0;
+      if (!ok) {
+        // Satır hiç yoksa insert et — çakışma varsa zaten >= crossed demektir.
+        const inserted = await tx
+          .insert(whatsappAlertState)
+          .values({
+            source: opts.source,
+            credentialId: opts.credentialId,
+            kitNo: opts.kitNo,
+            period: opts.period,
+            lastAlertStepGb: crossedStep,
+            updatedAt: new Date(),
+          })
+          .onConflictDoNothing()
+          .returning({ source: whatsappAlertState.source });
+        ok = inserted.length > 0;
+      }
+      if (!ok) return false;
+
+      // Claim alındı; alıcı varsa aynı transaction'da pending'e yaz.
+      for (const receiver of recipients) {
+        await tx.insert(whatsappPendingAlert).values({
+          receiver,
+          source: item.source,
+          kitNo: item.kitNo,
+          period: item.period,
+          totalGb: item.totalGb,
+          planAllowanceGb: item.planAllowanceGb,
+          shipName: item.shipName,
+          crossedStep: item.crossedStep,
+        });
+      }
+      return true;
+    });
+
+    if (!claimed) return;
+    if (recipients.length === 0) {
+      logger.info(
+        { source: opts.source, kitNo: opts.kitNo, crossedStep },
+        "WhatsApp eşik geçildi ama alıcı yok — claim kalıcı."
+      );
+      return;
     }
 
     logger.info(
@@ -806,7 +910,7 @@ export async function maybeFireWhatsappAlert(opts: {
         crossedStep,
         recipients: recipients.length,
       },
-      "WhatsApp eşik bildirimi digest'e eklendi"
+      "WhatsApp eşik bildirimi günlük özet kuyruğuna eklendi"
     );
   } catch (err) {
     logger.error(

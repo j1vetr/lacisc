@@ -337,6 +337,9 @@ export const GetSyncProgressResponse = zod.object({
 /**
  * @summary WhatsApp (wpileti.com) yapılandırması.
  */
+export const getWhatsappSettingsResponseDailySendHourMin = 0;
+export const getWhatsappSettingsResponseDailySendHourMax = 23;
+
 export const GetWhatsappSettingsResponse = zod.object({
   enabled: zod.boolean(),
   hasApiKey: zod
@@ -350,8 +353,18 @@ export const GetWhatsappSettingsResponse = zod.object({
     .describe(
       "Plan kotası bilinmediğinde \/ kural eşleşmediğinde fallback olarak kullanılan e-posta eşiği (email_settings.thresholdStepGib). Read-only — e-posta ayarlarından yönetilir.",
     ),
+  dailySendHour: zod
+    .number()
+    .min(getWhatsappSettingsResponseDailySendHourMin)
+    .max(getWhatsappSettingsResponseDailySendHourMax)
+    .describe(
+      "Günlük özet gönderim saati (0-23, Türkiye saati). Eşik bildirimleri her sync turunda değil, günde bir kez bu saatte toplu gider.",
+    ),
   updatedAt: zod.coerce.date(),
 });
+
+export const updateWhatsappSettingsBodyDailySendHourMin = 0;
+export const updateWhatsappSettingsBodyDailySendHourMax = 23;
 
 export const UpdateWhatsappSettingsBody = zod.object({
   enabled: zod.boolean().optional(),
@@ -363,7 +376,18 @@ export const UpdateWhatsappSettingsBody = zod.object({
     ),
   endpointUrl: zod.string().optional(),
   testRecipient: zod.string().nullish(),
+  dailySendHour: zod
+    .number()
+    .min(updateWhatsappSettingsBodyDailySendHourMin)
+    .max(updateWhatsappSettingsBodyDailySendHourMax)
+    .optional()
+    .describe(
+      "Günlük özet gönderim saati (0-23, Türkiye saati). Aralık dışı değerler clamp edilir.",
+    ),
 });
+
+export const updateWhatsappSettingsResponseDailySendHourMin = 0;
+export const updateWhatsappSettingsResponseDailySendHourMax = 23;
 
 export const UpdateWhatsappSettingsResponse = zod.object({
   enabled: zod.boolean(),
@@ -377,6 +401,13 @@ export const UpdateWhatsappSettingsResponse = zod.object({
     .nullish()
     .describe(
       "Plan kotası bilinmediğinde \/ kural eşleşmediğinde fallback olarak kullanılan e-posta eşiği (email_settings.thresholdStepGib). Read-only — e-posta ayarlarından yönetilir.",
+    ),
+  dailySendHour: zod
+    .number()
+    .min(updateWhatsappSettingsResponseDailySendHourMin)
+    .max(updateWhatsappSettingsResponseDailySendHourMax)
+    .describe(
+      "Günlük özet gönderim saati (0-23, Türkiye saati). Eşik bildirimleri her sync turunda değil, günde bir kez bu saatte toplu gider.",
     ),
   updatedAt: zod.coerce.date(),
 });

@@ -50,6 +50,7 @@ export default function WhatsappSettingsPage() {
   );
   const [apiKey, setApiKey] = useState("");
   const [testRecipient, setTestRecipient] = useState("");
+  const [dailySendHour, setDailySendHour] = useState("13");
   const [overrideTest, setOverrideTest] = useState("");
 
   const [newMinPlan, setNewMinPlan] = useState("");
@@ -61,13 +62,18 @@ export default function WhatsappSettingsPage() {
     setEndpointUrl(settings.endpointUrl);
     setApiKey("");
     setTestRecipient(settings.testRecipient ?? "");
+    setDailySendHour(String(settings.dailySendHour ?? 13));
   }, [settings?.updatedAt]);
 
   const handleSave = () => {
     // endpointUrl frontend'de read-only — backend allowlist enforce ediyor.
+    const hour = Number(dailySendHour);
     const payload: Record<string, unknown> = {
       enabled,
       testRecipient: testRecipient.trim() || null,
+      dailySendHour: Number.isFinite(hour)
+        ? Math.max(0, Math.min(23, Math.trunc(hour)))
+        : 13,
     };
     if (apiKey.length > 0) payload.apiKey = apiKey;
     updateMut.mutate(
@@ -300,6 +306,28 @@ export default function WhatsappSettingsPage() {
                   />
                   <p className="text-xs text-muted-foreground">
                     "Test Mesajı Gönder" butonu varsayılan olarak buraya gönderir.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
+                    Günlük Gönderim Saati (0-23)
+                  </Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={23}
+                    value={dailySendHour}
+                    onChange={(e) => setDailySendHour(e.target.value)}
+                    placeholder="13"
+                    className="font-mono text-sm bg-background border-border h-10 rounded-lg shadow-none w-32"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Eşik bildirimleri her sync turunda değil, günde{" "}
+                    <span className="font-medium">bir kez</span> bu saatte
+                    (Türkiye saati) toplu olarak gönderilir. Gün boyunca biriken
+                    tüm uyarılar alıcı başına tek mesajda birleştirilir
+                    (wpileti.com anti-spam koruması).
                   </p>
                 </div>
 

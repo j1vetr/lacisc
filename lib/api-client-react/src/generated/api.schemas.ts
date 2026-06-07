@@ -636,6 +636,12 @@ export interface WhatsappSettings {
   testRecipient?: string | null;
   /** Plan kotası bilinmediğinde / kural eşleşmediğinde fallback olarak kullanılan e-posta eşiği (email_settings.thresholdStepGib). Read-only — e-posta ayarlarından yönetilir. */
   emailFallbackThresholdGb?: number | null;
+  /**
+   * Günlük özet gönderim saati (0-23, Türkiye saati). Eşik bildirimleri her sync turunda değil, günde bir kez bu saatte toplu gider.
+   * @minimum 0
+   * @maximum 23
+   */
+  dailySendHour: number;
   updatedAt: string;
 }
 
@@ -645,6 +651,12 @@ export interface WhatsappSettingsUpdate {
   apiKey?: string | null;
   endpointUrl?: string;
   testRecipient?: string | null;
+  /**
+   * Günlük özet gönderim saati (0-23, Türkiye saati). Aralık dışı değerler clamp edilir.
+   * @minimum 0
+   * @maximum 23
+   */
+  dailySendHour?: number;
 }
 
 export interface WhatsappTestResult {

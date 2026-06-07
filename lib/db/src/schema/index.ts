@@ -728,9 +728,39 @@ export const whatsappSettings = pgTable("whatsapp_settings", {
   globalThresholdGb: doublePrecision("global_threshold_gb"),
   // "Test mesajı gönder" butonu için varsayılan tek alıcı.
   testRecipient: text("test_recipient"),
+  // Günlük özet gönderim saati (0-23, Türkiye/Europe-Istanbul saati). Eşik
+  // bildirimleri her sync turunda DEĞİL, günde bir kez bu saatte toplu gider
+  // (wpileti.com anti-spam koruması).
+  dailySendHour: integer("daily_send_hour").default(13).notNull(),
+  // Son başarılı günlük flush'ın tarihi (YYYY-MM-DD, Istanbul). Aynı gün
+  // tekrar göndermeyi engeller; null → henüz hiç flush edilmedi.
+  lastDailyFlushDate: date("last_daily_flush_date"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 export type WhatsappSettings = typeof whatsappSettings.$inferSelect;
+
+// Günlük özet kuyruğu: eşik geçişleri (atomic claim sonrası) buraya yazılır,
+// runDailyDigestIfDue() ayarlanan saatte alıcı başına tek mesajda toplayıp
+// gönderir ve satırları siler. In-memory buffer yerine kalıcı DB kuyruğu —
+// server restart'ı bekleyen alert'leri kaybetmez.
+export const whatsappPendingAlert = pgTable(
+  "whatsapp_pending_alert",
+  {
+    id: serial("id").primaryKey(),
+    // Alıcı telefon (E.164-without-plus, örn. 905321234567).
+    receiver: text("receiver").notNull(),
+    source: text("source").notNull(),
+    kitNo: text("kit_no").notNull(),
+    period: text("period").notNull(),
+    totalGb: doublePrecision("total_gb").notNull(),
+    planAllowanceGb: doublePrecision("plan_allowance_gb"),
+    shipName: text("ship_name"),
+    crossedStep: doublePrecision("crossed_step").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [index("whatsapp_pending_alert_receiver_idx").on(t.receiver)]
+);
+export type WhatsappPendingAlert = typeof whatsappPendingAlert.$inferSelect;
 
 // Plan-bazlı eşik kuralları. minPlanGb=NULL → tüm planlar için catchall
 // (Satcom KIT'leri planAllowanceGb null olduğu için catchall'a düşer).

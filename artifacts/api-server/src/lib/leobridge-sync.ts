@@ -352,9 +352,9 @@ async function persistUsage(
         });
     }
   }
-  // Tüm alert'lerin atomic claim + enqueueAlertForReceiver tamamlanmasını bekle.
-  // Bu garantiyle runLeobridgeSync() döndüğünde pendingDigest buffer dolu olur
-  // ve tur sonu flushAllPendingDigests() hepsini tek mesajda toplar.
+  // Tüm alert'lerin atomic claim + enqueueAlertForReceiver (DB INSERT)
+  // tamamlanmasını bekle. Gönderim artık burada değil — günlük özet timer'ı
+  // (whatsapp.ts::runDailyDigestIfDue) ayarlanan saatte kuyruğu boşaltır.
   await Promise.all(alertPromises);
 }
 
