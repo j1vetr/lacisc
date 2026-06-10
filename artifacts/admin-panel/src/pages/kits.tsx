@@ -180,7 +180,7 @@ export default function Kits() {
         kitNo: t.kitSerialNumber,
         shipName: t.nickname || t.assetName || null,
         totalGb: t.currentPeriodTotalGb ?? null,
-        planGb: t.planAllowanceGb ?? null,
+        planGb: t.manualPlanGb ?? t.planAllowanceGb ?? null,
         manualPlanGb: t.manualPlanGb ?? null,
       });
     }
@@ -190,7 +190,7 @@ export default function Kits() {
         kitNo: t.kitSerialNumber,
         shipName: t.nickname ?? null,
         totalGb: t.currentPeriodTotalGb ?? null,
-        planGb: t.planAllowanceGb ?? null,
+        planGb: t.manualPlanGb ?? t.planAllowanceGb ?? null,
         manualPlanGb: t.manualPlanGb ?? null,
       });
     }
