@@ -612,10 +612,48 @@ router.get(
       currentPeriodTotalGb: latest?.totalGb ?? null,
       currentPeriodPriorityGb: latest?.priorityGb ?? null,
       currentPeriodStandardGb: latest?.standardGb ?? null,
-      planAllowanceGb: row.planAllowanceGb ?? null,
+      planAllowanceGb: row.manualPlanGb ?? row.planAllowanceGb ?? null,
+      manualPlanGb: row.manualPlanGb ?? null,
       accountId: acc?.id ?? null,
       accountLabel: acc?.label ?? null,
     });
+  },
+);
+
+// PATCH /leobridge/terminals/:kit/manual-plan — manuel kota override'ı kaydet / temizle.
+// Body: { manualPlanGb: number | null }. Admin zorunlu.
+router.patch(
+  "/leobridge/terminals/:kit/manual-plan",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const kit = String(req.params.kit ?? "").trim();
+    if (!kit) {
+      res.status(400).json({ error: "Geçersiz KIT." });
+      return;
+    }
+    const raw = req.body?.manualPlanGb;
+    let value: number | null;
+    if (raw === null || raw === undefined || raw === "") {
+      value = null;
+    } else {
+      const n = Number(raw);
+      if (!Number.isFinite(n) || n < 0) {
+        res.status(400).json({ error: "manualPlanGb geçerli bir sayı olmalı (≥0) veya null." });
+        return;
+      }
+      value = n;
+    }
+    const updated = await db
+      .update(leobridgeTerminals)
+      .set({ manualPlanGb: value })
+      .where(eq(leobridgeTerminals.kitSerialNumber, kit))
+      .returning({ kit: leobridgeTerminals.kitSerialNumber });
+    if (updated.length === 0) {
+      res.status(404).json({ error: "Terminal bulunamadı." });
+      return;
+    }
+    res.json({ kitSerialNumber: kit, manualPlanGb: value });
   },
 );
 

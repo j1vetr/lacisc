@@ -457,6 +457,8 @@ export interface StarlinkTerminalDetail {
   lastSeenAt?: string | null;
   plan?: string | null;
   planAllowanceGb?: number | null;
+  /** Manuel kota override (GB). null = override yok, otomatik API değeri kullanılır. */
+  manualPlanGb?: number | null;
   ipv4?: string | null;
   optIn?: boolean | null;
   pingDropRate?: number | null;
@@ -578,6 +580,8 @@ export interface LeobridgeTerminalDetail {
   currentPeriodStandardGb?: number | null;
   /** Aktif fatura döngüsündeki recurring data block'ların toplamı (decimal GB). UI'da kullanım/kota ilerleme çubuğu için. */
   planAllowanceGb?: number | null;
+  /** Manuel kota override (GB). null = override yok, otomatik API değeri kullanılır. */
+  manualPlanGb?: number | null;
   accountId?: number | null;
   accountLabel?: string | null;
 }
@@ -773,8 +777,10 @@ export interface KitDetail {
   activeSubscriptionId?: string | null;
   optOutGib?: number | null;
   stepAlertGib?: number | null;
-  /** Aktif plan adından regex ile çıkarılan kota (decimal GB). Örn: '1TB Pooling' → 1000, '500GB' → 500. Plan adı tanınamadıysa null. */
+  /** Aktif plan adından regex ile çıkarılan kota (decimal GB). Manuel override varsa o değer döner. Örn: '1TB Pooling' → 1000, '500GB' → 500. Plan adı tanınamadıysa null. */
   planAllowanceGb?: number | null;
+  /** Manuel kota override (GB). null = override yok, otomatik plan-parse değeri kullanılır. */
+  manualPlanGb?: number | null;
   lastSessionStart?: string | null;
   lastSessionEnd?: string | null;
   lastSessionActive?: boolean | null;
@@ -905,6 +911,17 @@ export interface SyncLogsResponse {
   page: number;
   limit: number;
   totalPages: number;
+}
+
+export interface ManualPlanUpdate {
+  /** GB olarak manuel kota. null = override'ı temizle, otomatik değere dön. */
+  manualPlanGb?: number | null;
+}
+
+export interface ManualPlanResult {
+  kitNo?: string | null;
+  kitSerialNumber?: string | null;
+  manualPlanGb: number | null;
 }
 
 export type ListSessions200Item = {

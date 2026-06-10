@@ -697,13 +697,41 @@ export const GetKitDetailResponse = zod.object({
     .number()
     .nullish()
     .describe(
-      "Aktif plan adından regex ile çıkarılan kota (decimal GB). Örn: '1TB Pooling' → 1000, '500GB' → 500. Plan adı tanınamadıysa null.",
+      "Aktif plan adından regex ile çıkarılan kota (decimal GB). Manuel override varsa o değer döner. Örn: '1TB Pooling' → 1000, '500GB' → 500. Plan adı tanınamadıysa null.",
+    ),
+  manualPlanGb: zod
+    .number()
+    .nullish()
+    .describe(
+      "Manuel kota override (GB). null = override yok, otomatik plan-parse değeri kullanılır.",
     ),
   lastSessionStart: zod.coerce.date().nullish(),
   lastSessionEnd: zod.coerce.date().nullish(),
   lastSessionActive: zod.boolean().nullish(),
   lastSessionType: zod.string().nullish(),
   cardDetailsSyncedAt: zod.coerce.date().nullish(),
+});
+
+/**
+ * @summary Manuel kota override'ı kaydet / temizle (admin).
+ */
+export const UpdateKitManualPlanParams = zod.object({
+  kitNo: zod.coerce.string(),
+});
+
+export const UpdateKitManualPlanBody = zod.object({
+  manualPlanGb: zod
+    .number()
+    .nullish()
+    .describe(
+      "GB olarak manuel kota. null = override'ı temizle, otomatik değere dön.",
+    ),
+});
+
+export const UpdateKitManualPlanResponse = zod.object({
+  kitNo: zod.string().nullish(),
+  kitSerialNumber: zod.string().nullish(),
+  manualPlanGb: zod.number().nullable(),
 });
 
 /**
@@ -1102,6 +1130,12 @@ export const GetStarlinkTerminalDetailResponse = zod.object({
   lastSeenAt: zod.coerce.date().nullish(),
   plan: zod.string().nullish(),
   planAllowanceGb: zod.number().nullish(),
+  manualPlanGb: zod
+    .number()
+    .nullish()
+    .describe(
+      "Manuel kota override (GB). null = override yok, otomatik API değeri kullanılır.",
+    ),
   ipv4: zod.string().nullish(),
   optIn: zod.boolean().nullish(),
   pingDropRate: zod.number().nullish(),
@@ -1124,6 +1158,28 @@ export const DeleteStarlinkTerminalParams = zod.object({
 
 export const DeleteStarlinkTerminalResponse = zod.object({
   message: zod.string(),
+});
+
+/**
+ * @summary Starlink terminal için manuel kota override'ı kaydet / temizle (admin).
+ */
+export const UpdateStarlinkTerminalManualPlanParams = zod.object({
+  kit: zod.coerce.string(),
+});
+
+export const UpdateStarlinkTerminalManualPlanBody = zod.object({
+  manualPlanGb: zod
+    .number()
+    .nullish()
+    .describe(
+      "GB olarak manuel kota. null = override'ı temizle, otomatik değere dön.",
+    ),
+});
+
+export const UpdateStarlinkTerminalManualPlanResponse = zod.object({
+  kitNo: zod.string().nullish(),
+  kitSerialNumber: zod.string().nullish(),
+  manualPlanGb: zod.number().nullable(),
 });
 
 export const GetStarlinkTerminalDailyParams = zod.object({
@@ -1368,6 +1424,12 @@ export const GetLeobridgeTerminalDetailResponse = zod.object({
     .describe(
       "Aktif fatura döngüsündeki recurring data block'ların toplamı (decimal GB). UI'da kullanım\/kota ilerleme çubuğu için.",
     ),
+  manualPlanGb: zod
+    .number()
+    .nullish()
+    .describe(
+      "Manuel kota override (GB). null = override yok, otomatik API değeri kullanılır.",
+    ),
   accountId: zod.number().nullish(),
   accountLabel: zod.string().nullish(),
 });
@@ -1381,6 +1443,28 @@ export const DeleteLeobridgeTerminalParams = zod.object({
 
 export const DeleteLeobridgeTerminalResponse = zod.object({
   message: zod.string(),
+});
+
+/**
+ * @summary Norway terminal için manuel kota override'ı kaydet / temizle (admin).
+ */
+export const UpdateLeobridgeTerminalManualPlanParams = zod.object({
+  kit: zod.coerce.string(),
+});
+
+export const UpdateLeobridgeTerminalManualPlanBody = zod.object({
+  manualPlanGb: zod
+    .number()
+    .nullish()
+    .describe(
+      "GB olarak manuel kota. null = override'ı temizle, otomatik değere dön.",
+    ),
+});
+
+export const UpdateLeobridgeTerminalManualPlanResponse = zod.object({
+  kitNo: zod.string().nullish(),
+  kitSerialNumber: zod.string().nullish(),
+  manualPlanGb: zod.number().nullable(),
 });
 
 export const GetLeobridgeTerminalDailyParams = zod.object({

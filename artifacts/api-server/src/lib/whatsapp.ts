@@ -931,6 +931,7 @@ export async function lookupStarlinkPlanAndShip(
   const [row] = await db
     .select({
       plan: starlinkTerminals.planAllowanceGb,
+      manualPlanGb: starlinkTerminals.manualPlanGb,
       nickname: starlinkTerminals.nickname,
       asset: starlinkTerminals.assetName,
     })
@@ -942,7 +943,8 @@ export async function lookupStarlinkPlanAndShip(
       )
     );
   return {
-    planAllowanceGb: row?.plan ?? null,
+    // Manuel override varsa API değerinin önüne geçer.
+    planAllowanceGb: row?.manualPlanGb ?? row?.plan ?? null,
     shipName: row?.nickname ?? row?.asset ?? null,
   };
 }
@@ -954,6 +956,7 @@ export async function lookupLeobridgePlanAndShip(
   const [row] = await db
     .select({
       plan: leobridgeTerminals.planAllowanceGb,
+      manualPlanGb: leobridgeTerminals.manualPlanGb,
       nickname: leobridgeTerminals.nickname,
     })
     .from(leobridgeTerminals)
@@ -964,7 +967,8 @@ export async function lookupLeobridgePlanAndShip(
       )
     );
   return {
-    planAllowanceGb: row?.plan ?? null,
+    // Manuel override varsa API değerinin önüne geçer.
+    planAllowanceGb: row?.manualPlanGb ?? row?.plan ?? null,
     shipName: row?.nickname ?? null,
   };
 }
@@ -991,6 +995,7 @@ export async function lookupSatcomShipAndPlan(
     .select({
       shipName: stationKits.shipName,
       activePlanName: stationKits.activePlanName,
+      manualPlanGb: stationKits.manualPlanGb,
     })
     .from(stationKits)
     .where(
@@ -1016,10 +1021,13 @@ export async function lookupSatcomShipAndPlan(
     (sum, s) => sum + (parseSatcomPlanAllowanceGb(s.pricePlanName) ?? 0),
     0,
   );
-  const planAllowanceGb =
+  const autoPlanGb =
     subTotalGb > 0
       ? subTotalGb
       : parseSatcomPlanAllowanceGb(row?.activePlanName ?? null);
+
+  // Manuel override varsa abonelik parse değerinin önüne geçer.
+  const planAllowanceGb = row?.manualPlanGb ?? autoPlanGb;
 
   return {
     shipName: row?.shipName ?? null,

@@ -1,5 +1,6 @@
 import React, { useMemo, useState, lazy, Suspense } from "react";
 import { Link, useRoute } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetKitDetail,
   getGetKitDetailQueryKey,
@@ -15,6 +16,9 @@ import {
   getGetKitTelemetryHourlyQueryKey,
   useGetKitSubscriptions,
   getGetKitSubscriptionsQueryKey,
+  useUpdateKitManualPlan,
+  useGetMe,
+  getGetMeQueryKey,
 } from "@workspace/api-client-react";
 import type { KitTelemetryHourlyPoint } from "@workspace/api-client-react";
 import {
@@ -244,9 +248,18 @@ function MiniSparkline({
 function SatcomKitDetail({ kitNo }: { kitNo: string }) {
   useDocumentTitle(kitNo);
   const isCustomer = useIsCustomer();
+  const queryClient = useQueryClient();
+
+  const { data: meData } = useGetMe({ query: { queryKey: getGetMeQueryKey(), staleTime: 60_000, retry: false } });
+  const isAdmin = ["admin", "owner"].includes((meData as { role?: string } | undefined)?.role ?? "");
+
   const [selectedPeriod, setSelectedPeriod] = useState<string | undefined>(
     undefined,
   );
+  const [manualEditMode, setManualEditMode] = useState(false);
+  const [manualInputVal, setManualInputVal] = useState("");
+
+  const manualPlanMutation = useUpdateKitManualPlan();
 
   const { data: detail, isLoading: detailLoading } = useGetKitDetail(kitNo, {
     query: { queryKey: getGetKitDetailQueryKey(kitNo), enabled: Boolean(kitNo) },
@@ -686,6 +699,98 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
               {allowance == null && (
                 <div className="lg:col-span-12 text-xs text-muted-foreground">
                   Plan tahsisi bilinmiyor — sadece kullanım gösteriliyor.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Manuel Kota Override */}
+          {!detailLoading && (
+            <div className="mt-6 pt-4 border-t border-border">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                  Manuel Kota
+                </span>
+                {detail?.manualPlanGb != null ? (
+                  <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-mono bg-[#f54e00]/10 text-[#f54e00] border border-[#f54e00]/20">
+                    Manuel: {formatNumber(detail.manualPlanGb, 0)} GB
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-mono bg-secondary text-muted-foreground">
+                    Otomatik
+                  </span>
+                )}
+                {isAdmin && !manualEditMode && (
+                  <button
+                    onClick={() => {
+                      setManualInputVal(detail?.manualPlanGb != null ? String(detail.manualPlanGb) : "");
+                      setManualEditMode(true);
+                    }}
+                    className="ml-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Düzenle
+                  </button>
+                )}
+              </div>
+              {isAdmin && manualEditMode && (
+                <div className="mt-3 flex items-center gap-2 flex-wrap">
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={manualInputVal}
+                    onChange={(e) => setManualInputVal(e.target.value)}
+                    placeholder="GB (boş = otomatik)"
+                    className="h-8 w-40 rounded border border-border bg-background px-2.5 font-mono text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                  <button
+                    disabled={manualPlanMutation.isPending}
+                    onClick={() => {
+                      const val = manualInputVal.trim();
+                      const parsed = val === "" ? null : parseFloat(val);
+                      if (parsed !== null && (isNaN(parsed) || parsed <= 0)) return;
+                      manualPlanMutation.mutate(
+                        { kitNo, data: { manualPlanGb: parsed } },
+                        {
+                          onSuccess: () => {
+                            queryClient.invalidateQueries({ queryKey: getGetKitDetailQueryKey(kitNo) });
+                            setManualEditMode(false);
+                          },
+                        },
+                      );
+                    }}
+                    className="h-8 px-3 rounded text-[12px] font-medium bg-foreground text-background disabled:opacity-50"
+                  >
+                    {manualPlanMutation.isPending ? "…" : "Kaydet"}
+                  </button>
+                  {detail?.manualPlanGb != null && (
+                    <button
+                      disabled={manualPlanMutation.isPending}
+                      onClick={() => {
+                        manualPlanMutation.mutate(
+                          { kitNo, data: { manualPlanGb: null } },
+                          {
+                            onSuccess: () => {
+                              queryClient.invalidateQueries({ queryKey: getGetKitDetailQueryKey(kitNo) });
+                              setManualEditMode(false);
+                            },
+                          },
+                        );
+                      }}
+                      className="h-8 px-3 rounded text-[12px] border border-border text-muted-foreground hover:text-foreground disabled:opacity-50"
+                    >
+                      Temizle
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setManualEditMode(false)}
+                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    İptal
+                  </button>
+                  {manualPlanMutation.isError && (
+                    <span className="text-[11px] text-destructive">Hata — tekrar deneyin.</span>
+                  )}
                 </div>
               )}
             </div>

@@ -4,6 +4,14 @@ Tarihsel mimari/karar notları. Güncel "şu an nasıl çalışıyor" özeti iç
 
 ## June 2026
 
+### Manuel paket kotası override (2026-06-10)
+Her KIT için operatör tarafından elle girilebilen GB kotası. Manuel değer varsa `planAllowanceGb` (effective) olarak döner; yoksa otomatik kaynak (plan-parse / API) kullanılır. WhatsApp eşik hesabı da bu önceliği izler.
+- **DB**: `station_kits`, `starlink_terminals`, `leobridge_terminals` tablolarına nullable `manual_plan_gb double precision` kolonu. Migration: `ALTER TABLE ... ADD COLUMN IF NOT EXISTS manual_plan_gb double precision` (güvenli, nullable).
+- **Backend**: `GET /station/kits/:kitNo`, `GET /starlink/terminals/:kit/detail`, `GET /leobridge/terminals/:kit/detail` yanıtlarına `manualPlanGb` (ham DB değeri) eklendi; `planAllowanceGb` = `manualPlanGb ?? autoValue`. `PATCH /station/kits/:kitNo/manual-plan`, `PATCH /starlink/terminals/:kit/manual-plan`, `PATCH /leobridge/terminals/:kit/manual-plan` (body: `{manualPlanGb: number|null}`, rol: admin). `whatsapp.ts` plan lookup fonksiyonları da `manualPlanGb` önceliğini kullanır.
+- **UI**: 3 detail sayfasına "Manuel Kota" widget — "Otomatik" veya "Manuel: X GB" badge + admin için Düzenle formu (sayı girişi + Kaydet + Temizle/null reset + İptal). Kaydet sonrası detail query invalidate edilir.
+- **OpenAPI + codegen**: `ManualPlanUpdate`/`ManualPlanResult` schema'ları; 3 PATCH path; `StarlinkTerminalDetail`, `LeobridgeTerminalDetail`, `KitDetail` schema'larına `manualPlanGb` alanı eklendi.
+- **Prod migration**: `ALTER TABLE station_kits ADD COLUMN IF NOT EXISTS manual_plan_gb double precision; ALTER TABLE starlink_terminals ADD COLUMN IF NOT EXISTS manual_plan_gb double precision; ALTER TABLE leobridge_terminals ADD COLUMN IF NOT EXISTS manual_plan_gb double precision;`
+
 ### WhatsApp eşik bildirimi: tur-sonu in-memory digest → günlük DB kuyruğu (2026-06-07)
 wpileti.com (gayrı-resmi WhatsApp ağ geçidi) anti-spam motoru kısa sürede aynı kontağa birden çok mesaj atınca mesajları "pending" durumuna düşürüyordu. Önceki mimari her sync turu sonunda in-memory `pendingDigest` buffer'ını flush ediyordu (turda biriken alert'ler tek mesaja toplansa da gün içinde birden çok tur = birden çok mesaj). **Yeni mimari**: alert'ler kalıcı **`whatsapp_pending_alert`** tablosuna yazılır ve **günde yalnız bir kez**, panelden ayarlanabilir saatte (`whatsapp_settings.daily_send_hour`, varsayılan 13:00 Europe/Istanbul) alıcı başına tek özet mesajda gönderilir.
 - **Kaldırılanlar**: in-memory `pendingDigest` Map, `flushDigestForReceiver`, `flushAllPendingDigests`, `DIGEST_DEBOUNCE_MS` (6 saatlik failsafe debounce), ve bunların tur-sonu çağrı yerleri (`scheduler.ts` Satcom finally + `routes/station.ts` manuel sync-now). starlink-sync.ts/leobridge-sync.ts artık tur sonunda flush tetiklemez.

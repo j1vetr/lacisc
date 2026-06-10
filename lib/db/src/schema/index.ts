@@ -168,6 +168,9 @@ export const stationKits = pgTable(
   cardDetailsSyncedAt: timestamp("card_details_synced_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  // Manuel kota override — tanımlandıysa API/plan-parse değerinin önüne geçer.
+  // null = override yok, otomatik değer kullanılır.
+  manualPlanGb: doublePrecision("manual_plan_gb"),
   },
   (t) => [primaryKey({ columns: [t.credentialId, t.kitNo] })]
 );
@@ -489,6 +492,8 @@ export const starlinkTerminals = pgTable(
     optIn: boolean("opt_in"),
     pingDropRate: doublePrecision("ping_drop_rate"),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    // Manuel kota override — tanımlandıysa API değerinin önüne geçer.
+    manualPlanGb: doublePrecision("manual_plan_gb"),
   },
   (t) => [
     primaryKey({ columns: [t.credentialId, t.kitSerialNumber] }),
@@ -623,6 +628,8 @@ export const leobridgeTerminals = pgTable(
     // ilerleme çubuğu için.
     planAllowanceGb: doublePrecision("plan_allowance_gb"),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    // Manuel kota override — tanımlandıysa API değerinin önüne geçer.
+    manualPlanGb: doublePrecision("manual_plan_gb"),
   },
   (t) => [
     primaryKey({ columns: [t.credentialId, t.kitSerialNumber] }),

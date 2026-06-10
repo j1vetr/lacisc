@@ -223,10 +223,13 @@ router.get("/station/kits/:kitNo", requireAuth, async (req: AuthRequest, res): P
     (sum, s) => sum + (parseSatcomPlanAllowanceGb(s.pricePlanName) ?? 0),
     0,
   );
-  const planAllowanceGb =
+  const autoPlanGb =
     subTotalGb > 0
       ? subTotalGb
       : parseSatcomPlanAllowanceGb(kitMeta?.activePlanName ?? null);
+  // Manuel override varsa abonelik parse değerinin önüne geçer.
+  const manualPlanGb = kitMeta?.manualPlanGb ?? null;
+  const planAllowanceGb = manualPlanGb ?? autoPlanGb;
 
   res.json({
     kitNo,
@@ -249,6 +252,7 @@ router.get("/station/kits/:kitNo", requireAuth, async (req: AuthRequest, res): P
     optOutGib: kitMeta?.optOutGib ?? null,
     stepAlertGib: kitMeta?.stepAlertGib ?? null,
     planAllowanceGb,
+    manualPlanGb,
     lastSessionStart: kitMeta?.lastSessionStart ?? null,
     lastSessionEnd: kitMeta?.lastSessionEnd ?? null,
     lastSessionActive: kitMeta?.lastSessionActive ?? null,
@@ -256,6 +260,39 @@ router.get("/station/kits/:kitNo", requireAuth, async (req: AuthRequest, res): P
     cardDetailsSyncedAt: kitMeta?.cardDetailsSyncedAt ?? null,
   });
 });
+
+// PATCH /station/kits/:kitNo/manual-plan — manuel kota override'ı kaydet / temizle.
+// Body: { manualPlanGb: number | null }. Admin zorunlu.
+router.patch(
+  "/station/kits/:kitNo/manual-plan",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const kitNo = String(req.params.kitNo);
+    const raw = req.body?.manualPlanGb;
+    let value: number | null;
+    if (raw === null || raw === undefined || raw === "") {
+      value = null;
+    } else {
+      const n = Number(raw);
+      if (!Number.isFinite(n) || n < 0) {
+        res.status(400).json({ error: "manualPlanGb geçerli bir sayı olmalı (≥0) veya null." });
+        return;
+      }
+      value = n;
+    }
+    const updated = await db
+      .update(stationKits)
+      .set({ manualPlanGb: value })
+      .where(eq(stationKits.kitNo, kitNo))
+      .returning({ kitNo: stationKits.kitNo });
+    if (updated.length === 0) {
+      res.status(404).json({ error: "KIT bulunamadı." });
+      return;
+    }
+    res.json({ kitNo, manualPlanGb: value });
+  },
+);
 
 // --- Task #20 enrichment endpoints --------------------------------------
 

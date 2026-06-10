@@ -554,7 +554,8 @@ router.get(
       activeAlertsCount: t.activeAlertsCount,
       lastSeenAt: t.lastSeenAt ? t.lastSeenAt.toISOString() : null,
       plan: t.plan,
-      planAllowanceGb: t.planAllowanceGb,
+      planAllowanceGb: t.manualPlanGb ?? t.planAllowanceGb,
+      manualPlanGb: t.manualPlanGb ?? null,
       ipv4: t.ipv4,
       optIn: t.optIn,
       pingDropRate: t.pingDropRate,
@@ -568,6 +569,43 @@ router.get(
       accountLabel: acc?.label ?? null,
     });
   }
+);
+
+// PATCH /starlink/terminals/:kit/manual-plan — manuel kota override'ı kaydet / temizle.
+// Body: { manualPlanGb: number | null }. Admin zorunlu.
+router.patch(
+  "/starlink/terminals/:kit/manual-plan",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const kit = String(req.params.kit ?? "").trim();
+    if (!kit) {
+      res.status(400).json({ error: "Geçersiz KIT." });
+      return;
+    }
+    const raw = req.body?.manualPlanGb;
+    let value: number | null;
+    if (raw === null || raw === undefined || raw === "") {
+      value = null;
+    } else {
+      const n = Number(raw);
+      if (!Number.isFinite(n) || n < 0) {
+        res.status(400).json({ error: "manualPlanGb geçerli bir sayı olmalı (≥0) veya null." });
+        return;
+      }
+      value = n;
+    }
+    const updated = await db
+      .update(starlinkTerminals)
+      .set({ manualPlanGb: value })
+      .where(eq(starlinkTerminals.kitSerialNumber, kit))
+      .returning({ kit: starlinkTerminals.kitSerialNumber });
+    if (updated.length === 0) {
+      res.status(404).json({ error: "Terminal bulunamadı." });
+      return;
+    }
+    res.json({ kitSerialNumber: kit, manualPlanGb: value });
+  },
 );
 
 // Daily breakdown — returns per-day deltas (today.cumulative - yesterday.cumulative)

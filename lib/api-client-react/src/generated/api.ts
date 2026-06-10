@@ -60,6 +60,8 @@ import type {
   ListAuditLogsParams,
   ListSessions200Item,
   LoginBody,
+  ManualPlanResult,
+  ManualPlanUpdate,
   MessageResponse,
   ReadinessStatus,
   ResetPasswordBody,
@@ -2917,6 +2919,93 @@ export function useGetKitDetail<
 }
 
 /**
+ * @summary Manuel kota override'ı kaydet / temizle (admin).
+ */
+export const getUpdateKitManualPlanUrl = (kitNo: string) => {
+  return `/api/station/kits/${kitNo}/manual-plan`;
+};
+
+export const updateKitManualPlan = async (
+  kitNo: string,
+  manualPlanUpdate: ManualPlanUpdate,
+  options?: RequestInit,
+): Promise<ManualPlanResult> => {
+  return customFetch<ManualPlanResult>(getUpdateKitManualPlanUrl(kitNo), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(manualPlanUpdate),
+  });
+};
+
+export const getUpdateKitManualPlanMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateKitManualPlan>>,
+    TError,
+    { kitNo: string; data: BodyType<ManualPlanUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateKitManualPlan>>,
+  TError,
+  { kitNo: string; data: BodyType<ManualPlanUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateKitManualPlan"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateKitManualPlan>>,
+    { kitNo: string; data: BodyType<ManualPlanUpdate> }
+  > = (props) => {
+    const { kitNo, data } = props ?? {};
+
+    return updateKitManualPlan(kitNo, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateKitManualPlanMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateKitManualPlan>>
+>;
+export type UpdateKitManualPlanMutationBody = BodyType<ManualPlanUpdate>;
+export type UpdateKitManualPlanMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Manuel kota override'ı kaydet / temizle (admin).
+ */
+export const useUpdateKitManualPlan = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateKitManualPlan>>,
+    TError,
+    { kitNo: string; data: BodyType<ManualPlanUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateKitManualPlan>>,
+  TError,
+  { kitNo: string; data: BodyType<ManualPlanUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateKitManualPlanMutationOptions(options));
+};
+
+/**
  * @summary Day-by-day CDR rows for a KIT in a period
  */
 export const getGetKitDailyUrl = (
@@ -4695,6 +4784,100 @@ export const useDeleteStarlinkTerminal = <
   return useMutation(getDeleteStarlinkTerminalMutationOptions(options));
 };
 
+/**
+ * @summary Starlink terminal için manuel kota override'ı kaydet / temizle (admin).
+ */
+export const getUpdateStarlinkTerminalManualPlanUrl = (kit: string) => {
+  return `/api/starlink/terminals/${kit}/manual-plan`;
+};
+
+export const updateStarlinkTerminalManualPlan = async (
+  kit: string,
+  manualPlanUpdate: ManualPlanUpdate,
+  options?: RequestInit,
+): Promise<ManualPlanResult> => {
+  return customFetch<ManualPlanResult>(
+    getUpdateStarlinkTerminalManualPlanUrl(kit),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(manualPlanUpdate),
+    },
+  );
+};
+
+export const getUpdateStarlinkTerminalManualPlanMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStarlinkTerminalManualPlan>>,
+    TError,
+    { kit: string; data: BodyType<ManualPlanUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateStarlinkTerminalManualPlan>>,
+  TError,
+  { kit: string; data: BodyType<ManualPlanUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateStarlinkTerminalManualPlan"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateStarlinkTerminalManualPlan>>,
+    { kit: string; data: BodyType<ManualPlanUpdate> }
+  > = (props) => {
+    const { kit, data } = props ?? {};
+
+    return updateStarlinkTerminalManualPlan(kit, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateStarlinkTerminalManualPlanMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateStarlinkTerminalManualPlan>>
+>;
+export type UpdateStarlinkTerminalManualPlanMutationBody =
+  BodyType<ManualPlanUpdate>;
+export type UpdateStarlinkTerminalManualPlanMutationError =
+  ErrorType<ErrorResponse>;
+
+/**
+ * @summary Starlink terminal için manuel kota override'ı kaydet / temizle (admin).
+ */
+export const useUpdateStarlinkTerminalManualPlan = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStarlinkTerminalManualPlan>>,
+    TError,
+    { kit: string; data: BodyType<ManualPlanUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateStarlinkTerminalManualPlan>>,
+  TError,
+  { kit: string; data: BodyType<ManualPlanUpdate> },
+  TContext
+> => {
+  return useMutation(
+    getUpdateStarlinkTerminalManualPlanMutationOptions(options),
+  );
+};
+
 export const getGetStarlinkTerminalDailyUrl = (
   kit: string,
   params?: GetStarlinkTerminalDailyParams,
@@ -5870,6 +6053,100 @@ export const useDeleteLeobridgeTerminal = <
   TContext
 > => {
   return useMutation(getDeleteLeobridgeTerminalMutationOptions(options));
+};
+
+/**
+ * @summary Norway terminal için manuel kota override'ı kaydet / temizle (admin).
+ */
+export const getUpdateLeobridgeTerminalManualPlanUrl = (kit: string) => {
+  return `/api/leobridge/terminals/${kit}/manual-plan`;
+};
+
+export const updateLeobridgeTerminalManualPlan = async (
+  kit: string,
+  manualPlanUpdate: ManualPlanUpdate,
+  options?: RequestInit,
+): Promise<ManualPlanResult> => {
+  return customFetch<ManualPlanResult>(
+    getUpdateLeobridgeTerminalManualPlanUrl(kit),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(manualPlanUpdate),
+    },
+  );
+};
+
+export const getUpdateLeobridgeTerminalManualPlanMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateLeobridgeTerminalManualPlan>>,
+    TError,
+    { kit: string; data: BodyType<ManualPlanUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateLeobridgeTerminalManualPlan>>,
+  TError,
+  { kit: string; data: BodyType<ManualPlanUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateLeobridgeTerminalManualPlan"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateLeobridgeTerminalManualPlan>>,
+    { kit: string; data: BodyType<ManualPlanUpdate> }
+  > = (props) => {
+    const { kit, data } = props ?? {};
+
+    return updateLeobridgeTerminalManualPlan(kit, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateLeobridgeTerminalManualPlanMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateLeobridgeTerminalManualPlan>>
+>;
+export type UpdateLeobridgeTerminalManualPlanMutationBody =
+  BodyType<ManualPlanUpdate>;
+export type UpdateLeobridgeTerminalManualPlanMutationError =
+  ErrorType<ErrorResponse>;
+
+/**
+ * @summary Norway terminal için manuel kota override'ı kaydet / temizle (admin).
+ */
+export const useUpdateLeobridgeTerminalManualPlan = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateLeobridgeTerminalManualPlan>>,
+    TError,
+    { kit: string; data: BodyType<ManualPlanUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateLeobridgeTerminalManualPlan>>,
+  TError,
+  { kit: string; data: BodyType<ManualPlanUpdate> },
+  TContext
+> => {
+  return useMutation(
+    getUpdateLeobridgeTerminalManualPlanMutationOptions(options),
+  );
 };
 
 export const getGetLeobridgeTerminalDailyUrl = (
