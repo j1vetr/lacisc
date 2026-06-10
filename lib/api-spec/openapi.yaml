@@ -2366,6 +2366,10 @@ components:
           type: number
           nullable: true
           description: "Aktif servis planındaki kota (decimal GB). Müşteri panelinde kullanım/kota progress bar için."
+        manualPlanGb:
+          type: number
+          nullable: true
+          description: "Manuel kota override (GB). null = override yok."
 
     StarlinkTerminalDetail:
       type: object
@@ -2525,6 +2529,10 @@ components:
           type: number
           nullable: true
           description: "Aktif fatura döngüsündeki recurring data block'ların toplamı (decimal GB). Müşteri panelinde kullanım/kota progress bar için."
+        manualPlanGb:
+          type: number
+          nullable: true
+          description: "Manuel kota override (GB). null = override yok."
 
     LeobridgeTerminalDetail:
       type: object
@@ -2745,6 +2753,10 @@ components:
           type: number
           nullable: true
           description: "Aktif plan adından parse edilen kota (decimal GB). Müşteri panelinde kullanım/kota progress bar için."
+        manualPlanGb:
+          type: number
+          nullable: true
+          description: "Manuel kota override (GB). null = override yok."
       required: [kitNo, rowCount]
 
     KitDetail:

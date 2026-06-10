@@ -436,6 +436,8 @@ export interface StarlinkTerminalSummary {
   currentPeriodOverageGb?: number | null;
   /** Aktif servis planındaki kota (decimal GB). Müşteri panelinde kullanım/kota progress bar için. */
   planAllowanceGb?: number | null;
+  /** Manuel kota override (GB). null = override yok. */
+  manualPlanGb?: number | null;
 }
 
 export interface StarlinkTerminalDetail {
@@ -562,6 +564,8 @@ export interface LeobridgeTerminalSummary {
   currentPeriodTotalGb?: number | null;
   /** Aktif fatura döngüsündeki recurring data block'ların toplamı (decimal GB). Müşteri panelinde kullanım/kota progress bar için. */
   planAllowanceGb?: number | null;
+  /** Manuel kota override (GB). null = override yok. */
+  manualPlanGb?: number | null;
 }
 
 export interface LeobridgeTerminalDetail {
@@ -755,6 +759,8 @@ export interface KitSummary {
   lastSyncedAt?: string | null;
   /** Aktif plan adından parse edilen kota (decimal GB). Müşteri panelinde kullanım/kota progress bar için. */
   planAllowanceGb?: number | null;
+  /** Manuel kota override (GB). null = override yok. */
+  manualPlanGb?: number | null;
 }
 
 export interface KitDetail {

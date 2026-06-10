@@ -543,6 +543,7 @@ router.get(
         currentPeriod: totals.get(r.kitSerialNumber)?.period ?? null,
         currentPeriodTotalGb: totals.get(r.kitSerialNumber)?.totalGb ?? null,
         planAllowanceGb: r.planAllowanceGb ?? null,
+        manualPlanGb: r.manualPlanGb ?? null,
       })),
     );
   },

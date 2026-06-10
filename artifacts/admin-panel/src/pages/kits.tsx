@@ -17,6 +17,9 @@ import {
   getGetMeQueryKey,
   useDeleteStarlinkTerminal,
   useDeleteLeobridgeTerminal,
+  useUpdateKitManualPlan,
+  useUpdateStarlinkTerminalManualPlan,
+  useUpdateLeobridgeTerminalManualPlan,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -27,6 +30,7 @@ import {
   Satellite,
   Trash2,
   Loader2,
+  Pencil,
 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -43,6 +47,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { formatNumber, gibToGb } from "@/lib/format";
 
@@ -56,6 +68,7 @@ type UnifiedRow = {
   shipName: string | null;
   totalGb: number | null;
   planGb: number | null;
+  manualPlanGb: number | null;
   // Satcom: portal'da KIT görünüyor (telemetri/lokasyon var) ama bu hesapta
   // henüz hiç fatura/CDR üretmemiş. Listede rozet ile işaretlenir.
   isIdle?: boolean;
@@ -157,6 +170,7 @@ export default function Kits() {
         shipName: k.shipName ?? null,
         totalGb: gibToGb(k.totalGib),
         planGb: k.planAllowanceGb ?? null,
+        manualPlanGb: k.manualPlanGb ?? null,
         isIdle: k.lastPeriod == null,
       });
     }
@@ -167,6 +181,7 @@ export default function Kits() {
         shipName: t.nickname || t.assetName || null,
         totalGb: t.currentPeriodTotalGb ?? null,
         planGb: t.planAllowanceGb ?? null,
+        manualPlanGb: t.manualPlanGb ?? null,
       });
     }
     for (const t of leobridgeTerminals ?? []) {
@@ -176,6 +191,7 @@ export default function Kits() {
         shipName: t.nickname ?? null,
         totalGb: t.currentPeriodTotalGb ?? null,
         planGb: t.planAllowanceGb ?? null,
+        manualPlanGb: t.manualPlanGb ?? null,
       });
     }
     const q = debouncedSearch.trim().toLowerCase();
@@ -320,6 +336,12 @@ export default function Kits() {
             const canDelete =
               canManageAccounts &&
               (r.source === "starlink" || r.source === "leobridge");
+            const canEdit = canManageAccounts;
+            const rowPadding = canDelete && canEdit
+              ? "pr-[72px]"
+              : canDelete || canEdit
+                ? "pr-9"
+                : "";
             return (
               <div
                 key={`${r.source}:${r.kitNo}`}
@@ -327,7 +349,7 @@ export default function Kits() {
               >
                 <button
                   onClick={() => handleRowClick(r.kitNo, r.source)}
-                  className={`${GRID} w-full text-left px-1 py-3.5 hover:bg-secondary/60 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${canDelete ? "pr-9" : ""}`}
+                  className={`${GRID} w-full text-left px-1 py-3.5 hover:bg-secondary/60 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${rowPadding}`}
                 >
                 {/* Terminal */}
                 <div className="flex items-center gap-3 min-w-0">
@@ -392,6 +414,15 @@ export default function Kits() {
                   )}
                 </div>
                 </button>
+                {canEdit && (
+                  <KitManualPlanButton
+                    source={r.source}
+                    kitNo={r.kitNo}
+                    shipName={r.shipName}
+                    currentManualPlanGb={r.manualPlanGb}
+                    offsetRight={canDelete ? "right-9" : "right-1"}
+                  />
+                )}
                 {canDelete && r.source !== "satcom" && (
                   <KitDeleteButton
                     source={r.source}
@@ -420,6 +451,146 @@ export default function Kits() {
         )}
       </div>
     </div>
+  );
+}
+
+function KitManualPlanButton({
+  source,
+  kitNo,
+  shipName,
+  currentManualPlanGb,
+  offsetRight,
+}: {
+  source: Source;
+  kitNo: string;
+  shipName: string | null;
+  currentManualPlanGb: number | null;
+  offsetRight: "right-1" | "right-9";
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState("");
+
+  const updateSatcom = useUpdateKitManualPlan();
+  const updateStarlink = useUpdateStarlinkTerminalManualPlan();
+  const updateLeobridge = useUpdateLeobridgeTerminalManualPlan();
+
+  const mutation =
+    source === "starlink"
+      ? updateStarlink
+      : source === "leobridge"
+        ? updateLeobridge
+        : updateSatcom;
+
+  const isPending = mutation.isPending;
+
+  const handleOpen = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setValue(currentManualPlanGb != null ? String(currentManualPlanGb) : "");
+    setOpen(true);
+  };
+
+  const handleSave = () => {
+    const trimmed = value.trim();
+    const manualPlanGb = trimmed === "" ? null : parseFloat(trimmed);
+    if (trimmed !== "" && (isNaN(manualPlanGb!) || manualPlanGb! < 0)) {
+      toast({ title: "Geçersiz değer", description: "GB değeri 0 veya üzeri bir sayı olmalı.", variant: "destructive" });
+      return;
+    }
+
+    const params =
+      source === "satcom"
+        ? { kitNo, data: { manualPlanGb } }
+        : { kit: kitNo, data: { manualPlanGb } };
+
+    (mutation.mutate as (p: typeof params, opts: object) => void)(params, {
+      onSuccess: () => {
+        toast({
+          title: manualPlanGb == null ? "Kota Override Temizlendi" : "Kota Override Kaydedildi",
+          description:
+            manualPlanGb == null
+              ? `${kitNo} için manuel kota kaldırıldı, otomatik değer kullanılacak.`
+              : `${kitNo} için kota ${manualPlanGb} GB olarak ayarlandı.`,
+        });
+        queryClient.invalidateQueries();
+        setOpen(false);
+      },
+      onError: (err: unknown) => {
+        toast({
+          title: "Kayıt Başarısız",
+          description: (err instanceof Error ? err.message : null) || "Kota güncellenemedi.",
+          variant: "destructive",
+        });
+      },
+    });
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        title="Manuel kota düzenle"
+        aria-label="Manuel kota düzenle"
+        onClick={handleOpen}
+        className={`absolute ${offsetRight} top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-foreground hover:bg-secondary transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+      >
+        {isPending ? (
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        ) : (
+          <Pencil className={`w-3.5 h-3.5 ${currentManualPlanGb != null ? "text-primary" : ""}`} />
+        )}
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="rounded-xl max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle>Manuel Kota Override</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="text-sm text-muted-foreground">
+              <span className="font-mono text-foreground">{kitNo}</span>
+              {shipName ? <span> — {shipName}</span> : null}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="manual-plan-input" className="text-sm">
+                Kota (GB) <span className="text-muted-foreground font-normal">— boş bırakın = otomatik</span>
+              </Label>
+              <Input
+                id="manual-plan-input"
+                type="number"
+                min={0}
+                step="any"
+                placeholder="Örn: 100"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                className="font-mono shadow-none"
+                onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+              />
+            </div>
+            {currentManualPlanGb != null && (
+              <p className="text-xs text-muted-foreground">
+                Mevcut override: <span className="font-mono text-foreground">{currentManualPlanGb} GB</span>.
+                Boş bırakıp kaydet = override'ı temizle.
+              </p>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="rounded-lg shadow-none" onClick={() => setOpen(false)}>
+              Vazgeç
+            </Button>
+            <Button
+              className="rounded-lg shadow-none"
+              onClick={handleSave}
+              disabled={isPending}
+            >
+              {isPending && <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />}
+              Kaydet
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

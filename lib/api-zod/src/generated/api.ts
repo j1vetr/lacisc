@@ -651,6 +651,10 @@ export const GetKitsResponseItem = zod.object({
     .describe(
       "Aktif plan adından parse edilen kota (decimal GB). Müşteri panelinde kullanım\/kota progress bar için.",
     ),
+  manualPlanGb: zod
+    .number()
+    .nullish()
+    .describe("Manuel kota override (GB). null = override yok."),
 });
 export const GetKitsResponse = zod.array(GetKitsResponseItem);
 
@@ -1102,6 +1106,10 @@ export const GetStarlinkTerminalsResponseItem = zod.object({
     .describe(
       "Aktif servis planındaki kota (decimal GB). Müşteri panelinde kullanım\/kota progress bar için.",
     ),
+  manualPlanGb: zod
+    .number()
+    .nullish()
+    .describe("Manuel kota override (GB). null = override yok."),
 });
 export const GetStarlinkTerminalsResponse = zod.array(
   GetStarlinkTerminalsResponseItem,
@@ -1395,6 +1403,10 @@ export const GetLeobridgeTerminalsResponseItem = zod.object({
     .describe(
       "Aktif fatura döngüsündeki recurring data block'ların toplamı (decimal GB). Müşteri panelinde kullanım\/kota progress bar için.",
     ),
+  manualPlanGb: zod
+    .number()
+    .nullish()
+    .describe("Manuel kota override (GB). null = override yok."),
 });
 export const GetLeobridgeTerminalsResponse = zod.array(
   GetLeobridgeTerminalsResponseItem,
