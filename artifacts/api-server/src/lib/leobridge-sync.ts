@@ -274,11 +274,6 @@ async function persistUsage(
   const { maybeFireWhatsappAlert, lookupLeobridgePlanAndShip } = await import(
     "./whatsapp"
   );
-  // Alert promise'lerini topla — flush öncesinde hepsinin tamamlanması şart.
-  // void / fire-and-forget olursa runLeobridgeSync() döndüğünde alertler henüz
-  // pendingDigest buffer'ına girmemiş olur; flush geldiğinde buffer boş görünür
-  // ve 6 saatlik debounce timer devreye girer (ayrı mesajlar gider).
-  const alertPromises: Promise<void>[] = [];
   for (const p of periods) {
     const periodKey = periodFromStartDate(p.startDate);
     if (!periodKey) continue;
@@ -308,22 +303,6 @@ async function persistUsage(
         },
       });
 
-    // WhatsApp eşik bildirimi — Leo Bridge persistUsage sonrası.
-    // planAllowanceGb terminal satırına yazılı. Aktif dönem değilse no-op.
-    const meta = await lookupLeobridgePlanAndShip(credentialId, kitSerialNumber);
-    alertPromises.push(
-      maybeFireWhatsappAlert({
-        source: "leobridge",
-        credentialId,
-        credentialLabel: `Norway #${credentialId}`,
-        kitNo: kitSerialNumber,
-        period: periodKey,
-        totalGb,
-        planAllowanceGb: meta.planAllowanceGb,
-        shipName: meta.shipName,
-      })
-    );
-
     for (const d of p.dailyUsages ?? []) {
       const dailyTotal = (d.priorityGb ?? 0) + (d.standardGb ?? 0);
       await db
@@ -352,10 +331,36 @@ async function persistUsage(
         });
     }
   }
-  // Tüm alert'lerin atomic claim + enqueueAlertForReceiver (DB INSERT)
-  // tamamlanmasını bekle. Gönderim artık burada değil — günlük özet timer'ı
-  // (whatsapp.ts::runDailyDigestIfDue) ayarlanan saatte kuyruğu boşaltır.
-  await Promise.all(alertPromises);
+  // WhatsApp eşik bildirimi — sadece en güncel fatura dönemi, takvim ayı
+  // periodu ile. Fatura döngüsü önceki ayda başlamış olsa bile (örn. 5 Haziran
+  // başlangıçlı dönem Temmuz 1–4'ü kapsıyor) activePeriod() = "202507"
+  // kullanılır; maybeFireWhatsappAlert guard'ı fatura-dönemi periodKey yerine
+  // bu takvim periodunu kontrol eder → ay başı kör nokta ortadan kalkar.
+  if (periods.length > 0) {
+    const latest = periods.reduce((a, b) =>
+      a.startDate > b.startDate ? a : b
+    );
+    const totalGb =
+      (latest.totalPriorityGb ?? 0) + (latest.totalStandardGb ?? 0);
+    const meta = await lookupLeobridgePlanAndShip(credentialId, kitSerialNumber);
+    await maybeFireWhatsappAlert({
+      source: "leobridge",
+      credentialId,
+      credentialLabel: `Norway #${credentialId}`,
+      kitNo: kitSerialNumber,
+      period: leobridgeCalendarPeriod(),
+      totalGb,
+      planAllowanceGb: meta.planAllowanceGb,
+      shipName: meta.shipName,
+    });
+  }
+}
+
+/** Aktif takvim ayı (UTC). Fatura dönemi başlangıcından bağımsız, alarm
+ *  durumu ay sınırlarında temiz sıfırlanır. */
+function leobridgeCalendarPeriod(): string {
+  const now = new Date();
+  return `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 async function markCredential(

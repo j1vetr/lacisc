@@ -555,9 +555,19 @@ async function flushPendingDigests(): Promise<void> {
   if (!keyRow?.apiKey) return;
   const apiKey = decrypt(keyRow.apiKey);
 
+  const currentPeriod = activePeriod();
+
+  // Önceki aylara ait bekleyen alertları sessizce sil — yeni ay digest'ine
+  // sızmasın. Sunucu o günkü 13:00 penceresi kapalıyken biriken eski ay
+  // alertları aksi halde bir sonraki digest'e katışır.
+  await db
+    .delete(whatsappPendingAlert)
+    .where(sql`${whatsappPendingAlert.period} < ${currentPeriod}`);
+
   const pending = await db
     .select()
     .from(whatsappPendingAlert)
+    .where(eq(whatsappPendingAlert.period, currentPeriod))
     .orderBy(asc(whatsappPendingAlert.createdAt));
   if (pending.length === 0) return;
 

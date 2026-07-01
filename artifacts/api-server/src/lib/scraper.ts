@@ -1490,7 +1490,9 @@ export async function runSync(opts: RunSyncOptions): Promise<SyncResult> {
           // "Mobile Priority 1TB Pooling Plan") `station_kits.active_plan_name`
           // alanından çekilip GB kotasına parse edilir. Plan yoksa fallback
           // catchall kuralına düşer. totalGib (binary) → GB (decimal).
-          void (async () => {
+          // await: maybeFireWhatsappAlert içinde try-catch var — sync'i
+          // asla patlatmaz; await ile restart'ta pending kayıp önlenir.
+          {
             const { shipName, planAllowanceGb } = await lookupSatcomShipAndPlan(
               credentialId,
               kit.kitNo
@@ -1505,7 +1507,7 @@ export async function runSync(opts: RunSyncOptions): Promise<SyncResult> {
               planAllowanceGb,
               shipName,
             });
-          })();
+          }
           logger.info(
             {
               period,
