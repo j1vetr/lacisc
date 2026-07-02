@@ -231,8 +231,21 @@ export default function FleetMap({
     const ro = new ResizeObserver(() => map.invalidateSize());
     ro.observe(containerRef.current);
 
+    // Fullscreen geçişinde tile'ların kaybolmasını önle: fullscreenchange
+    // doğrudan dinlenir (React state güncelleme gecikmesini atlatır) ve
+    // browser layout tamamlandıktan sonra invalidateSize çağrılır.
+    const onFsChange = () => {
+      requestAnimationFrame(() => {
+        map.invalidateSize({ animate: false, pan: false });
+        // İkinci geçiş: bazı tarayıcılar fullscreen animasyonunu 300ms sonra bitirir.
+        setTimeout(() => map.invalidateSize({ animate: false, pan: false }), 350);
+      });
+    };
+    document.addEventListener("fullscreenchange", onFsChange);
+
     return () => {
       ro.disconnect();
+      document.removeEventListener("fullscreenchange", onFsChange);
       map.remove();
       mapRef.current = null;
       clusterRef.current = null;
@@ -340,9 +353,9 @@ export default function FleetMap({
   ) : justUpdated ? (
     <span style={{ color: "#1f8a65" }}>✓ Güncellendi</span>
   ) : lastUpdateStr ? (
-    <span>Son güncelleme: {lastUpdateStr} · {remaining} sn sonra yenilenecek</span>
+    <span>Son Güncelleme: {lastUpdateStr} · {remaining} Sn Sonra Yenilenecek</span>
   ) : (
-    <span>Konumlar bekleniyor…</span>
+    <span>Konumlar Bekleniyor…</span>
   );
 
   // ---- Render ----
@@ -397,7 +410,7 @@ export default function FleetMap({
               className="text-[11px] font-mono tabular-nums"
               style={{ color: "var(--sd-muted)" }}
             >
-              {visiblePoints.length} terminal
+              {visiblePoints.length} Terminal
             </span>
             <button
               type="button"
@@ -470,27 +483,30 @@ export default function FleetMap({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              width: 28,
-              height: 28,
-              borderRadius: 6,
-              border: "1px solid #e6e5e0",
-              background: "rgba(247,247,244,0.92)",
-              color: "#9a9a8a",
+              width: 32,
+              height: 32,
+              borderRadius: 7,
+              border: "1.5px solid #b8b7b0",
+              background: "#f7f7f4",
+              color: "#26251e",
               cursor: "pointer",
-              transition: "background 150ms, color 150ms",
+              boxShadow: "0 1px 3px rgba(38,37,30,0.10)",
+              transition: "background 150ms, border-color 150ms, box-shadow 150ms",
             }}
             onMouseEnter={(e) => {
               const el = e.currentTarget as HTMLElement;
-              el.style.background = "#f7f7f4";
-              el.style.color = "#26251e";
+              el.style.background = "#eeeee9";
+              el.style.borderColor = "#8a8a82";
+              el.style.boxShadow = "0 2px 5px rgba(38,37,30,0.15)";
             }}
             onMouseLeave={(e) => {
               const el = e.currentTarget as HTMLElement;
-              el.style.background = "rgba(247,247,244,0.92)";
-              el.style.color = "#9a9a8a";
+              el.style.background = "#f7f7f4";
+              el.style.borderColor = "#b8b7b0";
+              el.style.boxShadow = "0 1px 3px rgba(38,37,30,0.10)";
             }}
           >
-            <Maximize2 size={13} />
+            <Maximize2 size={15} strokeWidth={2.2} />
           </button>
         )}
 
