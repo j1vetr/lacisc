@@ -34,24 +34,6 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#039;");
 }
 
-function relTime(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  const t = new Date(iso).getTime();
-  if (!Number.isFinite(t)) return "—";
-  const diffSec = Math.max(0, Math.round((Date.now() - t) / 1000));
-  if (diffSec < 60) return "az önce";
-  const m = Math.round(diffSec / 60);
-  if (m < 60) return `${m} dk önce`;
-  const h = Math.round(m / 60);
-  if (h < 24) return `${h} saat önce`;
-  const d = Math.round(h / 24);
-  if (d < 30) return `${d} gün önce`;
-  return new Date(iso).toLocaleDateString("tr-TR");
-}
-
-// Gemi silüeti (Material "directions_boat" — 24×24). Inline SVG: external
-// network/CSP'ye bağımlı değil, retina'da keskin kalır, beyaz dolgu ile
-// renkli daire üstünde maksimum kontrast.
 const SHIP_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="#fff" aria-hidden="true"><path d="M20 21c-1.39 0-2.78-.47-4-1.32-2.44 1.71-5.56 1.71-8 0C6.78 20.53 5.39 21 4 21H2v2h2c1.38 0 2.74-.35 4-.99 2.52 1.29 5.48 1.29 8 0 1.26.65 2.62.99 4 .99h2v-2h-2zM3.95 19H4c1.6 0 3.02-.88 4-2 .98 1.12 2.4 2 4 2s3.02-.88 4-2c.98 1.12 2.4 2 4 2h.05l1.89-6.68c.08-.26.06-.54-.06-.78s-.34-.42-.6-.5L20 10.62V6c0-1.1-.9-2-2-2h-3V1H9v3H6c-1.1 0-2 .9-2 2v4.62l-1.29.42c-.26.08-.48.26-.6.5s-.15.52-.06.78L3.95 19zM6 6h12v3.97L12 8 6 9.97V6z"/></svg>`;
 
 function makePinIcon(source: Source, online: boolean | null | undefined) {
@@ -73,34 +55,41 @@ function makePinIcon(source: Source, online: boolean | null | undefined) {
 
 // ---- Hooks ----
 
-/** Browser Fullscreen API ile hedef elementi tam ekrana taşır. */
-function useFullscreen(ref: React.RefObject<HTMLElement | null>) {
-  const [isFullscreen, setIsFullscreen] = useState(false);
+/**
+ * CSS position:fixed overlay ile görsel tam ekran.
+ * Browser Fullscreen API KULLANILMAZ — iframe içinde tile render bozulduğu için.
+ * ResizeObserver zaten containerRef'i dinliyor; boyut değişince invalidateSize
+ * otomatik tetiklenir, tile'lar sorunsuz yenilenir.
+ */
+function useMapExpanded() {
+  const [expanded, setExpanded] = useState(false);
 
+  const enter = useCallback(() => setExpanded(true), []);
+  const exit = useCallback(() => setExpanded(false), []);
+
+  // ESC ile kapat
   useEffect(() => {
-    const handler = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener("fullscreenchange", handler);
-    return () => document.removeEventListener("fullscreenchange", handler);
-  }, []);
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setExpanded(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [expanded]);
 
-  const enter = useCallback(() => {
-    if (ref.current && !document.fullscreenElement) {
-      ref.current.requestFullscreen().catch(() => {});
-    }
-  }, [ref]);
+  // Body scroll kilit — expanded'da arka plan scroll'u engelle
+  useEffect(() => {
+    document.body.style.overflow = expanded ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [expanded]);
 
-  const exit = useCallback(() => {
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
-    }
-  }, []);
-
-  return { isFullscreen, enter, exit };
+  return { expanded, enter, exit };
 }
 
 const REFETCH_MS = 60_000;
 
-/** React Query'nin dataUpdatedAt timestamp'inden kalan süreyi saniye cinsinden hesaplar. */
 function useCountdown(dataUpdatedAt: number): number {
   const [remaining, setRemaining] = useState<number>(REFETCH_MS / 1000);
 
@@ -118,7 +107,6 @@ function useCountdown(dataUpdatedAt: number): number {
   return remaining;
 }
 
-/** isFetching false'a geçtiğinde 2 sn "Güncellendi" state'i döner. */
 function useJustUpdated(isFetching: boolean): boolean {
   const [justUpdated, setJustUpdated] = useState(false);
   const prevRef = useRef(false);
@@ -139,27 +127,14 @@ function useJustUpdated(isFetching: boolean): boolean {
 }
 
 export interface FleetMapProps {
-  /** Tailwind height class — örn. "h-[320px] sm:h-[420px]". */
   heightClass?: string;
-  /** Test/CSP için harita arka planını gizleyip yalnız pinleri test etmek. */
   hideTiles?: boolean;
 }
 
-/**
- * Üç kaynaktan birleşik dünya filo haritası. Cluster pin'li; popup → KIT
- * detay sayfasına link. Müşteri yalnız atanmış KIT'lerini görür (backend
- * filtresi). Konum verisi olmayan KIT sessizce gizlenir.
- *
- * Özellikler:
- * - Tam ekran butonu (Maximize2): Browser Fullscreen API ile gerçek tam ekran.
- * - Canlı geri sayım: Son güncelleme saati + sonraki yenilemeye kalan süre.
- * - Güncelleme animasyonu: isFetching pulse + "✓ Güncellendi" 2 sn badge.
- */
 export default function FleetMap({
   heightClass = "h-[360px] sm:h-[440px]",
   hideTiles = false,
 }: FleetMapProps) {
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
@@ -178,7 +153,7 @@ export default function FleetMap({
     },
   });
 
-  const { isFullscreen, enter, exit } = useFullscreen(wrapperRef);
+  const { expanded, enter, exit } = useMapExpanded();
   const remaining = useCountdown(dataUpdatedAt);
   const justUpdated = useJustUpdated(isFetching);
 
@@ -226,41 +201,21 @@ export default function FleetMap({
     mapRef.current = map;
     clusterRef.current = cluster;
 
-    // Resize observer — sd-card içinde lazy mount edildiğinde leaflet'in
-    // boyut hesabı yarım kalabiliyor; container yeniden ölçülürse invalidate.
-    const ro = new ResizeObserver(() => map.invalidateSize());
+    // ResizeObserver: container boyutu değişince (expanded/collapsed dahil)
+    // Leaflet'i bildir — tile'lar yeniden hesaplanır.
+    const ro = new ResizeObserver(() => {
+      map.invalidateSize({ animate: false, pan: false });
+    });
     ro.observe(containerRef.current);
-
-    // Fullscreen geçişinde tile'ların kaybolmasını önle: fullscreenchange
-    // doğrudan dinlenir (React state güncelleme gecikmesini atlatır) ve
-    // browser layout tamamlandıktan sonra invalidateSize çağrılır.
-    const onFsChange = () => {
-      requestAnimationFrame(() => {
-        map.invalidateSize({ animate: false, pan: false });
-        // İkinci geçiş: bazı tarayıcılar fullscreen animasyonunu 300ms sonra bitirir.
-        setTimeout(() => map.invalidateSize({ animate: false, pan: false }), 350);
-      });
-    };
-    document.addEventListener("fullscreenchange", onFsChange);
 
     return () => {
       ro.disconnect();
-      document.removeEventListener("fullscreenchange", onFsChange);
       map.remove();
       mapRef.current = null;
       clusterRef.current = null;
     };
-    // Mount-once on purpose; hideTiles değişimi yeniden mount gerektirmez (testlerde sabit).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Tam ekrana girerken/çıkarken Leaflet boyutunu yenile.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    const t = setTimeout(() => map.invalidateSize(), 120);
-    return () => clearTimeout(t);
-  }, [isFullscreen]);
 
   const visiblePoints = useMemo(
     () =>
@@ -274,7 +229,6 @@ export default function FleetMap({
     [points],
   );
 
-  // Marker'ları her veri değişiminde yeniden kur.
   useEffect(() => {
     const cluster = clusterRef.current;
     const map = mapRef.current;
@@ -291,12 +245,10 @@ export default function FleetMap({
         : `<div class="ssa-fleet-popup__title">${escapeHtml(p.kitNo)}</div>`;
       const href = SOURCE_DETAIL[p.source](p.kitNo);
       m.bindPopup(
-        `
-        <div class="ssa-fleet-popup" data-source="${p.source}">
+        `<div class="ssa-fleet-popup" data-source="${p.source}">
           ${titleLine}
           <a class="ssa-fleet-popup__link" data-ssa-fleet-href="${href}" href="${href}">Detayı Aç</a>
-        </div>
-        `,
+        </div>`,
         { closeButton: false, maxWidth: 240 },
       );
       markers.push(m);
@@ -313,41 +265,35 @@ export default function FleetMap({
           map.fitBounds(b, { padding: [32, 32], maxZoom: 5, animate: false });
         }
       } catch {
-        // markercluster bounds nadiren atar — yoksay.
+        /* markercluster bounds nadiren atar */
       }
     }
   }, [visiblePoints]);
 
-  // Popup linkine tıklandığında wouter ile SPA navigasyonu yap (window reload yok).
+  // SPA navigasyon — popup linkine tıkla
   useEffect(() => {
     const root = containerRef.current;
     if (!root) return;
     const onClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      const a = target?.closest<HTMLAnchorElement>("a[data-ssa-fleet-href]");
+      const a = (e.target as HTMLElement | null)?.closest<HTMLAnchorElement>(
+        "a[data-ssa-fleet-href]",
+      );
       if (!a) return;
       const href = a.getAttribute("data-ssa-fleet-href");
       if (!href) return;
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
       e.preventDefault();
-      // Tam ekrandan çık — sonra navigate et, yoksa kullanıcı tam ekranda kalır.
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {}).finally(() => {
-          window.history.pushState(null, "", href);
-          window.dispatchEvent(new PopStateEvent("popstate"));
-        });
-      } else {
-        window.history.pushState(null, "", href);
-        window.dispatchEvent(new PopStateEvent("popstate"));
-      }
+      // Expanded moddan çık, sonra navigate et
+      if (expanded) exit();
+      window.history.pushState(null, "", href);
+      window.dispatchEvent(new PopStateEvent("popstate"));
     };
     root.addEventListener("click", onClick);
     return () => root.removeEventListener("click", onClick);
-  }, []);
+  }, [expanded, exit]);
 
   const empty = !isLoading && visiblePoints.length === 0;
 
-  // ---- Shared info strip content ----
   const statusContent = isFetching && !isLoading ? (
     <span className="animate-pulse">Güncelleniyor…</span>
   ) : justUpdated ? (
@@ -360,181 +306,332 @@ export default function FleetMap({
 
   // ---- Render ----
   return (
-    <div
-      ref={wrapperRef}
-      className={isFullscreen ? "flex flex-col" : "relative"}
-      style={
-        isFullscreen
-          ? {
-              height: "100%",
-              width: "100%",
-              background: "var(--sd-bg, #f7f7f4)",
-            }
-          : undefined
-      }
-    >
-      {/* === Tam ekran üst bilgi şeridi === */}
-      {isFullscreen && (
-        <div
-          className="shrink-0 flex items-center justify-between px-5 py-3"
-          style={{
-            borderBottom: "1px solid var(--sd-hairline, #e6e5e0)",
-            background: "var(--sd-bg, #f7f7f4)",
-          }}
-        >
-          {/* Sol: başlık + durum */}
-          <div className="flex items-center gap-3 min-w-0">
-            <span
-              className="text-[11px] font-semibold uppercase tracking-[0.14em] shrink-0"
-              style={{ color: "var(--sd-fg, #26251e)" }}
-            >
-              FİLO HARİTASI
-            </span>
-            <span
-              className="shrink-0"
-              style={{ color: "var(--sd-hairline-strong, #c9c8c2)" }}
-            >
-              ·
-            </span>
-            <span
-              className="text-[11px] font-mono tabular-nums truncate"
-              style={{ color: "var(--sd-muted)" }}
-            >
-              {statusContent}
-            </span>
-          </div>
-
-          {/* Sağ: terminal sayısı + çıkış butonu */}
-          <div className="flex items-center gap-4 shrink-0 ml-4">
-            <span
-              className="text-[11px] font-mono tabular-nums"
-              style={{ color: "var(--sd-muted)" }}
-            >
-              {visiblePoints.length} Terminal
-            </span>
-            <button
-              type="button"
-              onClick={exit}
-              title="Tam Ekrandan Çık (Esc)"
-              className="ssa-fleet-fs-btn"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 28,
-                height: 28,
-                borderRadius: 6,
-                border: "1px solid var(--sd-hairline, #e6e5e0)",
-                background: "transparent",
-                color: "var(--sd-muted)",
-                cursor: "pointer",
-                transition: "background 150ms",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.background =
-                  "var(--sd-hairline, #e6e5e0)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.background = "transparent";
-              }}
-            >
-              <Minimize2 size={14} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* === Harita + overlay katmanları === */}
-      <div
-        className="relative"
-        style={isFullscreen ? { flex: 1, minHeight: 0 } : undefined}
-      >
-        {/* Leaflet kapsayıcı */}
+    <>
+      {/* Normal mod: kart içinde standart harita */}
+      <div className="relative">
         <div
           ref={containerRef}
           className={[
-            "ssa-leaflet ssa-fleet-map w-full",
-            isFullscreen
-              ? ""
-              : `${heightClass} rounded-lg overflow-hidden`,
-            // isFetching sırasında çok hafif opacity pulse
+            "ssa-leaflet ssa-fleet-map w-full rounded-lg overflow-hidden",
+            heightClass,
             !isLoading && isFetching
               ? "transition-opacity duration-700 opacity-[0.88]"
               : "transition-opacity duration-700 opacity-100",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-          style={isFullscreen ? { height: "100%", width: "100%" } : undefined}
+          ].join(" ")}
           aria-label="Filo haritası"
         />
 
-        {/* Tam ekran butonu — normal modda harita üstü sağ köşe */}
-        {!isFullscreen && (
-          <button
-            type="button"
-            onClick={enter}
-            title="Tam Ekran"
-            className="ssa-fleet-fs-btn"
-            style={{
-              position: "absolute",
-              top: 8,
-              right: 8,
-              zIndex: 1000,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 32,
-              height: 32,
-              borderRadius: 7,
-              border: "1.5px solid #b8b7b0",
-              background: "#f7f7f4",
-              color: "#26251e",
-              cursor: "pointer",
-              boxShadow: "0 1px 3px rgba(38,37,30,0.10)",
-              transition: "background 150ms, border-color 150ms, box-shadow 150ms",
-            }}
-            onMouseEnter={(e) => {
-              const el = e.currentTarget as HTMLElement;
-              el.style.background = "#eeeee9";
-              el.style.borderColor = "#8a8a82";
-              el.style.boxShadow = "0 2px 5px rgba(38,37,30,0.15)";
-            }}
-            onMouseLeave={(e) => {
-              const el = e.currentTarget as HTMLElement;
-              el.style.background = "#f7f7f4";
-              el.style.borderColor = "#b8b7b0";
-              el.style.boxShadow = "0 1px 3px rgba(38,37,30,0.10)";
-            }}
-          >
-            <Maximize2 size={15} strokeWidth={2.2} />
-          </button>
-        )}
+        {/* Tam ekran butonu */}
+        <button
+          type="button"
+          onClick={enter}
+          title="Tam Ekran (Esc ile çık)"
+          style={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 32,
+            height: 32,
+            borderRadius: 7,
+            border: "1.5px solid #b8b7b0",
+            background: "#f7f7f4",
+            color: "#26251e",
+            cursor: "pointer",
+            boxShadow: "0 1px 3px rgba(38,37,30,0.12)",
+            transition: "background 150ms, border-color 150ms",
+          }}
+          onMouseEnter={(e) => {
+            const el = e.currentTarget as HTMLElement;
+            el.style.background = "#eeeee9";
+            el.style.borderColor = "#8a8a82";
+          }}
+          onMouseLeave={(e) => {
+            const el = e.currentTarget as HTMLElement;
+            el.style.background = "#f7f7f4";
+            el.style.borderColor = "#b8b7b0";
+          }}
+        >
+          <Maximize2 size={15} strokeWidth={2.2} />
+        </button>
 
-        {/* Yükleniyor / hata / boş overlay'ler */}
         {isLoading && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[12px] text-muted-foreground">
-            Konumlar yükleniyor…
+            Konumlar Yükleniyor…
           </div>
         )}
         {isError && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[12px] text-muted-foreground">
-            Konum verisi alınamadı.
+            Konum Verisi Alınamadı.
           </div>
         )}
         {empty && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[12px] text-muted-foreground px-6 text-center">
-            Henüz konum verisi olan terminal yok.
+            Henüz Konum Verisi Olan Terminal Yok.
           </div>
         )}
       </div>
 
-      {/* === Normal mod alt bilgi şeridi === */}
-      {!isFullscreen && (
+      {/* Alt bilgi şeridi — normal mod */}
+      <div
+        className="mt-2 px-0.5 text-[11px] font-mono tabular-nums"
+        style={{ color: "var(--sd-muted)" }}
+      >
+        {statusContent}
+      </div>
+
+      {/* ============================================================
+          CSS Tam Ekran Overlay — position:fixed; inset:0
+          Browser Fullscreen API kullanılmaz: iframe içinde tile
+          layer bozulduğu için. ResizeObserver containerRef'i
+          dinliyor; boyut değişince invalidateSize otomatik çalışır.
+          ============================================================ */}
+      {expanded && (
         <div
-          className="mt-2 px-0.5 text-[11px] font-mono tabular-nums"
-          style={{ color: "var(--sd-muted)" }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            display: "flex",
+            flexDirection: "column",
+            background: "var(--sd-bg, #f7f7f4)",
+          }}
         >
-          {statusContent}
+          {/* Üst bilgi şeridi */}
+          <div
+            style={{
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "10px 20px",
+              borderBottom: "1px solid var(--sd-hairline, #e6e5e0)",
+              background: "var(--sd-bg, #f7f7f4)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: "var(--sd-fg, #26251e)",
+                }}
+              >
+                Filo Haritası
+              </span>
+              <span style={{ color: "var(--sd-hairline-strong, #c9c8c2)" }}>·</span>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontFamily: "monospace",
+                  color: "var(--sd-muted)",
+                }}
+              >
+                {statusContent}
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontFamily: "monospace",
+                  color: "var(--sd-muted)",
+                }}
+              >
+                {visiblePoints.length} Terminal
+              </span>
+              <button
+                type="button"
+                onClick={exit}
+                title="Kapat (Esc)"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 32,
+                  height: 32,
+                  borderRadius: 7,
+                  border: "1.5px solid #b8b7b0",
+                  background: "#f7f7f4",
+                  color: "#26251e",
+                  cursor: "pointer",
+                  boxShadow: "0 1px 3px rgba(38,37,30,0.12)",
+                  transition: "background 150ms",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "#eeeee9";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "#f7f7f4";
+                }}
+              >
+                <Minimize2 size={15} strokeWidth={2.2} />
+              </button>
+            </div>
+          </div>
+
+          {/* Harita alanı — containerRef'i buraya portal et */}
+          <ExpandedMapPortal
+            containerRef={containerRef}
+            mapRef={mapRef}
+            isLoading={isLoading}
+            isError={isError}
+            empty={empty}
+            isFetching={isFetching}
+            isLoading_={isLoading}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * Tam ekran modda containerRef'i (mevcut Leaflet instance) wrapper div içine
+ * taşıyıp, kapandığında geri iade eder. DOM move ile map instance korunur;
+ * yeni init gerekmez. ResizeObserver boyut değişimini yakalar → tile'lar güncellenir.
+ */
+function ExpandedMapPortal({
+  containerRef,
+  mapRef,
+  isLoading,
+  isError,
+  empty,
+  isFetching,
+  isLoading_,
+}: {
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  mapRef: React.RefObject<L.Map | null>;
+  isLoading: boolean;
+  isError: boolean;
+  empty: boolean;
+  isFetching: boolean;
+  isLoading_: boolean;
+}) {
+  const holderRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const holder = holderRef.current;
+    const container = containerRef.current;
+    const map = mapRef.current;
+    if (!holder || !container || !map) return;
+
+    // DOM'da mevcut pozisyonu kaydet (geri iade için)
+    const parent = container.parentElement;
+    const nextSibling = container.nextSibling;
+
+    // Expanded wrapper'a taşı, boyutu tam doldur
+    container.style.width = "100%";
+    container.style.height = "100%";
+    container.style.borderRadius = "0";
+    container.style.overflow = "hidden";
+    // heightClass class'ını geçici olarak devre dışı bırak
+    container.classList.remove("rounded-lg");
+    holder.appendChild(container);
+
+    // Leaflet yeni boyutu öğren
+    requestAnimationFrame(() => {
+      map.invalidateSize({ animate: false, pan: false });
+    });
+
+    return () => {
+      // Kapat: container'ı eski yerine iade et
+      container.style.width = "";
+      container.style.height = "";
+      container.style.borderRadius = "";
+      container.style.overflow = "";
+      container.classList.add("rounded-lg");
+      if (parent) {
+        if (nextSibling) {
+          parent.insertBefore(container, nextSibling);
+        } else {
+          parent.appendChild(container);
+        }
+      }
+      requestAnimationFrame(() => {
+        map.invalidateSize({ animate: false, pan: false });
+      });
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div
+      ref={holderRef}
+      style={{ flex: 1, position: "relative", minHeight: 0 }}
+    >
+      {isLoading_ && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 12,
+            color: "var(--sd-muted)",
+            pointerEvents: "none",
+          }}
+        >
+          Konumlar Yükleniyor…
+        </div>
+      )}
+      {isError && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 12,
+            color: "var(--sd-muted)",
+            pointerEvents: "none",
+          }}
+        >
+          Konum Verisi Alınamadı.
+        </div>
+      )}
+      {empty && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 12,
+            color: "var(--sd-muted)",
+            textAlign: "center",
+            padding: "0 24px",
+            pointerEvents: "none",
+          }}
+        >
+          Henüz Konum Verisi Olan Terminal Yok.
+        </div>
+      )}
+      {!isLoading && isFetching && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 12,
+            right: 12,
+            zIndex: 1000,
+            fontSize: 11,
+            fontFamily: "monospace",
+            color: "var(--sd-muted)",
+            background: "rgba(247,247,244,0.9)",
+            border: "1px solid #e6e5e0",
+            borderRadius: 5,
+            padding: "3px 8px",
+          }}
+        >
+          Güncelleniyor…
         </div>
       )}
     </div>
