@@ -193,7 +193,15 @@ export default function FleetMap({
     const cluster = L.markerClusterGroup({
       showCoverageOnHover: false,
       spiderfyOnMaxZoom: true,
-      maxClusterRadius: 48,
+      // Sadece gerçekten üst üste binen marker'lar kümelenir.
+      // Zoom ≥ 5'te kümeleme tamamen kapanır → her gemi ayrı pin.
+      maxClusterRadius: (zoom: number) => {
+        if (zoom >= 5) return 0;   // kümeleme yok
+        if (zoom >= 4) return 20;  // çok yakınsa
+        if (zoom >= 3) return 30;
+        return 45;                 // dünya görünümünde
+      },
+      disableClusteringAtZoom: 5,
       iconCreateFunction: (c) => {
         const n = c.getChildCount();
         const size = n >= 100 ? 44 : n >= 10 ? 36 : 30;
