@@ -4,7 +4,7 @@ import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import "leaflet.markercluster";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { Maximize2, Minimize2, ChevronLeft, ChevronRight } from "lucide-react";
 
 import {
   useGetFleetMap,
@@ -60,17 +60,11 @@ function makePinIcon(source: Source, online: boolean | null | undefined) {
 
 // ---- Hooks ----
 
-/**
- * CSS position:fixed overlay ile görsel tam ekran.
- * Browser Fullscreen API kullanılmaz — iframe içinde tile render bozulduğu için.
- * Container div asla DOM'da taşınmaz; sadece CSS değişir.
- */
 function useMapExpanded() {
   const [expanded, setExpanded] = useState(false);
   const enter = useCallback(() => setExpanded(true), []);
   const exit = useCallback(() => setExpanded(false), []);
 
-  // ESC ile kapat
   useEffect(() => {
     if (!expanded) return;
     const onKey = (e: KeyboardEvent) => {
@@ -80,12 +74,9 @@ function useMapExpanded() {
     return () => document.removeEventListener("keydown", onKey);
   }, [expanded]);
 
-  // Body scroll kilidi
   useEffect(() => {
     document.body.style.overflow = expanded ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
+    return () => { document.body.style.overflow = ""; };
   }, [expanded]);
 
   return { expanded, enter, exit };
@@ -138,7 +129,21 @@ export default function FleetMap({
   heightClass = "h-[360px] sm:h-[440px]",
   hideTiles = false,
 }: FleetMapProps) {
+  /**
+   * containerRef — Leaflet map container.
+   * ASLA boyutu veya position'ı değiştirilmez.
+   * Leaflet init sırasında position:relative set eder; sonradan geçersiz
+   * kılmak tile pane koordinatlarını bozar (tile kaybı).
+   * Boyut değişimi sizerRef üzerinden sağlanır → ResizeObserver tetikler.
+   */
   const containerRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * sizerRef — harita görünür alanını tutan ara div.
+   * Normal modda heightClass Tailwind sınıfı ile boyutlanır.
+   * Fullscreen modda flex:1 ile kalan alanı doldurur.
+   * containerRef bu div'i 100%×100% doldurur.
+   */
+  const sizerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
 
@@ -204,14 +209,19 @@ export default function FleetMap({
     mapRef.current = map;
     clusterRef.current = cluster;
 
-    // ResizeObserver: container boyutu değişince invalidateSize
-    const ro = new ResizeObserver(() => {
-      map.invalidateSize({ animate: false, pan: false });
-    });
-    ro.observe(containerRef.current);
+    // sizerRef'i izle (containerRef değil!) — boyut değişince invalidateSize
+    if (sizerRef.current) {
+      const ro = new ResizeObserver(() => {
+        map.invalidateSize({ animate: false, pan: false });
+      });
+      ro.observe(sizerRef.current);
+      // Cleanup referansı
+      (map as unknown as Record<string, unknown>).__ro = ro;
+    }
 
     return () => {
-      ro.disconnect();
+      const ro = (map as unknown as Record<string, unknown>).__ro as ResizeObserver | undefined;
+      ro?.disconnect();
       map.remove();
       mapRef.current = null;
       clusterRef.current = null;
@@ -258,18 +268,14 @@ export default function FleetMap({
     }
     cluster.addLayers(markers);
     if (visiblePoints.length === 1) {
-      map.setView([visiblePoints[0].lat, visiblePoints[0].lng], 5, {
-        animate: false,
-      });
+      map.setView([visiblePoints[0].lat, visiblePoints[0].lng], 5, { animate: false });
     } else if (visiblePoints.length > 1) {
       try {
         const b = cluster.getBounds();
         if (b.isValid()) {
           map.fitBounds(b, { padding: [32, 32], maxZoom: 5, animate: false });
         }
-      } catch {
-        /* ignore */
-      }
+      } catch { /* ignore */ }
     }
   }, [visiblePoints]);
 
@@ -294,19 +300,15 @@ export default function FleetMap({
     return () => root.removeEventListener("click", onClick);
   }, [expanded, exit]);
 
-  // ---- Ship list — gemi chip'e tıklanınca fly-to ----
-  const handleShipClick = useCallback(
-    (p: FleetMapPoint) => {
-      const map = mapRef.current;
-      if (!map) return;
-      map.flyTo([p.lat, p.lng], Math.max(map.getZoom(), 5), { animate: true, duration: 0.8 });
-    },
-    [],
-  );
+  // ---- Ship chip click → fly-to ----
+  const handleShipClick = useCallback((p: FleetMapPoint) => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.flyTo([p.lat, p.lng], Math.max(map.getZoom(), 5), { animate: true, duration: 0.8 });
+  }, []);
 
   const empty = !isLoading && visiblePoints.length === 0;
 
-  // ---- Status strip ----
   const statusContent = isFetching && !isLoading ? (
     <span className="animate-pulse">Güncelleniyor…</span>
   ) : justUpdated ? (
@@ -318,204 +320,186 @@ export default function FleetMap({
   );
 
   // ---- Render ----
-  // Önemli: containerRef div asla DOM'da taşınmaz.
-  // Wrapper CSS'i değişerek normal ↔ fullscreen geçişi yapılır.
-  // Bu sayede React reconciler ve Leaflet state çakışmaz.
-  return (
-    <>
-      {/* ============================================================
-          WRAPPER: normal modda relative, fullscreen modda fixed inset-0
-          ============================================================ */}
+  //
+  // Mimari: containerRef CSS'i asla değişmez. sizerRef boyutunu React yönetir.
+  // Expanded modda dış wrapper position:fixed olur; sizerRef flex:1 ile dolar.
+  // Normal modda dış wrapper statik; sizerRef heightClass ile boyutlanır.
+
+  const mapContent = (
+    /* sizerRef: boyut yönetimi için ara katman */
+    <div
+      ref={sizerRef}
+      style={{ position: "relative" }}
+      className={expanded ? undefined : heightClass}
+    >
+      {/* containerRef: Leaflet'in dokunduğu tek div — CSS'i React tarafından değiştirilmez */}
       <div
-        style={
-          expanded
-            ? {
-                position: "fixed",
-                inset: 0,
-                zIndex: 9999,
-                display: "flex",
-                flexDirection: "column",
-                background: "var(--sd-bg, #f7f7f4)",
-              }
-            : { position: "relative" }
-        }
-      >
-        {/* ---- Fullscreen üst bar ---- */}
-        {expanded && (
-          <div
-            style={{
-              flexShrink: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "0 20px",
-              height: 44,
-              borderBottom: "1px solid var(--sd-hairline, #e6e5e0)",
-              background: "var(--sd-bg, #f7f7f4)",
-            }}
-          >
-            {/* Sol: başlık + durum */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  color: "var(--sd-fg, #26251e)",
-                }}
-              >
-                Filo Haritası
-              </span>
-              <span style={{ color: "var(--sd-hairline-strong, #c9c8c2)", fontSize: 13 }}>·</span>
-              <span
-                style={{
-                  fontSize: 11,
-                  fontFamily: "var(--font-mono, monospace)",
-                  color: "var(--sd-muted, #9a9a8a)",
-                }}
-              >
-                {statusContent}
-              </span>
-            </div>
-            {/* Sağ: terminal sayısı + kapat */}
-            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-              <span
-                style={{
-                  fontSize: 11,
-                  fontFamily: "var(--font-mono, monospace)",
-                  color: "var(--sd-muted, #9a9a8a)",
-                }}
-              >
-                {visiblePoints.length} Terminal
-              </span>
-              <button
-                type="button"
-                onClick={exit}
-                title="Kapat (Esc)"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 32,
-                  height: 32,
-                  borderRadius: 7,
-                  border: "1.5px solid #b8b7b0",
-                  background: "#f7f7f4",
-                  color: "#26251e",
-                  cursor: "pointer",
-                  boxShadow: "0 1px 3px rgba(38,37,30,0.10)",
-                  transition: "background 150ms",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = "#eeeee9";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = "#f7f7f4";
-                }}
-              >
-                <Minimize2 size={15} strokeWidth={2.2} />
-              </button>
-            </div>
-          </div>
-        )}
+        ref={containerRef}
+        className="ssa-leaflet ssa-fleet-map w-full h-full"
+        style={expanded ? { borderRadius: 0 } : { borderRadius: 8, overflow: "hidden" }}
+        aria-label="Filo haritası"
+      />
 
-        {/* ---- Harita container ---- */}
-        {/* position:relative sarmalayıcı: tam ekran butonu konumlandırması için */}
-        <div style={expanded ? { flex: 1, position: "relative", minHeight: 0 } : { position: "relative" }}>
-          <div
-            ref={containerRef}
-            className={[
-              "ssa-leaflet ssa-fleet-map w-full",
-              expanded ? "" : `rounded-lg overflow-hidden ${heightClass}`,
-            ]
-              .filter(Boolean)
-              .join(" ")}
-            style={
-              expanded
-                ? { width: "100%", height: "100%", position: "absolute", inset: 0 }
-                : undefined
-            }
-            aria-label="Filo haritası"
-          />
-
-          {/* Normal modda tam ekran butonu */}
-          {!expanded && (
-            <button
-              type="button"
-              onClick={enter}
-              title="Tam Ekran (Esc ile çık)"
-              style={{
-                position: "absolute",
-                top: 8,
-                right: 8,
-                zIndex: 1000,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 32,
-                height: 32,
-                borderRadius: 7,
-                border: "1.5px solid #b8b7b0",
-                background: "#f7f7f4",
-                color: "#26251e",
-                cursor: "pointer",
-                boxShadow: "0 1px 3px rgba(38,37,30,0.12)",
-                transition: "background 150ms, border-color 150ms",
-              }}
-              onMouseEnter={(e) => {
-                const el = e.currentTarget as HTMLElement;
-                el.style.background = "#eeeee9";
-                el.style.borderColor = "#8a8a82";
-              }}
-              onMouseLeave={(e) => {
-                const el = e.currentTarget as HTMLElement;
-                el.style.background = "#f7f7f4";
-                el.style.borderColor = "#b8b7b0";
-              }}
-            >
-              <Maximize2 size={15} strokeWidth={2.2} />
-            </button>
-          )}
-
-          {/* Yükleniyor / hata / boş overlay'ler */}
-          {isLoading && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[12px] text-muted-foreground">
-              Konumlar Yükleniyor…
-            </div>
-          )}
-          {isError && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[12px] text-muted-foreground">
-              Konum Verisi Alınamadı.
-            </div>
-          )}
-          {empty && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[12px] text-muted-foreground px-6 text-center">
-              Henüz Konum Verisi Olan Terminal Yok.
-            </div>
-          )}
-        </div>
-
-        {/* ---- Fullscreen alt gemi listesi ---- */}
-        {expanded && visiblePoints.length > 0 && (
-          <ShipRail points={visiblePoints} onSelect={handleShipClick} />
-        )}
-      </div>
-
-      {/* ---- Normal mod alt bilgi şeridi ---- */}
+      {/* Normal modda tam ekran butonu */}
       {!expanded && (
+        <button
+          type="button"
+          onClick={enter}
+          title="Tam Ekran (Esc ile çık)"
+          style={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 32,
+            height: 32,
+            borderRadius: 7,
+            border: "1.5px solid #b8b7b0",
+            background: "#f7f7f4",
+            color: "#26251e",
+            cursor: "pointer",
+            boxShadow: "0 1px 3px rgba(38,37,30,0.12)",
+            transition: "background 150ms, border-color 150ms",
+          }}
+          onMouseEnter={(e) => {
+            const el = e.currentTarget as HTMLElement;
+            el.style.background = "#eeeee9";
+            el.style.borderColor = "#8a8a82";
+          }}
+          onMouseLeave={(e) => {
+            const el = e.currentTarget as HTMLElement;
+            el.style.background = "#f7f7f4";
+            el.style.borderColor = "#b8b7b0";
+          }}
+        >
+          <Maximize2 size={15} strokeWidth={2.2} />
+        </button>
+      )}
+
+      {/* Overlay'ler */}
+      {isLoading && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[12px] text-muted-foreground">
+          Konumlar Yükleniyor…
+        </div>
+      )}
+      {isError && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[12px] text-muted-foreground">
+          Konum Verisi Alınamadı.
+        </div>
+      )}
+      {empty && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[12px] text-muted-foreground px-6 text-center">
+          Henüz Konum Verisi Olan Terminal Yok.
+        </div>
+      )}
+    </div>
+  );
+
+  // ---- Normal mod ----
+  if (!expanded) {
+    return (
+      <>
+        {mapContent}
         <div
           className="mt-2 px-0.5 text-[11px] font-mono tabular-nums"
           style={{ color: "var(--sd-muted)" }}
         >
           {statusContent}
         </div>
+      </>
+    );
+  }
+
+  // ---- Fullscreen mod ----
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        display: "flex",
+        flexDirection: "column",
+        background: "var(--sd-bg, #f7f7f4)",
+      }}
+    >
+      {/* Üst bar */}
+      <div
+        style={{
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 20px",
+          height: 44,
+          borderBottom: "1px solid var(--sd-hairline, #e6e5e0)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              color: "var(--sd-fg, #26251e)",
+            }}
+          >
+            Filo Haritası
+          </span>
+          <span style={{ color: "var(--sd-hairline-strong, #c9c8c2)", fontSize: 13 }}>·</span>
+          <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--sd-muted, #9a9a8a)" }}>
+            {statusContent}
+          </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--sd-muted, #9a9a8a)" }}>
+            {visiblePoints.length} Terminal
+          </span>
+          <button
+            type="button"
+            onClick={exit}
+            title="Kapat (Esc)"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 32,
+              height: 32,
+              borderRadius: 7,
+              border: "1.5px solid #b8b7b0",
+              background: "#f7f7f4",
+              color: "#26251e",
+              cursor: "pointer",
+              boxShadow: "0 1px 3px rgba(38,37,30,0.10)",
+              transition: "background 150ms",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#eeeee9"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#f7f7f4"; }}
+          >
+            <Minimize2 size={15} strokeWidth={2.2} />
+          </button>
+        </div>
+      </div>
+
+      {/* Harita alanı — sizerRef buraya monte edilecek */}
+      <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
+        {mapContent}
+      </div>
+
+      {/* Alt gemi listesi */}
+      {visiblePoints.length > 0 && (
+        <ShipRail points={visiblePoints} onSelect={handleShipClick} />
       )}
-    </>
+    </div>
   );
 }
 
-// ---- Ship Rail — tam ekran alt gemi listesi ----
+// ---- Ship Rail ----
+
+const SCROLL_STEP = 280;
 
 function ShipRail({
   points,
@@ -524,7 +508,10 @@ function ShipRail({
   points: FleetMapPoint[];
   onSelect: (p: FleetMapPoint) => void;
 }) {
-  // Sıralama: ship name'li önce (alfabetik), sonra kit no
+  const railRef = useRef<HTMLDivElement | null>(null);
+  const [canLeft, setCanLeft] = useState(false);
+  const [canRight, setCanRight] = useState(false);
+
   const sorted = useMemo(() => {
     return [...points].sort((a, b) => {
       const na = a.shipName ?? "";
@@ -536,31 +523,124 @@ function ShipRail({
     });
   }, [points]);
 
+  const updateArrows = useCallback(() => {
+    const el = railRef.current;
+    if (!el) return;
+    setCanLeft(el.scrollLeft > 4);
+    setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    const el = railRef.current;
+    if (!el) return;
+    updateArrows();
+    el.addEventListener("scroll", updateArrows, { passive: true });
+    const ro = new ResizeObserver(updateArrows);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", updateArrows);
+      ro.disconnect();
+    };
+  }, [updateArrows]);
+
+  const scrollLeft = () => {
+    railRef.current?.scrollBy({ left: -SCROLL_STEP, behavior: "smooth" });
+  };
+  const scrollRight = () => {
+    railRef.current?.scrollBy({ left: SCROLL_STEP, behavior: "smooth" });
+  };
+
   return (
     <div
       style={{
         flexShrink: 0,
+        position: "relative",
         borderTop: "1px solid var(--sd-hairline, #e6e5e0)",
         background: "var(--sd-bg, #f7f7f4)",
-        padding: "0 12px",
         height: 52,
-        display: "flex",
-        alignItems: "center",
-        gap: 0,
-        overflowX: "auto",
-        overflowY: "hidden",
-        scrollbarWidth: "none",
-        WebkitOverflowScrolling: "touch",
-      } as React.CSSProperties}
+      }}
     >
-      {sorted.map((p) => (
-        <ShipChip key={`${p.source}:${p.kitNo}`} point={p} onSelect={onSelect} />
-      ))}
+      {/* Sol ok */}
+      {canLeft && (
+        <button
+          type="button"
+          onClick={scrollLeft}
+          aria-label="Sola kaydır"
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            bottom: 0,
+            zIndex: 10,
+            width: 36,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "linear-gradient(to right, var(--sd-bg, #f7f7f4) 60%, transparent)",
+            border: "none",
+            cursor: "pointer",
+            color: "#26251e",
+            padding: 0,
+          }}
+        >
+          <ChevronLeft size={16} strokeWidth={2} />
+        </button>
+      )}
+
+      {/* Rail */}
+      <div
+        ref={railRef}
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          gap: 0,
+          overflowX: "auto",
+          overflowY: "hidden",
+          scrollbarWidth: "none",
+          padding: `0 ${canRight ? 36 : 12}px 0 ${canLeft ? 36 : 12}px`,
+          WebkitOverflowScrolling: "touch",
+        } as React.CSSProperties}
+      >
+        {sorted.map((p) => (
+          <ShipChip key={`${p.source}:${p.kitNo}`} point={p} onSelect={onSelect} />
+        ))}
+      </div>
+
+      {/* Sağ ok */}
+      {canRight && (
+        <button
+          type="button"
+          onClick={scrollRight}
+          aria-label="Sağa kaydır"
+          style={{
+            position: "absolute",
+            right: 0,
+            top: 0,
+            bottom: 0,
+            zIndex: 10,
+            width: 36,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "linear-gradient(to left, var(--sd-bg, #f7f7f4) 60%, transparent)",
+            border: "none",
+            cursor: "pointer",
+            color: "#26251e",
+            padding: 0,
+          }}
+        >
+          <ChevronRight size={16} strokeWidth={2} />
+        </button>
+      )}
     </div>
   );
 }
 
-const SOURCE_DOT_STYLE: Record<Source, React.CSSProperties> = {
+// ---- Ship Chip ----
+
+const SOURCE_DOT: Record<Source, React.CSSProperties> = {
   satcom:    { background: SOURCE_COLOR.satcom },
   starlink:  { background: SOURCE_COLOR.starlink },
   leobridge: { background: SOURCE_COLOR.leobridge },
@@ -600,7 +680,6 @@ function ShipChip({
         whiteSpace: "nowrap",
       }}
     >
-      {/* Renk nokta */}
       <span
         style={{
           width: 8,
@@ -608,10 +687,9 @@ function ShipChip({
           borderRadius: "50%",
           flexShrink: 0,
           opacity: isOffline ? 0.35 : 1,
-          ...SOURCE_DOT_STYLE[point.source],
+          ...SOURCE_DOT[point.source],
         }}
       />
-      {/* Metin */}
       <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
         <span
           style={{
@@ -630,7 +708,7 @@ function ShipChip({
           style={{
             fontSize: 10,
             color: "var(--sd-muted, #9a9a8a)",
-            fontFamily: "var(--font-mono, monospace)",
+            fontFamily: "monospace",
             lineHeight: 1,
           }}
         >
