@@ -82,21 +82,31 @@ function useMapExpanded() {
   return { expanded, enter, exit };
 }
 
-const REFETCH_MS = 60_000;
+// Verinin konumsal kaynaktan saatte bir geldiğini varsayarak,
+// bir sonraki tam saate (xx:00) kalan süreyi göster.
+// refetchInterval: 5 dk → saat başında yeni veri ~5 dk içinde yakalanır.
+const REFETCH_MS = 5 * 60 * 1000;
 
-function useCountdown(dataUpdatedAt: number): number {
-  const [remaining, setRemaining] = useState<number>(REFETCH_MS / 1000);
+function useNextHourCountdown(): string {
+  const [display, setDisplay] = useState("");
   useEffect(() => {
     const calc = () => {
-      if (!dataUpdatedAt) return;
-      const elapsed = Math.floor((Date.now() - dataUpdatedAt) / 1000);
-      setRemaining(Math.max(0, Math.ceil(REFETCH_MS / 1000 - elapsed)));
+      const now = new Date();
+      const next = new Date(now);
+      next.setHours(now.getHours() + 1, 0, 0, 0);
+      const ms = Math.max(0, next.getTime() - now.getTime());
+      const totalSecs = Math.floor(ms / 1000);
+      const mins = Math.floor(totalSecs / 60);
+      const secs = totalSecs % 60;
+      setDisplay(
+        `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`,
+      );
     };
     calc();
     const id = setInterval(calc, 1000);
     return () => clearInterval(id);
-  }, [dataUpdatedAt]);
-  return remaining;
+  }, []);
+  return display;
 }
 
 function useJustUpdated(isFetching: boolean): boolean {
@@ -158,7 +168,7 @@ export default function FleetMap({
   });
 
   const { expanded, enter, exit } = useMapExpanded();
-  const remaining = useCountdown(dataUpdatedAt);
+  const nextHour = useNextHourCountdown();
   const justUpdated = useJustUpdated(isFetching);
 
   const lastUpdateStr =
@@ -321,7 +331,7 @@ export default function FleetMap({
   ) : justUpdated ? (
     <span style={{ color: "#1f8a65" }}>✓ Güncellendi</span>
   ) : lastUpdateStr ? (
-    <span>Son Güncelleme: {lastUpdateStr} · {remaining} Sn Sonra Yenilenecek</span>
+    <span>Son Güncelleme: {lastUpdateStr} · {nextHour} Sonra Yenilenecek</span>
   ) : (
     <span>Konumlar Bekleniyor…</span>
   );
