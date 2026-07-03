@@ -184,8 +184,8 @@ export default function FleetMap({
     if (!containerRef.current || mapRef.current) return;
 
     const map = L.map(containerRef.current, {
-      center: [25, 20],
-      zoom: 2,
+      center: [42, 22],   // Türkiye / Doğu Akdeniz — filo yoğunluğu burada
+      zoom: 3,
       minZoom: 2,
       maxZoom: 10,
       worldCopyJump: true,
@@ -290,7 +290,14 @@ export default function FleetMap({
       try {
         const b = cluster.getBounds();
         if (b.isValid()) {
-          map.fitBounds(b, { padding: [32, 32], maxZoom: 5, animate: false });
+          const lngSpan = b.getEast() - b.getWest();
+          if (lngSpan <= 140) {
+            // Gemiler makul bir bölgede → bounds'a sığdır
+            map.fitBounds(b, { padding: [40, 40], maxZoom: 5, animate: false });
+          } else {
+            // Gemiler küresel yayılmış → Avrupa / Doğu Akdeniz merkez göster
+            map.setView([42, 22], 3, { animate: false });
+          }
         }
       } catch { /* ignore */ }
     }
