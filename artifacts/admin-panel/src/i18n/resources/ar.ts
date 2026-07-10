@@ -714,6 +714,29 @@ const ar: Record<string, string> = {
   "IP Adresi:": "عنوان IP:",
   "Veri yok": "لا توجد بيانات",
   "Veri": "البيانات",
+
+  // Dashboard redesign
+  "İyi günler": "صباح الخير",
+  "Filo ve terminal operasyonlarınıza genel bakış.": "نظرة عامة على عمليات الأسطول والمحطات.",
+  "AKTİF GEMİ": "السفن النشطة",
+  "Canlı veri alınıyor": "استلام البيانات المباشرة",
+  "CANLI": "مباشر",
+  "FİLO HARİTASI": "خريطة الأسطول",
+  "SON SENKRON": "آخر مزامنة",
+  "Tümü": "عرض الكل",
+  "Henüz senkron yok.": "لا توجد سجلات مزامنة بعد.",
+  "Senkron tamamlandı": "اكتملت المزامنة",
+  "Senkron başarısız": "فشل المزامنة",
+  "Çalışıyor…": "قيد التشغيل…",
+  "Bekliyor": "انتظار",
+  "{{count}} kayıt bulundu": "تم العثور على {{count}} سجل",
+  "EN AKTİF TERMİNALLER": "أكثر المحطات نشاطاً",
+  "BANT GENİŞLİĞİ KULLANIMI": "استخدام النطاق الترددي",
+  "KAYNAK DAĞILIMI": "توزيع المصادر",
+  "terminal": "محطة",
+  "hesap": "حساب",
+  "Operatör": "مشغّل",
+  "Terminaller, gemiler, lokasyonlar…": "محطات، سفن، مواقع…",
 };
 
 export default ar;

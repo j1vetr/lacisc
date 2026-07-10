@@ -715,6 +715,29 @@ const en: Record<string, string> = {
   "IP Adresi:": "IP Address:",
   "Veri yok": "No data",
   "Veri": "Data",
+
+  // Dashboard redesign — new strings
+  "İyi günler": "Good morning",
+  "Filo ve terminal operasyonlarınıza genel bakış.": "A real-time overview of your fleet and terminal operations.",
+  "AKTİF GEMİ": "ACTIVE VESSELS",
+  "Canlı veri alınıyor": "Receiving live data",
+  "CANLI": "LIVE",
+  "FİLO HARİTASI": "FLEET MAP",
+  "SON SENKRON": "RECENT SYNC",
+  "Tümü": "View all",
+  "Henüz senkron yok.": "No sync records yet.",
+  "Senkron tamamlandı": "Sync completed",
+  "Senkron başarısız": "Sync failed",
+  "Çalışıyor…": "Running…",
+  "Bekliyor": "Waiting",
+  "{{count}} kayıt bulundu": "{{count}} records found",
+  "EN AKTİF TERMİNALLER": "MOST ACTIVE TERMINALS",
+  "BANT GENİŞLİĞİ KULLANIMI": "BANDWIDTH USAGE",
+  "KAYNAK DAĞILIMI": "SOURCE DISTRIBUTION",
+  "terminal": "terminal",
+  "hesap": "account",
+  "Operatör": "Operator",
+  "Terminaller, gemiler, lokasyonlar…": "Terminals, vessels, locations…",
 };
 
 export default en;

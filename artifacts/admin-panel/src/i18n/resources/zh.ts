@@ -714,6 +714,29 @@ const zh: Record<string, string> = {
   "IP Adresi:": "IP 地址：",
   "Veri yok": "暂无数据",
   "Veri": "数据",
+
+  // Dashboard redesign
+  "İyi günler": "您好",
+  "Filo ve terminal operasyonlarınıza genel bakış.": "实时查看您的船队和终端运营情况。",
+  "AKTİF GEMİ": "活跃船只",
+  "Canlı veri alınıyor": "正在接收实时数据",
+  "CANLI": "实时",
+  "FİLO HARİTASI": "船队地图",
+  "SON SENKRON": "最近同步",
+  "Tümü": "查看全部",
+  "Henüz senkron yok.": "暂无同步记录。",
+  "Senkron tamamlandı": "同步完成",
+  "Senkron başarısız": "同步失败",
+  "Çalışıyor…": "运行中…",
+  "Bekliyor": "等待中",
+  "{{count}} kayıt bulundu": "找到 {{count}} 条记录",
+  "EN AKTİF TERMİNALLER": "最活跃终端",
+  "BANT GENİŞLİĞİ KULLANIMI": "带宽使用情况",
+  "KAYNAK DAĞILIMI": "来源分布",
+  "terminal": "终端",
+  "hesap": "账户",
+  "Operatör": "操作员",
+  "Terminaller, gemiler, lokasyonlar…": "终端、船只、位置…",
 };
 
 export default zh;
