@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useTheme } from "next-themes";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Search, Sun, Moon, Menu, X, LogOut, User } from "lucide-react";
+import { Search, Sun, Moon, Menu, X, LogOut, User, ChevronUp } from "lucide-react";
 import {
   useGetMe,
   getGetMeQueryKey,
@@ -44,40 +44,29 @@ export default function CustomerLayout({
 
   const isDark = mounted && resolvedTheme === "dark";
 
-  // Lock scroll when mobile drawer open.
   useEffect(() => {
     if (!mobileOpen) return undefined;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
+    return () => { document.body.style.overflow = prev; };
   }, [mobileOpen]);
 
-  // Close mobile drawer + account menu on route change.
   useEffect(() => {
     setMobileOpen(false);
     setAccountOpen(false);
   }, [location]);
 
-  // Escape closes whichever overlay is open; restore focus to its trigger.
   useEffect(() => {
     if (!mobileOpen && !accountOpen) return undefined;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      if (mobileOpen) {
-        setMobileOpen(false);
-        menuButtonRef.current?.focus();
-      } else if (accountOpen) {
-        setAccountOpen(false);
-        accountTriggerRef.current?.focus();
-      }
+      if (mobileOpen) { setMobileOpen(false); menuButtonRef.current?.focus(); }
+      else if (accountOpen) { setAccountOpen(false); accountTriggerRef.current?.focus(); }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [mobileOpen, accountOpen]);
 
-  // Outside click closes account menu.
   useEffect(() => {
     if (!accountOpen) return undefined;
     const onPointer = (e: MouseEvent) => {
@@ -115,10 +104,7 @@ export default function CustomerLayout({
 
   const handleLogout = () => {
     logout.mutate(undefined, {
-      onSettled: () => {
-        qc.clear();
-        window.location.href = "/login";
-      },
+      onSettled: () => { qc.clear(); window.location.href = "/login"; },
     });
   };
 
@@ -138,26 +124,28 @@ export default function CustomerLayout({
     .join("")
     .toLocaleUpperCase("tr-TR");
 
-  // Aktif KIT (kit-detail/starlink/norway rotalarından) → sidebar vurgusu.
   const activeKitNo = (() => {
     const m = location.match(/^\/(?:kits|starlink|norway)\/([^/]+)/);
     return m ? decodeURIComponent(m[1]) : null;
   })();
 
+  const onlineCount = fleet.filter((s) => s.online).length;
+
   const sidebar = (
     <aside
       className={`sd-sidebar w-[260px] shrink-0 flex flex-col ${mobileOpen ? "open" : ""}`}
     >
-      <div className="px-4 py-5 flex items-center justify-between gap-2">
+      {/* Logo */}
+      <div className="px-5 py-4 flex items-center justify-between gap-2 border-b" style={{ borderColor: "var(--sd-hairline)" }}>
         <Link href="/">
           <a
-            className="flex items-center justify-center cursor-pointer flex-1 min-w-0"
+            className="flex items-center cursor-pointer"
             aria-label={t("Ana sayfa")}
           >
             <img
               src={brandSrc}
               alt="Lacivert Teknoloji"
-              className="max-h-14 w-auto object-contain"
+              className="max-h-11 w-auto object-contain"
             />
           </a>
         </Link>
@@ -166,18 +154,26 @@ export default function CustomerLayout({
           className="sd-icon-btn sd-mobile-only"
           aria-label={t("Kapat")}
           onClick={() => setMobileOpen(false)}
-          style={{ width: 30, height: 30 }}
+          style={{ width: 30, height: 30, flexShrink: 0 }}
         >
           <X size={14} />
         </button>
       </div>
 
-      <div className="sd-divider" />
-
-      <div className="px-5 pt-5 pb-2">
+      {/* Fleet section header */}
+      <div className="px-5 pt-5 pb-2 flex items-center justify-between gap-2">
         <span className="sd-eyebrow">{t("Gemiler")}</span>
+        {!isLoading && fleet.length > 0 && (
+          <span
+            className="text-[10px] font-mono tabular-nums"
+            style={{ color: "var(--sd-muted)" }}
+          >
+            {onlineCount}/{fleet.length}
+          </span>
+        )}
       </div>
 
+      {/* Ship list */}
       <nav className="flex-1 overflow-auto pb-4" aria-label="Filo">
         {isLoading ? (
           <ul aria-hidden className="px-5 py-2 space-y-3">
@@ -197,55 +193,61 @@ export default function CustomerLayout({
             {t("Henüz size atanmış bir gemi bulunmuyor.")}
           </div>
         ) : (
-          fleet.map((s) => {
-            const active = activeKitNo === s.kitNo;
-            return (
-              <button
-                key={`${s.source}:${s.kitNo}`}
-                type="button"
-                className={`sd-nav-item ${active ? "active" : ""}`}
-                onClick={() => setLocation(detailHref(s))}
-                aria-current={active ? "page" : undefined}
-              >
-                <div className="flex flex-col min-w-0 flex-1">
+          <>
+            {filteredFleet.map((s) => {
+              const active = activeKitNo === s.kitNo;
+              return (
+                <button
+                  key={`${s.source}:${s.kitNo}`}
+                  type="button"
+                  className={`sd-nav-item ${active ? "active" : ""}`}
+                  onClick={() => setLocation(detailHref(s))}
+                  aria-current={active ? "page" : undefined}
+                >
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span
+                      className="text-[13px] truncate"
+                      style={{ fontWeight: active ? 600 : 500, letterSpacing: "-0.005em" }}
+                    >
+                      {s.shipName}
+                    </span>
+                    <span
+                      className="sd-mono text-[10.5px]"
+                      style={{ color: "var(--sd-muted)" }}
+                    >
+                      {s.kitNo}
+                    </span>
+                  </div>
                   <span
-                    className="text-[13px] truncate"
+                    className="sd-dot"
                     style={{
-                      fontWeight: active ? 600 : 500,
-                      letterSpacing: "-0.005em",
+                      backgroundColor: s.online
+                        ? "var(--sd-success)"
+                        : "var(--sd-hairline-strong)",
                     }}
-                  >
-                    {s.shipName}
-                  </span>
-                  <span
-                    className="sd-mono text-[10.5px]"
-                    style={{ color: "var(--sd-muted)" }}
-                  >
-                    {s.kitNo}
-                  </span>
-                </div>
-                <span
-                  className="sd-dot"
-                  style={{
-                    backgroundColor: s.online
-                      ? "var(--sd-success)"
-                      : "var(--sd-hairline-strong)",
-                  }}
-                />
-              </button>
-            );
-          })
+                  />
+                </button>
+              );
+            })}
+            {query && filteredFleet.length === 0 && (
+              <div className="px-5 py-4 text-[12.5px]" style={{ color: "var(--sd-muted)" }}>
+                {t("Sonuç bulunamadı.")}
+              </div>
+            )}
+          </>
         )}
       </nav>
 
       <div className="sd-divider" />
 
-      <div className="p-4 relative">
+      {/* Account section */}
+      <div className="relative">
         <button
           ref={accountTriggerRef}
           type="button"
           onClick={() => setAccountOpen((v) => !v)}
-          className="w-full flex items-center gap-3 text-left"
+          className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors"
+          style={{ backgroundColor: accountOpen ? "var(--sd-hover-bg)" : "transparent" }}
           aria-haspopup="menu"
           aria-expanded={accountOpen}
         >
@@ -256,18 +258,17 @@ export default function CustomerLayout({
             {initials || "MA"}
           </div>
           <div className="flex flex-col leading-tight min-w-0 flex-1">
-            <span className="text-[12.5px] font-medium truncate">
-              {userName}
-            </span>
+            <span className="text-[12.5px] font-medium truncate">{userName}</span>
             {userHandle && (
-              <span
-                className="text-[10.5px] truncate"
-                style={{ color: "var(--sd-muted)" }}
-              >
+              <span className="text-[10.5px] truncate" style={{ color: "var(--sd-muted)" }}>
                 {userHandle}
               </span>
             )}
           </div>
+          <ChevronUp
+            size={13}
+            style={{ color: "var(--sd-muted)", flexShrink: 0, transition: "transform 200ms", transform: accountOpen ? "none" : "rotate(180deg)" }}
+          />
         </button>
 
         {accountOpen && (
@@ -275,21 +276,23 @@ export default function CustomerLayout({
             ref={accountMenuRef}
             role="menu"
             aria-label={t("Hesap menüsü")}
-            className="absolute left-4 right-4 bottom-[calc(100%-8px)] rounded-lg overflow-hidden z-10"
+            className="absolute left-0 right-0 bottom-full overflow-hidden"
             style={{
               background: "var(--sd-surface)",
               border: "1px solid var(--sd-hairline)",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+              borderBottom: "none",
+              borderRadius: "10px 10px 0 0",
+              boxShadow: "0 -8px 24px rgba(0,0,0,0.08)",
             }}
           >
             <Link href="/profile">
               <a
                 role="menuitem"
-                className="flex items-center gap-2 px-3 py-2.5 text-[13px]"
+                className="flex items-center gap-2.5 px-4 py-3 text-[13px] transition-colors cursor-pointer"
                 style={{ color: "var(--sd-ink)" }}
                 onClick={() => setAccountOpen(false)}
               >
-                <User size={14} />
+                <User size={14} style={{ color: "var(--sd-muted)", flexShrink: 0 }} />
                 {t("Profilim")}
               </a>
             </Link>
@@ -298,11 +301,11 @@ export default function CustomerLayout({
               role="menuitem"
               type="button"
               onClick={handleLogout}
-              className="w-full flex items-center gap-2 px-3 py-2.5 text-[13px] text-left"
+              className="w-full flex items-center gap-2.5 px-4 py-3 text-[13px] text-left transition-colors"
               style={{ color: "var(--sd-ink)" }}
             >
-              <LogOut size={14} />
-              {t("Çıkış")}
+              <LogOut size={14} style={{ color: "var(--sd-muted)", flexShrink: 0 }} />
+              {t("Çıkış Yap")}
             </button>
           </div>
         )}
@@ -324,9 +327,10 @@ export default function CustomerLayout({
         {sidebar}
 
         <main className="flex-1 min-w-0 flex flex-col">
+          {/* Header */}
           <header
-            className="sd-main-pad px-10 py-4 flex items-center gap-3 border-b"
-            style={{ borderColor: "var(--sd-hairline)" }}
+            className="sd-main-pad px-8 py-0 flex items-center gap-3 border-b"
+            style={{ borderColor: "var(--sd-hairline)", height: 56, position: "sticky", top: 0, zIndex: 20, background: "var(--sd-bg)" }}
           >
             <button
               ref={menuButtonRef}
@@ -335,20 +339,23 @@ export default function CustomerLayout({
               aria-label={t("Menü")}
               onClick={() => setMobileOpen(true)}
             >
-              <Menu size={16} />
+              <Menu size={15} />
             </button>
 
-            <div className="flex-1 min-w-0 max-w-md sd-search-wrap">
+            {/* Search */}
+            <div className="flex-1 min-w-0 max-w-sm sd-search-wrap">
               <div className="sd-search">
-                <Search size={14} className="shrink-0" style={{ color: "var(--sd-muted)" }} />
+                <Search size={13} className="shrink-0" style={{ color: "var(--sd-muted)" }} />
                 <input
-                  placeholder={t("Gemi veya KIT ara")}
+                  placeholder={t("Gemi veya KIT ara…")}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   aria-label={t("Gemi ara")}
                 />
               </div>
             </div>
+
+            <div className="flex-1" />
 
             <LanguageSwitcher compact variant="solid" />
 
@@ -360,16 +367,6 @@ export default function CustomerLayout({
               suppressHydrationWarning
             >
               {mounted && isDark ? <Sun size={14} /> : <Moon size={14} />}
-            </button>
-
-            <button
-              type="button"
-              className="sd-icon-btn"
-              aria-label={t("Çıkış Yap")}
-              title={t("Çıkış Yap")}
-              onClick={handleLogout}
-            >
-              <LogOut size={14} />
             </button>
           </header>
 
