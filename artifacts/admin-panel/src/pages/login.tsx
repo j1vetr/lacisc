@@ -80,10 +80,8 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#eef2f7] dark:bg-background flex items-center justify-center p-4 sm:p-8">
-      <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20">
-        <LanguageSwitcher />
-      </div>
+    <div className="min-h-screen w-full bg-[#eef2f7] dark:bg-background flex flex-col items-center justify-center gap-3 sm:gap-4 p-4 sm:p-8">
+      <LanguageSwitcher variant="solid" />
       <div className="w-full max-w-[1080px] bg-white dark:bg-card rounded-3xl border border-[#e6e9ef] dark:border-border overflow-hidden shadow-[0_30px_80px_-30px_rgba(15,23,42,0.18)] grid lg:grid-cols-[1.05fr_1fr]">
         {/* SOL PANEL — uydu + dünya görseli, logo, özellikler */}
         <aside className="hidden lg:flex relative flex-col p-10 xl:p-12 overflow-hidden bg-white dark:bg-card/50 min-h-[680px]">

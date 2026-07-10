@@ -1,8 +1,8 @@
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
-import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Suspense, lazy, useEffect } from "react";
+import { Suspense, lazy, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { ErrorBoundary } from "./components/error-boundary";
@@ -90,17 +90,26 @@ function ProtectedRoute({
 }) {
   const { t } = useTranslation();
   const [, setLocation] = useLocation();
-  const qc = useQueryClient();
   const { data: user, isLoading, isError } = useGetMe({
     query: { queryKey: getGetMeQueryKey(), retry: false, staleTime: 60_000 },
   });
+  // One-shot guard: without it, re-renders while isError stays true would
+  // call setLocation repeatedly. We deliberately do NOT clear the query
+  // cache here (qc.clear() previously lived in this effect) — clearing a
+  // query that RootRoute also subscribes to flips that sibling observer
+  // back into a loading state, which unmounts and remounts this component
+  // with a *fresh* ref, defeating the one-shot guard and producing an
+  // unbounded clear -> refetch -> error -> clear loop. A plain redirect is
+  // sufficient: react-query already refetches on next mount since an
+  // errored query is never treated as fresh.
+  const hasRedirectedRef = useRef(false);
 
   useEffect(() => {
-    if (isError) {
-      qc.clear();
+    if (isError && !hasRedirectedRef.current) {
+      hasRedirectedRef.current = true;
       setLocation("/login");
     }
-  }, [isError, qc, setLocation]);
+  }, [isError, setLocation]);
 
   if (isLoading) {
     return (
@@ -157,10 +166,27 @@ function RootRoute() {
   // Customer rolu için "/" editöryel müşteri panelini, diğerleri için
   // operasyon panelini render eder. Customer panel kendi tam-ekran chrome'unu
   // sağladığı için global Layout'u atlar (bareLayout).
-  const { data: user, isLoading } = useGetMe({
+  const [, setLocation] = useLocation();
+  const { data: user, isLoading, isError } = useGetMe({
     query: { queryKey: getGetMeQueryKey(), retry: false, staleTime: 60_000 },
   });
-  if (isLoading) return <PageFallback />;
+  // Redirect here directly on error instead of falling through to
+  // <ProtectedRoute>: ProtectedRoute runs its own independent useGetMe
+  // subscription against the same query key, and mounting it just to have
+  // it immediately redirect caused a storm (RootRoute + ProtectedRoute both
+  // hold observers on one query; unmount/remount cycles reset per-component
+  // guards and produced hundreds of duplicate /auth/me requests). Handling
+  // the error at this level means ProtectedRoute is never mounted at all
+  // for an unauthenticated visitor to "/".
+  const hasRedirectedRef = useRef(false);
+  useEffect(() => {
+    if (isError && !hasRedirectedRef.current) {
+      hasRedirectedRef.current = true;
+      setLocation("/login");
+    }
+  }, [isError, setLocation]);
+
+  if (isLoading || isError) return <PageFallback />;
   const role = (user as { role?: Role } | undefined)?.role ?? "viewer";
   if (role === "customer") {
     return <ProtectedRoute component={CustomerPanel} />;

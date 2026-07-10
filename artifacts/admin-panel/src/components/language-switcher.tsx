@@ -9,25 +9,40 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
+export function LanguageSwitcher({
+  compact = false,
+  variant = "subtle",
+}: {
+  compact?: boolean;
+  variant?: "subtle" | "solid";
+}) {
   const { t, i18n } = useTranslation();
   const current =
     SUPPORTED_LANGUAGES.find((l) => l.code === i18n.language) ??
     SUPPORTED_LANGUAGES[0];
+
+  const triggerClassName =
+    variant === "solid"
+      ? compact
+        ? "inline-flex items-center justify-center w-9 h-9 rounded-full bg-white dark:bg-card border border-[#e6e9ef] dark:border-border shadow-sm text-foreground hover:border-primary/40 hover:shadow-md transition-all"
+        : "inline-flex items-center gap-2 h-9 px-3.5 rounded-full bg-white dark:bg-card border border-[#e6e9ef] dark:border-border shadow-sm text-xs font-semibold text-foreground hover:border-primary/40 hover:shadow-md transition-all"
+      : compact
+        ? "inline-flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+        : "inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors";
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className={
-            compact
-              ? "inline-flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-              : "inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          }
+          className={triggerClassName}
           aria-label={t("Dil seçimi")}
         >
-          <Languages className="w-3.5 h-3.5" />
+          {variant === "solid" ? (
+            <span className="text-base leading-none">{current.flag}</span>
+          ) : (
+            <Languages className="w-3.5 h-3.5" />
+          )}
           {!compact && <span>{current.label}</span>}
         </button>
       </DropdownMenuTrigger>
@@ -36,9 +51,14 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
           <DropdownMenuItem
             key={lang.code}
             onClick={() => i18n.changeLanguage(lang.code)}
-            className={lang.code === current.code ? "font-semibold" : ""}
+            className={
+              lang.code === current.code
+                ? "font-semibold gap-2"
+                : "gap-2"
+            }
           >
-            {lang.label}
+            <span className="text-base leading-none">{lang.flag}</span>
+            <span>{lang.label}</span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

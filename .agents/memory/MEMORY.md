@@ -1,2 +1,3 @@
 - [WhatsApp alert delivery](whatsapp-alert-delivery.md) — wpileti.com anti-spam → alerts batched once/day from a DB queue; two atomicity invariants must survive refactors.
 - [i18n key strategy](i18n-key-strategy.md) — admin-panel uses literal Turkish text as the i18next key; keep new backend/UI strings in sync across all 5 resource dictionaries.
+- [React Query auth-redirect loop](react-query-auth-redirect-loop.md) — never clear/invalidate a shared query key inside a child guard's error-redirect effect; parent+child re-mount cycles defeat one-shot guards.
