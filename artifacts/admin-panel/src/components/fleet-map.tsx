@@ -5,6 +5,7 @@ import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import "leaflet.markercluster";
 import { Maximize2, Minimize2, ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import {
   useGetFleetMap,
@@ -139,6 +140,7 @@ export default function FleetMap({
   heightClass = "h-[360px] sm:h-[440px]",
   hideTiles = false,
 }: FleetMapProps) {
+  const { t, i18n } = useTranslation();
   /**
    * KURAL: containerRef ve sizerRef div'leri React ağacında ASLA yer değiştirmez.
    * Tek return yapısı kullanılır; hem normal hem fullscreen moda CSS değişimiyle geçilir.
@@ -274,10 +276,11 @@ export default function FleetMap({
            <div class="ssa-fleet-popup__sub">${escapeHtml(p.kitNo)}</div>`
         : `<div class="ssa-fleet-popup__title">${escapeHtml(p.kitNo)}</div>`;
       const href = SOURCE_DETAIL[p.source](p.kitNo);
+      const openDetailLabel = escapeHtml(t("Detayı Aç"));
       m.bindPopup(
         `<div class="ssa-fleet-popup" data-source="${p.source}">
           ${titleLine}
-          <a class="ssa-fleet-popup__link" data-ssa-fleet-href="${href}" href="${href}">Detayı Aç</a>
+          <a class="ssa-fleet-popup__link" data-ssa-fleet-href="${href}" href="${href}">${openDetailLabel}</a>
         </div>`,
         { closeButton: false, maxWidth: 240 },
       );
@@ -301,7 +304,7 @@ export default function FleetMap({
         }
       } catch { /* ignore */ }
     }
-  }, [visiblePoints]);
+  }, [visiblePoints, i18n.language]);
 
   // ---- SPA navigasyon ----
   useEffect(() => {
@@ -334,13 +337,13 @@ export default function FleetMap({
   const empty = !isLoading && visiblePoints.length === 0;
 
   const statusContent = isFetching && !isLoading ? (
-    <span className="animate-pulse">Güncelleniyor…</span>
+    <span className="animate-pulse">{t("Güncelleniyor…")}</span>
   ) : justUpdated ? (
-    <span style={{ color: "#1f8a65" }}>✓ Güncellendi</span>
+    <span style={{ color: "#1f8a65" }}>{t("✓ Güncellendi")}</span>
   ) : lastUpdateStr ? (
-    <span>Son Güncelleme: {lastUpdateStr} · {nextHour} Sonra Yenilenecek</span>
+    <span>{t("Son Güncelleme:")} {lastUpdateStr} · {nextHour} {t("Sonra Yenilenecek")}</span>
   ) : (
-    <span>Konumlar Bekleniyor…</span>
+    <span>{t("Konumlar Bekleniyor…")}</span>
   );
 
   // ---- Render ----
@@ -396,7 +399,7 @@ export default function FleetMap({
                   color: "var(--sd-fg, #26251e)",
                 }}
               >
-                Filo Haritası
+                {t("Filo Haritası")}
               </span>
               <span style={{ color: "#c9c8c2", fontSize: 13 }}>·</span>
               <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--sd-muted, #9a9a8a)" }}>
@@ -405,12 +408,12 @@ export default function FleetMap({
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
               <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--sd-muted, #9a9a8a)" }}>
-                {visiblePoints.length} Terminal
+                {visiblePoints.length} {t("Terminal")}
               </span>
               <button
                 type="button"
                 onClick={exit}
-                title="Kapat (Esc)"
+                title={t("Kapat (Esc)")}
                 style={fsBtn}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#eeeee9"; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#f7f7f4"; }}
@@ -449,7 +452,7 @@ export default function FleetMap({
                 ? { borderRadius: 0 }
                 : { borderRadius: 8, overflow: "hidden" }
             }
-            aria-label="Filo haritası"
+            aria-label={t("Filo haritası")}
           />
 
           {/* Normal mod tam ekran butonu */}
@@ -457,7 +460,7 @@ export default function FleetMap({
             <button
               type="button"
               onClick={enter}
-              title="Tam Ekran (Esc ile çık)"
+              title={t("Tam Ekran (Esc ile çık)")}
               style={{
                 ...fsBtn,
                 position: "absolute",
@@ -483,17 +486,17 @@ export default function FleetMap({
           {/* Overlay'ler */}
           {isLoading && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[12px] text-muted-foreground">
-              Konumlar Yükleniyor…
+              {t("Konumlar Yükleniyor…")}
             </div>
           )}
           {isError && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[12px] text-muted-foreground">
-              Konum Verisi Alınamadı.
+              {t("Konum Verisi Alınamadı.")}
             </div>
           )}
           {empty && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[12px] text-muted-foreground px-6 text-center">
-              Henüz Konum Verisi Olan Terminal Yok.
+              {t("Henüz Konum Verisi Olan Terminal Yok.")}
             </div>
           )}
         </div>
@@ -544,6 +547,7 @@ function ShipRail({
   points: FleetMapPoint[];
   onSelect: (p: FleetMapPoint) => void;
 }) {
+  const { t } = useTranslation();
   const railRef = useRef<HTMLDivElement | null>(null);
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(false);
@@ -596,7 +600,7 @@ function ShipRail({
         <button
           type="button"
           onClick={() => railRef.current?.scrollBy({ left: -SCROLL_STEP, behavior: "smooth" })}
-          aria-label="Sola kaydır"
+          aria-label={t("Sola kaydır")}
           style={{
             position: "absolute",
             left: 0,
@@ -643,7 +647,7 @@ function ShipRail({
         <button
           type="button"
           onClick={() => railRef.current?.scrollBy({ left: SCROLL_STEP, behavior: "smooth" })}
-          aria-label="Sağa kaydır"
+          aria-label={t("Sağa kaydır")}
           style={{
             position: "absolute",
             right: 0,
@@ -683,6 +687,7 @@ function ShipChip({
   point: FleetMapPoint;
   onSelect: (p: FleetMapPoint) => void;
 }) {
+  const { t } = useTranslation();
   const [hovered, setHovered] = useState(false);
   const label = point.shipName ?? point.kitNo;
   const sub = point.shipName ? point.kitNo : SOURCE_LABEL[point.source];
@@ -693,7 +698,7 @@ function ShipChip({
       onClick={() => onSelect(point)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      title={`${label} — haritada göster`}
+      title={t("{{label}} — haritada göster", { label })}
       style={{
         flexShrink: 0,
         display: "flex",

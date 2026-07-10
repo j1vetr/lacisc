@@ -1,6 +1,7 @@
 import React, { useMemo, useState, lazy, Suspense } from "react";
 import { Link, useRoute } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   useGetKitDetail,
   getGetKitDetailQueryKey,
@@ -97,6 +98,7 @@ function formatHourLabel(iso: string) {
 // Wrapper picks the correct view by asking the backend which data source the
 // KIT belongs to. See git history for rationale.
 export default function KitDetail() {
+  const { t } = useTranslation();
   const [, kitsParams] = useRoute("/kits/:kitNo");
   const [, norwayParams] = useRoute("/norway/:kitNo");
   const [, starlinkParams] = useRoute("/starlink/:kitNo");
@@ -246,6 +248,7 @@ function MiniSparkline({
 }
 
 function SatcomKitDetail({ kitNo }: { kitNo: string }) {
+  const { t } = useTranslation();
   useDocumentTitle(kitNo);
   const isCustomer = useIsCustomer();
   const queryClient = useQueryClient();
@@ -493,7 +496,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
             <div className="flex items-center gap-2">
               <Radio className="w-4 h-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold tracking-tight">
-                Canlı Telemetri
+                {t("Canlı Telemetri")}
               </h2>
               {lastHour?.intervalStart && (
                 <span className="text-[10px] font-mono text-muted-foreground">
@@ -504,10 +507,9 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
           </div>
           {!telemetryDayLoading && !hasLastHour ? (
             <div className="m-4 text-center py-10 text-sm text-muted-foreground border border-dashed border-border rounded-lg">
-              Saatlik telemetri henüz toplanmadı.
+              {t("Saatlik telemetri henüz toplanmadı.")}
               <div className="mt-1 text-[11px]">
-                Bir sonraki senkronizasyon turundan sonra burada anlık metrikler
-                görünecek.
+                {t("Bir sonraki senkronizasyon turundan sonra burada anlık metrikler görünecek.")}
               </div>
             </div>
           ) : (
@@ -519,7 +521,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
             ) : (
               <>
                 <MetricTile
-                  label="Sinyal"
+                  label={t("Sinyal")}
                   value={fmtPct(lastHour?.signalQualityAvgPct, 0)}
                   unit="%"
                   icon={<Gauge className="w-3 h-3" />}
@@ -530,7 +532,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                   }
                 />
                 <MetricTile
-                  label="Gecikme"
+                  label={t("Gecikme")}
                   value={fmtNum(lastHour?.latencyAvgMs, 0)}
                   unit="ms"
                   icon={<Activity className="w-3 h-3" />}
@@ -539,7 +541,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                   }
                 />
                 <MetricTile
-                  label="Paket Kaybı"
+                  label={t("Paket Kaybı")}
                   value={fmtPct(lastHour?.pingDropAvgPct, 2)}
                   unit="%"
                   icon={<TrendingUp className="w-3 h-3" />}
@@ -548,19 +550,19 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                   }
                 />
                 <MetricTile
-                  label="İndirme"
+                  label={t("İndirme")}
                   value={fmtNum(lastHour?.downloadAvgMbps, 1)}
                   unit="Mbps"
                   icon={<Download className="w-3 h-3" />}
                 />
                 <MetricTile
-                  label="Yükleme"
+                  label={t("Yükleme")}
                   value={fmtNum(lastHour?.uploadAvgMbps, 1)}
                   unit="Mbps"
                   icon={<Upload className="w-3 h-3" />}
                 />
                 <MetricTile
-                  label="Engel"
+                  label={t("Engel")}
                   value={fmtPct(lastHour?.obstructionAvgPct, 2)}
                   unit="%"
                   icon={<Signal className="w-3 h-3" />}
@@ -627,7 +629,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
           <div className="flex items-center gap-2">
             <HardDrive className="w-4 h-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold tracking-tight">
-              {hasPlanInfo ? "Plan ve Kota" : "Dönem Kullanımı"}
+              {hasPlanInfo ? t("Plan ve Kota") : t("Dönem Kullanımı")}
             </h2>
             <Pill tone="info">{periodLabel}</Pill>
           </div>
@@ -638,7 +640,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
           ) : !hasPlanInfo ? (
             <div className="flex flex-col gap-3">
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                Bu Dönem Kullanım
+                {t("Bu Dönem Kullanım")}
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="font-mono text-5xl tracking-tight tabular-nums">
@@ -646,7 +648,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                 </span>
                 <span className="text-sm text-muted-foreground">GB</span>
                 <span className="ml-3 text-[11px] font-mono text-muted-foreground">
-                  · {detail?.rowCount ?? 0} CDR satırı
+                  · {t("{{count}} CDR satırı", { count: detail?.rowCount ?? 0 })}
                 </span>
               </div>
             </div>
@@ -654,7 +656,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               <div className="lg:col-span-5">
                 <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-2">
-                  Bu Dönem Kullanım
+                  {t("Bu Dönem Kullanım")}
                 </div>
                 <div className="flex items-baseline gap-2">
                   <span className="font-mono text-5xl tracking-tight tabular-nums">
@@ -676,10 +678,10 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                       />
                     </div>
                     <div className="mt-2 flex items-center justify-between text-[11px] font-mono text-muted-foreground">
-                      <span>%{formatNumber(usedPct, 1)} dolu</span>
+                      <span>{t("%{{pct}} dolu", { pct: formatNumber(usedPct, 1) })}</span>
                       {allowance != null && (
                         <span>
-                          %{formatNumber(100 - Math.min(usedPct, 100), 1)} boş
+                          {t("%{{pct}} boş", { pct: formatNumber(100 - Math.min(usedPct, 100), 1) })}
                         </span>
                       )}
                     </div>
@@ -689,7 +691,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
 
               <div className="lg:col-span-7 grid grid-cols-1 gap-3">
                 <QuotaStat
-                  label="Kullanılan"
+                  label={t("Kullanılan")}
                   value={formatGibAsGb(used, 1)}
                   unit="GB"
                   tone="primary"
@@ -698,7 +700,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
 
               {allowance == null && (
                 <div className="lg:col-span-12 text-xs text-muted-foreground">
-                  Plan tahsisi bilinmiyor — sadece kullanım gösteriliyor.
+                  {t("Plan tahsisi bilinmiyor — sadece kullanım gösteriliyor.")}
                 </div>
               )}
             </div>
@@ -728,7 +730,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                     }}
                     className="ml-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    Düzenle
+                    {t("Düzenle")}
                   </button>
                 )}
               </div>
@@ -740,7 +742,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                     step="1"
                     value={manualInputVal}
                     onChange={(e) => setManualInputVal(e.target.value)}
-                    placeholder="GB (boş = otomatik)"
+                    placeholder={t("GB (boş = otomatik)")}
                     className="h-8 w-40 rounded border border-border bg-background px-2.5 font-mono text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                   <button
@@ -761,7 +763,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                     }}
                     className="h-8 px-3 rounded text-[12px] font-medium bg-foreground text-background disabled:opacity-50"
                   >
-                    {manualPlanMutation.isPending ? "…" : "Kaydet"}
+                    {manualPlanMutation.isPending ? "…" : t("Kaydet")}
                   </button>
                   {detail?.manualPlanGb != null && (
                     <button
@@ -779,17 +781,17 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                       }}
                       className="h-8 px-3 rounded text-[12px] border border-border text-muted-foreground hover:text-foreground disabled:opacity-50"
                     >
-                      Temizle
+                      {t("Temizle")}
                     </button>
                   )}
                   <button
                     onClick={() => setManualEditMode(false)}
                     className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    İptal
+                    {t("İptal")}
                   </button>
                   {manualPlanMutation.isError && (
-                    <span className="text-[11px] text-destructive">Hata — tekrar deneyin.</span>
+                    <span className="text-[11px] text-destructive">{t("Hata — tekrar deneyin.")}</span>
                   )}
                 </div>
               )}
@@ -803,7 +805,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
         <div className="px-4 py-3 border-b border-border flex items-center gap-2">
           <Activity className="w-4 h-4 text-muted-foreground" />
           <h2 className="text-sm font-semibold tracking-tight">
-            Saatlik Trend (Son 7 Gün)
+            {t("Saatlik Trend (Son 7 Gün)")}
           </h2>
         </div>
         {telemetryWeekLoading ? (
@@ -814,14 +816,14 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
           </div>
         ) : (telemetryWeek ?? []).length === 0 ? (
           <div className="m-4 text-center py-12 text-sm text-muted-foreground border border-dashed border-border rounded-lg">
-            Saatlik telemetri henüz toplanmadı.
+            {t("Saatlik telemetri henüz toplanmadı.")}
           </div>
         ) : (
           <div className="p-4 grid grid-cols-2 lg:grid-cols-3 gap-3">
             {[
               {
                 key: "download",
-                label: "İndirme",
+                label: t("İndirme"),
                 unit: "Mbps",
                 series: sparkSeries.download,
                 icon: <Download className="w-3 h-3" />,
@@ -829,7 +831,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
               },
               {
                 key: "upload",
-                label: "Yükleme",
+                label: t("Yükleme"),
                 unit: "Mbps",
                 series: sparkSeries.upload,
                 icon: <Upload className="w-3 h-3" />,
@@ -837,7 +839,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
               },
               {
                 key: "latency",
-                label: "Gecikme",
+                label: t("Gecikme"),
                 unit: "ms",
                 series: sparkSeries.latency,
                 icon: <Activity className="w-3 h-3" />,
@@ -845,7 +847,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
               },
               {
                 key: "pingDrop",
-                label: "Paket Kaybı",
+                label: t("Paket Kaybı"),
                 unit: "%",
                 series: sparkSeries.pingDrop,
                 icon: <TrendingUp className="w-3 h-3" />,
@@ -853,7 +855,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
               },
               {
                 key: "obstruction",
-                label: "Engel",
+                label: t("Engel"),
                 unit: "%",
                 series: sparkSeries.obstruction,
                 icon: <Signal className="w-3 h-3" />,
@@ -861,7 +863,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
               },
               {
                 key: "signal",
-                label: "Sinyal",
+                label: t("Sinyal"),
                 unit: "%",
                 series: sparkSeries.signal,
                 icon: <Gauge className="w-3 h-3" />,
@@ -899,13 +901,13 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold tracking-tight">
-              Günlük Tüketim
+              {t("Günlük Tüketim")}
             </h2>
             <Pill>{periodLabel}</Pill>
           </div>
           {periodOptions.length > 0 && (
             <select
-              aria-label="Dönem seçimi"
+              aria-label={t("Dönem seçimi")}
               value={activePeriod ?? undefined}
               onChange={(e) => setSelectedPeriod(e.target.value)}
               className="h-8 px-2 rounded border border-border bg-card font-mono text-[11px] text-foreground"
@@ -923,7 +925,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
             <Skeleton className="h-full w-full rounded-lg" />
           ) : chartData.length === 0 ? (
             <div className="h-full flex items-center justify-center text-sm text-muted-foreground border border-dashed border-border rounded-lg">
-              Bu dönem için kayıt bulunamadı.
+              {t("Bu dönem için kayıt bulunamadı.")}
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
@@ -986,7 +988,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
       <Card>
         <div className="px-4 py-3 border-b border-border flex items-center gap-2">
           <CalendarClock className="w-4 h-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold tracking-tight">Aylık Özet</h2>
+          <h2 className="text-sm font-semibold tracking-tight">{t("Aylık Özet")}</h2>
         </div>
         {monthlyLoading ? (
           <div className="p-4">
@@ -994,7 +996,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
           </div>
         ) : !monthly || monthly.length === 0 ? (
           <div className="m-4 text-center py-12 text-sm text-muted-foreground border border-dashed border-border rounded-lg">
-            Henüz aylık veri yok.
+            {t("Henüz aylık veri yok.")}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -1002,16 +1004,16 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
               <thead className="bg-secondary/40">
                 <tr>
                   <th className="h-9 pl-4 text-left text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Dönem
+                    {t("Dönem")}
                   </th>
                   <th className="h-9 text-right text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Toplam GB
+                    {t("Toplam GB")}
                   </th>
                   <th className="h-9 text-right text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Satır
+                    {t("Satır")}
                   </th>
                   <th className="h-9 pr-4 text-right text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Tarama
+                    {t("Tarama")}
                   </th>
                 </tr>
               </thead>

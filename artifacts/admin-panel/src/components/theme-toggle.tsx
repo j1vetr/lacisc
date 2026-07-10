@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
+import { useTranslation } from "react-i18next";
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function ThemeToggle() {
+  const { t } = useTranslation();
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -18,8 +20,8 @@ export function ThemeToggle() {
       size="icon"
       className="h-9 w-9 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground"
       onClick={() => setTheme(next)}
-      aria-label={isDark ? "Açık temaya geç" : "Karanlık temaya geç"}
-      title={isDark ? "Açık tema" : "Karanlık tema"}
+      aria-label={isDark ? t("Açık temaya geç") : t("Karanlık temaya geç")}
+      title={isDark ? t("Açık tema") : t("Karanlık tema")}
       suppressHydrationWarning
     >
       {mounted && isDark ? (

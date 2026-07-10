@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useTheme } from "next-themes";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Search, Sun, Moon, Menu, X, LogOut, User } from "lucide-react";
 import {
   useGetMe,
@@ -17,6 +18,7 @@ import {
   CustomerFleetProvider,
   detailHref,
 } from "@/hooks/use-customer-fleet";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import "@/styles/customer-sade.css";
 
 export default function CustomerLayout({
@@ -24,6 +26,7 @@ export default function CustomerLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const { t } = useTranslation();
   const [location, setLocation] = useLocation();
   const qc = useQueryClient();
   const logout = useLogout();
@@ -122,7 +125,7 @@ export default function CustomerLayout({
   const userName =
     (me as { name?: string; username?: string } | undefined)?.name ||
     (me as { username?: string } | undefined)?.username ||
-    "Müşteri";
+    t("Müşteri");
   const userHandle =
     (me as { username?: string } | undefined)?.username ||
     (me as { email?: string } | undefined)?.email ||
@@ -149,7 +152,7 @@ export default function CustomerLayout({
         <Link href="/">
           <a
             className="flex items-center justify-center cursor-pointer flex-1 min-w-0"
-            aria-label="Ana sayfa"
+            aria-label={t("Ana sayfa")}
           >
             <img
               src={brandSrc}
@@ -161,7 +164,7 @@ export default function CustomerLayout({
         <button
           type="button"
           className="sd-icon-btn sd-mobile-only"
-          aria-label="Kapat"
+          aria-label={t("Kapat")}
           onClick={() => setMobileOpen(false)}
           style={{ width: 30, height: 30 }}
         >
@@ -172,7 +175,7 @@ export default function CustomerLayout({
       <div className="sd-divider" />
 
       <div className="px-5 pt-5 pb-2">
-        <span className="sd-eyebrow">Gemiler</span>
+        <span className="sd-eyebrow">{t("Gemiler")}</span>
       </div>
 
       <nav className="flex-1 overflow-auto pb-4" aria-label="Filo">
@@ -191,7 +194,7 @@ export default function CustomerLayout({
             className="px-5 py-6 text-[12.5px]"
             style={{ color: "var(--sd-muted)" }}
           >
-            Henüz size atanmış bir gemi bulunmuyor.
+            {t("Henüz size atanmış bir gemi bulunmuyor.")}
           </div>
         ) : (
           fleet.map((s) => {
@@ -271,7 +274,7 @@ export default function CustomerLayout({
           <div
             ref={accountMenuRef}
             role="menu"
-            aria-label="Hesap menüsü"
+            aria-label={t("Hesap menüsü")}
             className="absolute left-4 right-4 bottom-[calc(100%-8px)] rounded-lg overflow-hidden z-10"
             style={{
               background: "var(--sd-surface)",
@@ -287,7 +290,7 @@ export default function CustomerLayout({
                 onClick={() => setAccountOpen(false)}
               >
                 <User size={14} />
-                Profilim
+                {t("Profilim")}
               </a>
             </Link>
             <div className="sd-divider" />
@@ -299,7 +302,7 @@ export default function CustomerLayout({
               style={{ color: "var(--sd-ink)" }}
             >
               <LogOut size={14} />
-              Çıkış
+              {t("Çıkış")}
             </button>
           </div>
         )}
@@ -329,7 +332,7 @@ export default function CustomerLayout({
               ref={menuButtonRef}
               type="button"
               className="sd-icon-btn sd-mobile-only"
-              aria-label="Menü"
+              aria-label={t("Menü")}
               onClick={() => setMobileOpen(true)}
             >
               <Menu size={16} />
@@ -339,18 +342,20 @@ export default function CustomerLayout({
               <div className="sd-search">
                 <Search size={14} style={{ color: "var(--sd-muted)" }} />
                 <input
-                  placeholder="Gemi veya KIT ara"
+                  placeholder={t("Gemi veya KIT ara")}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  aria-label="Gemi ara"
+                  aria-label={t("Gemi ara")}
                 />
               </div>
             </div>
 
+            <LanguageSwitcher compact />
+
             <button
               type="button"
               className="sd-icon-btn"
-              aria-label={isDark ? "Açık tema" : "Koyu tema"}
+              aria-label={isDark ? t("Açık tema") : t("Koyu tema")}
               onClick={() => setTheme(isDark ? "light" : "dark")}
               suppressHydrationWarning
             >
@@ -360,8 +365,8 @@ export default function CustomerLayout({
             <button
               type="button"
               className="sd-icon-btn"
-              aria-label="Çıkış Yap"
-              title="Çıkış Yap"
+              aria-label={t("Çıkış Yap")}
+              title={t("Çıkış Yap")}
               onClick={handleLogout}
             >
               <LogOut size={14} />

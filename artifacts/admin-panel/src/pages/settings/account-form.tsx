@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -54,6 +55,7 @@ export function AccountFormDialog({
   account?: StationAccount | null;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const createMutation = useCreateStationAccount();
   const updateMutation = useUpdateStationAccount();
@@ -114,16 +116,16 @@ export function AccountFormDialog({
         {
           onSuccess: () => {
             toast({
-              title: "Hesap Eklendi",
-              description: `${values.label || values.username} kuyruğa alındı.`,
+              title: t("Hesap Eklendi"),
+              description: t("{{name}} kuyruğa alındı.", { name: values.label || values.username }),
             });
             onSaved();
             onOpenChange(false);
           },
           onError: (err: unknown) => {
             toast({
-              title: "Kayıt Başarısız",
-              description: (err instanceof Error ? err.message : null) || "Hesap eklenemedi.",
+              title: t("Kayıt Başarısız"),
+              description: (err instanceof Error ? t(err.message) : null) || t("Hesap eklenemedi."),
               variant: "destructive",
             });
           },
@@ -145,16 +147,16 @@ export function AccountFormDialog({
         {
           onSuccess: () => {
             toast({
-              title: "Hesap Güncellendi",
-              description: `${values.label || values.username} kaydedildi.`,
+              title: t("Hesap Güncellendi"),
+              description: t("{{name}} kaydedildi.", { name: values.label || values.username }),
             });
             onSaved();
             onOpenChange(false);
           },
           onError: (err: unknown) => {
             toast({
-              title: "Güncelleme Başarısız",
-              description: (err instanceof Error ? err.message : null) || "Hesap güncellenemedi.",
+              title: t("Güncelleme Başarısız"),
+              description: (err instanceof Error ? t(err.message) : null) || t("Hesap güncellenemedi."),
               variant: "destructive",
             });
           },
@@ -170,12 +172,12 @@ export function AccountFormDialog({
       <DialogContent className="rounded-xl max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {mode === "create" ? "Yeni Portal Hesabı" : "Hesabı Düzenle"}
+            {mode === "create" ? t("Yeni Portal Hesabı") : t("Hesabı Düzenle")}
           </DialogTitle>
           <DialogDescription>
             {mode === "create"
-              ? "Hesap eklendikten sonra otomatik sync turlarına dahil edilir."
-              : "Şifre alanı boş bırakılırsa mevcut şifre korunur."}
+              ? t("Hesap eklendikten sonra otomatik sync turlarına dahil edilir.")
+              : t("Şifre alanı boş bırakılırsa mevcut şifre korunur.")}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -186,18 +188,18 @@ export function AccountFormDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Hesap Adı (Etiket)
+                    {t("Hesap Adı (Etiket)")}
                   </FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Örn. Yılmazlar Balık"
+                      placeholder={t("Örn. Yılmazlar Balık")}
                       {...field}
                       value={field.value ?? ""}
                       className="bg-background border-border h-10 rounded-lg text-sm shadow-none"
                     />
                   </FormControl>
                   <FormDescription className="text-xs">
-                    UI'da kullanıcı adı yerine bu görünür.
+                    {t("UI'da kullanıcı adı yerine bu görünür.")}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -209,7 +211,7 @@ export function AccountFormDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Portal Adresi
+                    {t("Portal Adresi")}
                   </FormLabel>
                   <FormControl>
                     <Input
@@ -229,7 +231,7 @@ export function AccountFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      Kullanıcı Adı
+                      {t("Kullanıcı Adı")}
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -247,12 +249,12 @@ export function AccountFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      Şifre {mode === "edit" && <span className="text-muted-foreground normal-case">(opsiyonel)</span>}
+                      {t("Şifre")} {mode === "edit" && <span className="text-muted-foreground normal-case">({t("opsiyonel")})</span>}
                     </FormLabel>
                     <FormControl>
                       <Input
                         type="password"
-                        placeholder={mode === "edit" ? "Değiştirmek için doldur" : ""}
+                        placeholder={mode === "edit" ? t("Değiştirmek için doldur") : ""}
                         {...field}
                         className="bg-background border-border h-10 rounded-lg font-mono text-sm shadow-none"
                       />
@@ -268,9 +270,9 @@ export function AccountFormDialog({
               render={({ field }) => (
                 <FormItem className="flex items-center justify-between rounded-lg border border-border p-3 bg-background">
                   <div className="space-y-0.5 pr-3">
-                    <FormLabel className="text-sm font-medium text-foreground">Aktif</FormLabel>
+                    <FormLabel className="text-sm font-medium text-foreground">{t("Aktif")}</FormLabel>
                     <FormDescription className="text-xs">
-                      Pasif hesaplar sync turunda atlanır.
+                      {t("Pasif hesaplar sync turunda atlanır.")}
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -290,7 +292,7 @@ export function AccountFormDialog({
                 onClick={() => onOpenChange(false)}
                 className="rounded-lg shadow-none"
               >
-                Vazgeç
+                {t("Vazgeç")}
               </Button>
               <Button
                 type="submit"
@@ -298,7 +300,7 @@ export function AccountFormDialog({
                 className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-none"
               >
                 {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {mode === "create" ? "Hesabı Ekle" : "Kaydet"}
+                {mode === "create" ? t("Hesabı Ekle") : t("Kaydet")}
               </Button>
             </DialogFooter>
           </form>

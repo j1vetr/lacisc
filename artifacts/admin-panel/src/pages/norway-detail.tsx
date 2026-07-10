@@ -1,6 +1,7 @@
 import { useMemo, useState, lazy, Suspense } from "react";
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   useGetLeobridgeTerminalDetail,
   getGetLeobridgeTerminalDetailQueryKey,
@@ -64,6 +65,7 @@ function fmtCoord(n: number | null | undefined): string {
 }
 
 export default function NorwayDetail({ kit }: { kit: string }) {
+  const { t } = useTranslation();
   useDocumentTitle(kit);
   const isCustomer = useIsCustomer();
   const queryClient = useQueryClient();
@@ -217,7 +219,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
           <div className="px-5 py-3 border-b border-border flex items-center gap-2">
             <Activity className="w-4 h-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold tracking-tight">
-              Bu Dönem Kullanım
+              {t("Bu Dönem Kullanım")}
             </h2>
             <Pill tone="info">{periodLabel}</Pill>
           </div>
@@ -248,10 +250,10 @@ export default function NorwayDetail({ kit }: { kit: string }) {
                   />
                 </div>
                 <div className="mt-2 flex items-center justify-between text-[11px] font-mono text-muted-foreground">
-                  <span>%{formatNumber(usedPct ?? 0, 1)} dolu</span>
+                  <span>{t("%{{pct}} dolu", { pct: formatNumber(usedPct ?? 0, 1) })}</span>
                   {remainingGb != null && (
                     <span>
-                      {formatNumber(remainingGb, 1)} GB kalan
+                      {t("{{gb}} GB kalan", { gb: formatNumber(remainingGb, 1) })}
                     </span>
                   )}
                 </div>
@@ -263,7 +265,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
               <div className="rounded-lg border border-border bg-secondary/30 px-4 py-3.5">
                 <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-1.5">
                   <Zap className="w-3 h-3" />
-                  Öncelikli
+                  {t("Öncelikli")}
                 </div>
                 <div className="flex items-baseline gap-1">
                   <span className="font-mono text-2xl tabular-nums">
@@ -280,7 +282,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
               <div className="rounded-lg border border-border bg-secondary/30 px-4 py-3.5">
                 <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-1.5">
                   <Gauge className="w-3 h-3" />
-                  Standart
+                  {t("Standart")}
                 </div>
                 <div className="flex items-baseline gap-1">
                   <span className="font-mono text-2xl tabular-nums">
@@ -303,22 +305,22 @@ export default function NorwayDetail({ kit }: { kit: string }) {
                   <div
                     className="h-full bg-[#f54e00]"
                     style={{ width: `${priorityPct}%` }}
-                    title={`Öncelikli ${formatNumber(priority, 1)} GB`}
+                    title={t("Öncelikli {{gb}} GB", { gb: formatNumber(priority, 1) })}
                   />
                   <div
                     className="h-full bg-[#c4c2bc]"
                     style={{ width: `${Math.max(0, 100 - priorityPct)}%` }}
-                    title={`Standart ${formatNumber(standard, 1)} GB`}
+                    title={t("Standart {{gb}} GB", { gb: formatNumber(standard, 1) })}
                   />
                 </div>
                 <div className="mt-2 flex items-center gap-4 text-[11px] font-mono text-muted-foreground">
                   <span className="inline-flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-sm bg-[#f54e00]" />
-                    Öncelikli
+                    {t("Öncelikli")}
                   </span>
                   <span className="inline-flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-sm bg-[#c4c2bc]" />
-                    Standart
+                    {t("Standart")}
                   </span>
                 </div>
               </div>
@@ -329,15 +331,15 @@ export default function NorwayDetail({ kit }: { kit: string }) {
               <div className="mt-6 pt-4 border-t border-border">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Manuel Kota
+                    {t("Manuel Kota")}
                   </span>
                   {detail?.manualPlanGb != null ? (
                     <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-mono bg-[#f54e00]/10 text-[#f54e00] border border-[#f54e00]/20">
-                      Manuel: {formatNumber(detail.manualPlanGb, 0)} GB
+                      {t("Manuel: {{gb}} GB", { gb: formatNumber(detail.manualPlanGb, 0) })}
                     </span>
                   ) : (
                     <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-mono bg-secondary text-muted-foreground">
-                      Otomatik
+                      {t("Otomatik")}
                     </span>
                   )}
                   {isAdmin && !manualEditMode && (
@@ -348,7 +350,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
                       }}
                       className="ml-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      Düzenle
+                      {t("Düzenle")}
                     </button>
                   )}
                 </div>
@@ -360,7 +362,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
                       step="1"
                       value={manualInputVal}
                       onChange={(e) => setManualInputVal(e.target.value)}
-                      placeholder="GB (boş = otomatik)"
+                      placeholder={t("GB (boş = otomatik)")}
                       className="h-8 w-40 rounded border border-border bg-background px-2.5 font-mono text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                     <button
@@ -381,7 +383,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
                       }}
                       className="h-8 px-3 rounded text-[12px] font-medium bg-foreground text-background disabled:opacity-50"
                     >
-                      {manualPlanMutation.isPending ? "…" : "Kaydet"}
+                      {manualPlanMutation.isPending ? "…" : t("Kaydet")}
                     </button>
                     {detail?.manualPlanGb != null && (
                       <button
@@ -399,17 +401,17 @@ export default function NorwayDetail({ kit }: { kit: string }) {
                         }}
                         className="h-8 px-3 rounded text-[12px] border border-border text-muted-foreground hover:text-foreground disabled:opacity-50"
                       >
-                        Temizle
+                        {t("Temizle")}
                       </button>
                     )}
                     <button
                       onClick={() => setManualEditMode(false)}
                       className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      İptal
+                      {t("İptal")}
                     </button>
                     {manualPlanMutation.isError && (
-                      <span className="text-[11px] text-destructive">Hata — tekrar deneyin.</span>
+                      <span className="text-[11px] text-destructive">{t("Hata — tekrar deneyin.")}</span>
                     )}
                   </div>
                 )}
@@ -422,7 +424,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Compass className="w-4 h-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold tracking-tight">Konum</h2>
+              <h2 className="text-sm font-semibold tracking-tight">{t("Konum")}</h2>
             </div>
             <span className="font-mono text-[11px] text-muted-foreground">
               {fmtCoord(detail?.lat)} , {fmtCoord(detail?.lng)}
@@ -440,7 +442,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
             ) : (
               <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
                 <Compass className="w-3.5 h-3.5 mr-1.5 opacity-50" />
-                Konum bilgisi yok.
+                {t("Konum bilgisi yok.")}
               </div>
             )}
           </div>
@@ -453,7 +455,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold tracking-tight">
-              Günlük Tüketim
+              {t("Günlük Tüketim")}
             </h2>
             <Pill>{periodLabel}</Pill>
           </div>
@@ -476,7 +478,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
             <Skeleton className="h-full w-full rounded-lg" />
           ) : dailyChart.length === 0 ? (
             <div className="h-full flex items-center justify-center text-sm text-muted-foreground border border-dashed border-border rounded-lg">
-              Bu dönem için günlük okuma yok.
+              {t("Bu dönem için günlük okuma yok.")}
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
@@ -521,10 +523,10 @@ export default function NorwayDetail({ kit }: { kit: string }) {
                   formatter={(v: number, name) => [
                     `${formatNumber(v, 2)} GB`,
                     name === "priority"
-                      ? "Öncelikli"
+                      ? t("Öncelikli")
                       : name === "standard"
-                        ? "Standart"
-                        : "Toplam",
+                        ? t("Standart")
+                        : t("Toplam"),
                   ]}
                 />
                 <Bar
@@ -553,10 +555,10 @@ export default function NorwayDetail({ kit }: { kit: string }) {
           <div className="flex items-center gap-2">
             <CalendarClock className="w-4 h-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold tracking-tight">
-              Aylık Geçmiş
+              {t("Aylık Geçmiş")}
             </h2>
             <span className="text-[11px] text-muted-foreground">
-              {monthlyChart.length} dönem
+              {t("{{count}} dönem", { count: monthlyChart.length })}
             </span>
           </div>
         </div>
@@ -566,7 +568,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
               <Skeleton className="h-full w-full" />
             ) : monthlyChart.length === 0 ? (
               <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-                Henüz aylık veri yok.
+                {t("Henüz aylık veri yok.")}
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -600,7 +602,7 @@ export default function NorwayDetail({ kit }: { kit: string }) {
                     }}
                     formatter={(v: number) => [
                       `${formatNumber(v, 2)} GB`,
-                      "Toplam",
+                      t("Toplam"),
                     ]}
                   />
                   <Bar dataKey="total" radius={[3, 3, 0, 0]}>
@@ -626,18 +628,18 @@ export default function NorwayDetail({ kit }: { kit: string }) {
               </div>
             ) : !monthly || monthly.length === 0 ? (
               <div className="m-4 text-center py-8 text-sm text-muted-foreground border border-dashed border-border rounded-lg">
-                Henüz aylık veri yok.
+                {t("Henüz aylık veri yok.")}
               </div>
             ) : (
               <table className="w-full text-[12px]">
                 <thead className="bg-secondary/40">
                   <tr>
                     {[
-                      { label: "Dönem", alignClass: "text-left", pad: "pl-4" },
-                      { label: "Öncelikli", alignClass: "text-right" },
-                      { label: "Standart", alignClass: "text-right" },
+                      { label: t("Dönem"), alignClass: "text-left", pad: "pl-4" },
+                      { label: t("Öncelikli"), alignClass: "text-right" },
+                      { label: t("Standart"), alignClass: "text-right" },
                       {
-                        label: "Toplam",
+                        label: t("Toplam"),
                         alignClass: "text-right",
                         pad: "pr-4",
                       },

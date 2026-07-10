@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { MessageCircle, Send, Loader2, Plus, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   useGetWhatsappSettings,
   getGetWhatsappSettingsQueryKey,
@@ -30,6 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import SettingsLayout from "./layout";
 
 export default function WhatsappSettingsPage() {
+  const { t } = useTranslation();
   const { data: settings, isLoading } = useGetWhatsappSettings({
     query: { queryKey: getGetWhatsappSettingsQueryKey() },
   });
@@ -81,18 +83,18 @@ export default function WhatsappSettingsPage() {
       {
         onSuccess: () => {
           toast({
-            title: "WhatsApp Ayarları Kaydedildi",
+            title: t("WhatsApp Ayarları Kaydedildi"),
             description: enabled
-              ? "Eşik bildirimleri aktif."
-              : "Yapılandırma kaydedildi (bildirimler pasif).",
+              ? t("Eşik bildirimleri aktif.")
+              : t("Yapılandırma kaydedildi (bildirimler pasif)."),
           });
           setApiKey("");
           qc.invalidateQueries({ queryKey: getGetWhatsappSettingsQueryKey() });
         },
         onError: (err: unknown) => {
           toast({
-            title: "Kayıt Başarısız",
-            description: err instanceof Error ? err.message : "Ayarlar kaydedilemedi.",
+            title: t("Kayıt Başarısız"),
+            description: err instanceof Error ? t(err.message) : t("Ayarlar kaydedilemedi."),
             variant: "destructive",
           });
         },
@@ -114,15 +116,15 @@ export default function WhatsappSettingsPage() {
             .filter(Boolean)
             .join(" — ");
           toast({
-            title: res.success ? "Test Mesajı Gönderildi" : "Test Başarısız",
+            title: res.success ? t("Test Mesajı Gönderildi") : t("Test Başarısız"),
             description: desc,
             variant: res.success ? "default" : "destructive",
           });
         },
         onError: (err: unknown) => {
           toast({
-            title: "Test Başarısız",
-            description: err instanceof Error ? err.message : "Mesaj gönderilemedi.",
+            title: t("Test Başarısız"),
+            description: err instanceof Error ? t(err.message) : t("Mesaj gönderilemedi."),
             variant: "destructive",
           });
         },
@@ -134,8 +136,8 @@ export default function WhatsappSettingsPage() {
     const step = Number(newStep);
     if (!Number.isFinite(step) || step < 1) {
       toast({
-        title: "Geçersiz adım",
-        description: "Eşik adımı en az 1 GB olmalı.",
+        title: t("Geçersiz adım"),
+        description: t("Eşik adımı en az 1 GB olmalı."),
         variant: "destructive",
       });
       return;
@@ -143,9 +145,10 @@ export default function WhatsappSettingsPage() {
     const min = Number(newMinPlan);
     if (newMinPlan.trim() === "" || !Number.isFinite(min) || min <= 0) {
       toast({
-        title: "Geçersiz plan",
-        description:
-          "Min plan > 0 sayı olmalı. Plan kotası bilinmeyen KIT'ler için yedek eşik (E-posta ayarları) kullanılır.",
+        title: t("Geçersiz plan"),
+        description: t(
+          "Min plan > 0 sayı olmalı. Plan kotası bilinmeyen KIT'ler için yedek eşik (E-posta ayarları) kullanılır."
+        ),
         variant: "destructive",
       });
       return;
@@ -159,12 +162,12 @@ export default function WhatsappSettingsPage() {
           qc.invalidateQueries({
             queryKey: getListWhatsappThresholdRulesQueryKey(),
           });
-          toast({ title: "Kural eklendi" });
+          toast({ title: t("Kural eklendi") });
         },
         onError: (err: unknown) => {
           toast({
-            title: "Hata",
-            description: err instanceof Error ? err.message : "Kural eklenemedi.",
+            title: t("Hata"),
+            description: err instanceof Error ? t(err.message) : t("Kural eklenemedi."),
             variant: "destructive",
           });
         },
@@ -173,7 +176,7 @@ export default function WhatsappSettingsPage() {
   };
 
   const handleDeleteRule = (id: number) => {
-    if (!window.confirm("Bu eşik kuralını silmek istediğinize emin misiniz?")) return;
+    if (!window.confirm(t("Bu eşik kuralını silmek istediğinize emin misiniz?"))) return;
     deleteRuleMut.mutate(
       { id },
       {
@@ -185,8 +188,8 @@ export default function WhatsappSettingsPage() {
         },
         onError: (err: unknown) =>
           toast({
-            title: "Hata",
-            description: err instanceof Error ? err.message : "Silinemedi.",
+            title: t("Hata"),
+            description: err instanceof Error ? t(err.message) : t("Silinemedi."),
             variant: "destructive",
           }),
       },
@@ -202,13 +205,12 @@ export default function WhatsappSettingsPage() {
               <div className="p-1.5 bg-background rounded border border-border">
                 <MessageCircle className="w-4 h-4 text-foreground" />
               </div>
-              WhatsApp Bildirimleri (wpileti.com)
+              {t("WhatsApp Bildirimleri (wpileti.com)")}
             </CardTitle>
             <CardDescription className="mt-1 text-sm text-muted-foreground">
-              Plan-bazlı eşikleri aşan KIT'ler için anlık WhatsApp mesajı
-              gönderir. Bildirimler YALNIZ "müşteri" rolündeki kullanıcılara,
-              kendilerine atanmış KIT için gider (Kullanıcılar sayfasında
-              telefon alanı dolu olmalı).
+              {t(
+                "Plan-bazlı eşikleri aşan KIT'ler için anlık WhatsApp mesajı gönderir. Bildirimler YALNIZ \"müşteri\" rolündeki kullanıcılara, kendilerine atanmış KIT için gider (Kullanıcılar sayfasında telefon alanı dolu olmalı)."
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-4 sm:p-6 lg:p-8">
@@ -219,10 +221,10 @@ export default function WhatsappSettingsPage() {
                 <div className="flex items-center justify-between rounded-lg border border-border p-3 bg-background">
                   <div className="space-y-0.5 pr-3">
                     <Label className="text-sm font-medium text-foreground">
-                      Bildirimleri Etkinleştir
+                      {t("Bildirimleri Etkinleştir")}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Kapatınca eşik geçişlerinde mesaj gönderilmez.
+                      {t("Kapatınca eşik geçişlerinde mesaj gönderilmez.")}
                     </p>
                   </div>
                   <Switch
@@ -234,7 +236,7 @@ export default function WhatsappSettingsPage() {
 
                 <div className="space-y-1.5">
                   <Label className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    wpileti.com Endpoint URL
+                    {t("wpileti.com Endpoint URL")}
                   </Label>
                   <Input
                     value={endpointUrl}
@@ -243,37 +245,37 @@ export default function WhatsappSettingsPage() {
                     className="font-mono text-sm bg-secondary border-border h-10 rounded-lg shadow-none opacity-70 cursor-not-allowed"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Güvenlik nedeniyle (SSRF + API anahtarı koruması) endpoint
-                    sabitlenmiştir. Yalnız <span className="font-mono">my.wpileti.com</span>
-                    {" "}host'una izin verilir.
+                    {t(
+                      "Güvenlik nedeniyle (SSRF + API anahtarı koruması) endpoint sabitlenmiştir. Yalnız my.wpileti.com host'una izin verilir."
+                    )}
                   </p>
                 </div>
 
                 <div className="space-y-1.5">
                   <Label className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    API Anahtarı
+                    {t("API Anahtarı")}
                   </Label>
                   <Input
                     type="password"
                     value={apiKey}
                     placeholder={
                       settings?.hasApiKey
-                        ? "(kayıtlı — değiştirmek için yenisini girin)"
-                        : "wpileti.com API anahtarı"
+                        ? t("(kayıtlı — değiştirmek için yenisini girin)")
+                        : t("wpileti.com API anahtarı")
                     }
                     onChange={(e) => setApiKey(e.target.value)}
                     className="font-mono text-sm bg-background border-border h-10 rounded-lg shadow-none"
                   />
                   {settings?.hasApiKey && (
                     <p className="text-xs text-muted-foreground">
-                      Kayıtlı bir anahtar var. Boş bırakırsanız değişmez.
+                      {t("Kayıtlı bir anahtar var. Boş bırakırsanız değişmez.")}
                     </p>
                   )}
                 </div>
 
                 <div className="space-y-1.5">
                   <Label className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Yedek Eşik (E-posta ayarlarından)
+                    {t("Yedek Eşik (E-posta ayarlarından)")}
                   </Label>
                   <Input
                     value={
@@ -286,17 +288,15 @@ export default function WhatsappSettingsPage() {
                     className="font-mono text-sm bg-secondary border-border h-10 rounded-lg shadow-none opacity-70 cursor-not-allowed"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Plan kotası bilinmiyorsa veya aşağıdaki kurallardan hiçbiri
-                    eşleşmiyorsa devreye girer. Değer{" "}
-                    <span className="font-mono">/settings/email</span>{" "}
-                    sayfasındaki "eşik adımı"ndan okunur; WhatsApp ve e-posta
-                    tek ortak global eşiği paylaşır.
+                    {t(
+                      "Plan kotası bilinmiyorsa veya aşağıdaki kurallardan hiçbiri eşleşmiyorsa devreye girer. Değer /settings/email sayfasındaki \"eşik adımı\"ndan okunur; WhatsApp ve e-posta tek ortak global eşiği paylaşır."
+                    )}
                   </p>
                 </div>
 
                 <div className="space-y-1.5">
                   <Label className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Test Alıcısı
+                    {t("Test Alıcısı")}
                   </Label>
                   <Input
                     value={testRecipient}
@@ -305,13 +305,13 @@ export default function WhatsappSettingsPage() {
                     className="font-mono text-sm bg-background border-border h-10 rounded-lg shadow-none"
                   />
                   <p className="text-xs text-muted-foreground">
-                    "Test Mesajı Gönder" butonu varsayılan olarak buraya gönderir.
+                    {t("\"Test Mesajı Gönder\" butonu varsayılan olarak buraya gönderir.")}
                   </p>
                 </div>
 
                 <div className="space-y-1.5">
                   <Label className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Günlük Gönderim Saati (0-23)
+                    {t("Günlük Gönderim Saati (0-23)")}
                   </Label>
                   <Input
                     type="number"
@@ -323,11 +323,9 @@ export default function WhatsappSettingsPage() {
                     className="font-mono text-sm bg-background border-border h-10 rounded-lg shadow-none w-32"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Eşik bildirimleri her sync turunda değil, günde{" "}
-                    <span className="font-medium">bir kez</span> bu saatte
-                    (Türkiye saati) toplu olarak gönderilir. Gün boyunca biriken
-                    tüm uyarılar alıcı başına tek mesajda birleştirilir
-                    (wpileti.com anti-spam koruması).
+                    {t(
+                      "Eşik bildirimleri her sync turunda değil, günde bir kez bu saatte (Türkiye saati) toplu olarak gönderilir. Gün boyunca biriken tüm uyarılar alıcı başına tek mesajda birleştirilir (wpileti.com anti-spam koruması)."
+                    )}
                   </p>
                 </div>
 
@@ -340,18 +338,18 @@ export default function WhatsappSettingsPage() {
                     {updateMut.isPending ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     ) : null}
-                    Ayarları Kaydet
+                    {t("Ayarları Kaydet")}
                   </Button>
                 </div>
 
                 <div className="space-y-2 pt-4 border-t border-border">
                   <Label className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Test Mesajı
+                    {t("Test Mesajı")}
                   </Label>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <Input
                       value={overrideTest}
-                      placeholder="Override alıcı (boş = test alıcısı)"
+                      placeholder={t("Override alıcı (boş = test alıcısı)")}
                       onChange={(e) => setOverrideTest(e.target.value)}
                       className="font-mono text-sm bg-background border-border h-10 rounded-lg shadow-none flex-1"
                     />
@@ -366,7 +364,7 @@ export default function WhatsappSettingsPage() {
                       ) : (
                         <Send className="w-4 h-4 mr-2" />
                       )}
-                      Test Mesajı Gönder
+                      {t("Test Mesajı Gönder")}
                     </Button>
                   </div>
                 </div>
@@ -378,15 +376,12 @@ export default function WhatsappSettingsPage() {
         <Card className="border border-border shadow-none bg-card rounded-xl overflow-hidden">
           <CardHeader className="bg-secondary/50 border-b border-border pb-5">
             <CardTitle className="text-lg font-normal tracking-tight">
-              Plan-Bazlı Eşik Kuralları
+              {t("Plan-Bazlı Eşik Kuralları")}
             </CardTitle>
             <CardDescription className="mt-1 text-sm text-muted-foreground">
-              Her kural: <span className="font-mono">min plan kotası</span> →{" "}
-              <span className="font-mono">eşik adımı</span>. Bir KIT'in kotası
-              en yüksek eşleşen (<span className="font-mono">min plan ≤ kota</span>)
-              kuralın adımını kullanır. Plan kotası bilinmeyen KIT'ler (Satcom
-              dahil) için kural değil, doğrudan yukarıdaki yedek eşik
-              (E-posta ayarları) devreye girer.
+              {t(
+                "Her kural: min plan kotası → eşik adımı. Bir KIT'in kotası en yüksek eşleşen (min plan ≤ kota) kuralın adımını kullanır. Plan kotası bilinmeyen KIT'ler (Satcom dahil) için kural değil, doğrudan yukarıdaki yedek eşik (E-posta ayarları) devreye girer."
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-4 sm:p-6 lg:p-8">
@@ -394,25 +389,25 @@ export default function WhatsappSettingsPage() {
               <div className="flex flex-col sm:flex-row gap-2">
                 <div className="flex-1 space-y-1.5">
                   <Label className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Min Plan (GB) — zorunlu, &gt; 0
+                    {t("Min Plan (GB) — zorunlu, > 0")}
                   </Label>
                   <Input
                     type="number"
                     value={newMinPlan}
                     onChange={(e) => setNewMinPlan(e.target.value)}
-                    placeholder="örn. 100"
+                    placeholder={t("örn. 100")}
                     className="font-mono text-sm bg-background border-border h-10 rounded-lg shadow-none"
                   />
                 </div>
                 <div className="flex-1 space-y-1.5">
                   <Label className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Eşik Adımı (GB)
+                    {t("Eşik Adımı (GB)")}
                   </Label>
                   <Input
                     type="number"
                     value={newStep}
                     onChange={(e) => setNewStep(e.target.value)}
-                    placeholder="örn. 25"
+                    placeholder={t("örn. 25")}
                     className="font-mono text-sm bg-background border-border h-10 rounded-lg shadow-none"
                   />
                 </div>
@@ -423,7 +418,7 @@ export default function WhatsappSettingsPage() {
                     className="rounded-lg"
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Ekle
+                    {t("Ekle")}
                   </Button>
                 </div>
               </div>
@@ -432,9 +427,9 @@ export default function WhatsappSettingsPage() {
                 <table className="w-full text-sm">
                   <thead className="text-[11px] uppercase text-muted-foreground tracking-widest">
                     <tr className="border-b border-border">
-                      <th className="text-left py-2 font-medium">Min Plan</th>
-                      <th className="text-left py-2 font-medium">Eşik Adımı</th>
-                      <th className="text-right py-2 font-medium">İşlem</th>
+                      <th className="text-left py-2 font-medium">{t("Min Plan")}</th>
+                      <th className="text-left py-2 font-medium">{t("Eşik Adımı")}</th>
+                      <th className="text-right py-2 font-medium">{t("İşlem")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -444,10 +439,9 @@ export default function WhatsappSettingsPage() {
                           colSpan={3}
                           className="py-6 text-center text-muted-foreground text-xs"
                         >
-                          Henüz kural yok. Bu durumda yukarıdaki "Yedek Eşik
-                          (E-posta ayarlarından)" değeri tüm KIT'ler için
-                          fallback olarak kullanılır; bildirim göndermek
-                          istemiyorsanız e-posta eşiğini de boş bırakın.
+                          {t(
+                            "Henüz kural yok. Bu durumda yukarıdaki \"Yedek Eşik (E-posta ayarlarından)\" değeri tüm KIT'ler için fallback olarak kullanılır; bildirim göndermek istemiyorsanız e-posta eşiğini de boş bırakın."
+                          )}
                         </td>
                       </tr>
                     ) : (
@@ -461,7 +455,7 @@ export default function WhatsappSettingsPage() {
                               <Badge
                                 variant="outline"
                                 className="font-mono text-[10px] uppercase"
-                                title="Legacy catchall satırı — yeni mantıkta yok sayılır."
+                                title={t("Legacy catchall satırı — yeni mantıkta yok sayılır.")}
                               >
                                 legacy
                               </Badge>
@@ -470,13 +464,13 @@ export default function WhatsappSettingsPage() {
                             )}
                           </td>
                           <td className="py-3 font-mono text-xs">
-                            her {r.stepGb} GB
+                            {t("her {{step}} GB", { step: r.stepGb })}
                           </td>
                           <td className="py-3 text-right">
                             <Button
                               variant="ghost"
                               size="sm"
-                              title="Sil"
+                              title={t("Sil")}
                               onClick={() => handleDeleteRule(r.id)}
                             >
                               <Trash2 className="w-4 h-4 text-destructive" />

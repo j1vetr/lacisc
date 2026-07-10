@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/reac
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Suspense, lazy, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { ErrorBoundary } from "./components/error-boundary";
 import { ThemeProvider } from "./components/theme-provider";
@@ -70,9 +71,10 @@ function RoleRedirect() {
 }
 
 function PageFallback() {
+  const { t } = useTranslation();
   return (
     <div className="min-h-[40vh] flex items-center justify-center text-sm text-muted-foreground">
-      Yükleniyor…
+      {t("Yükleniyor…")}
     </div>
   );
 }
@@ -86,6 +88,7 @@ function ProtectedRoute({
   minRole?: Role;
   bareLayout?: boolean;
 }) {
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
   const { data: user, isLoading, isError } = useGetMe({
@@ -102,7 +105,7 @@ function ProtectedRoute({
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
-        Yükleniyor…
+        {t("Yükleniyor…")}
       </div>
     );
   }

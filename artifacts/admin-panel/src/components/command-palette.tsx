@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
+import { useTranslation } from "react-i18next";
 import {
   LayoutDashboard,
   List,
@@ -67,6 +68,7 @@ interface CommandPaletteProps {
 }
 
 export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandPaletteProps) {
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const [query, setQuery] = useState("");
 
@@ -132,14 +134,14 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
       <CommandInput
-        placeholder="Sayfa, KIT veya hesap ara…"
+        placeholder={t("Sayfa, KIT veya hesap ara…")}
         value={query}
         onValueChange={setQuery}
       />
       <CommandList>
-        <CommandEmpty>Sonuç bulunamadı.</CommandEmpty>
+        <CommandEmpty>{t("Sonuç bulunamadı.")}</CommandEmpty>
 
-        <CommandGroup heading="Sayfalar">
+        <CommandGroup heading={t("Sayfalar")}>
           {pageGroup.map((item) => {
             const Icon = item.icon;
             return (
@@ -149,7 +151,7 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
                 onSelect={() => go(item.href)}
               >
                 <Icon className="text-muted-foreground" />
-                <span>{item.label}</span>
+                <span>{t(item.label)}</span>
                 {item.shortcut && <CommandShortcut>{item.shortcut}</CommandShortcut>}
               </CommandItem>
             );
@@ -159,7 +161,7 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
         {settingsGroup.length > 0 && (
           <>
             <CommandSeparator />
-            <CommandGroup heading="Ayarlar">
+            <CommandGroup heading={t("Ayarlar")}>
               {settingsGroup.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -169,7 +171,7 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
                     onSelect={() => go(item.href)}
                   >
                     <Icon className="text-muted-foreground" />
-                    <span>{item.label}</span>
+                    <span>{t(item.label)}</span>
                   </CommandItem>
                 );
               })}
@@ -180,7 +182,7 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
         {mergedKits.length > 0 && (
           <>
             <CommandSeparator />
-            <CommandGroup heading={`Terminaller (${mergedKits.length})`}>
+            <CommandGroup heading={t("Terminaller ({{count}})", { count: mergedKits.length })}>
               {mergedKits.slice(0, 80).map((k) => (
                 <CommandItem
                   key={`${k.source}:${k.kitNo}`}
@@ -215,7 +217,7 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
         {accounts && accounts.length > 0 && (
           <>
             <CommandSeparator />
-            <CommandGroup heading="Portal Hesapları">
+            <CommandGroup heading={t("Portal Hesapları")}>
               {accounts.map((a) => {
                 const display = a.label?.trim() || a.username;
                 return (
@@ -237,7 +239,7 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
         )}
 
         <CommandSeparator />
-        <CommandGroup heading="Yardım">
+        <CommandGroup heading={t("Yardım")}>
           <CommandItem
             value="klavye kısayolları yardım"
             onSelect={() => {
@@ -246,7 +248,7 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
             }}
           >
             <HelpCircle className="text-muted-foreground" />
-            <span>Klavye Kısayolları</span>
+            <span>{t("Klavye Kısayolları")}</span>
             <CommandShortcut>?</CommandShortcut>
           </CommandItem>
         </CommandGroup>

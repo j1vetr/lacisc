@@ -8,6 +8,7 @@ import { useThemedAsset } from "@/hooks/use-themed-asset";
 import { Activity, LayoutDashboard, Settings, List, LogOut, Menu, Users, ShieldCheck, UserCircle2, Search } from "lucide-react";
 import { useLogout, useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import { CommandPalette } from "./command-palette";
 import { ShortcutsHelp } from "./shortcuts-help";
 import { SyncCompletionToast } from "./sync-completion-toast";
 import { ThemeToggle } from "./theme-toggle";
+import { LanguageSwitcher } from "./language-switcher";
 
 type Role = "owner" | "admin" | "viewer" | "customer";
 
@@ -38,6 +40,7 @@ const baseNav = [
 const ROLE_RANK: Record<Role, number> = { customer: -1, viewer: 0, admin: 1, owner: 2 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const [location, setLocation] = useLocation();
   const logout = useLogout();
   const qc = useQueryClient();
@@ -150,7 +153,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <Link key={item.title} href={item.url}>
               <div className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${isActive ? "bg-card border border-border text-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
                 <item.icon className={`w-4 h-4 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
-                {item.title}
+                {t(item.title)}
               </div>
             </Link>
           );
@@ -176,13 +179,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </>
             ) : (
               <>
-                <span className="text-xs font-semibold truncate text-foreground">{user?.name || "Yönetici"}</span>
+                <span className="text-xs font-semibold truncate text-foreground">{user?.name || t("Yönetici")}</span>
                 <span className="text-[11px] text-muted-foreground truncate">{user?.email || user?.username || "—"}</span>
                 <span className="text-[10px] uppercase tracking-widest text-primary mt-0.5 font-mono">{role}</span>
               </>
             )}
           </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary" onClick={handleLogout} title="Çıkış Yap">
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary" onClick={handleLogout} title={t("Çıkış Yap")}>
             <LogOut className="w-4 h-4" />
           </Button>
         </div>
@@ -201,7 +204,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="left" className="p-0 w-72 flex flex-col bg-background">
           <SheetHeader className="h-16 px-4 border-b border-border shrink-0 flex flex-row items-center justify-start">
-            <SheetTitle className="sr-only">Menü</SheetTitle>
+            <SheetTitle className="sr-only">{t("Menü")}</SheetTitle>
             <img
               src={brandSrc}
               alt="Lacivert Teknoloji"
@@ -220,7 +223,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             size="icon"
             className="lg:hidden h-9 w-9 rounded-lg text-foreground hover:bg-secondary -ml-1"
             onClick={() => setMobileOpen(true)}
-            aria-label="Menüyü aç"
+            aria-label={t("Menüyü aç")}
           >
             <Menu className="w-5 h-5" />
           </Button>
@@ -233,11 +236,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             size="sm"
             onClick={() => setPaletteOpen(true)}
             className="hidden sm:flex h-9 px-3 rounded-lg border-border bg-card hover:bg-secondary text-muted-foreground shadow-none gap-2"
-            aria-label="Komut paletini aç"
-            title="Komut paleti (⌘K)"
+            aria-label={t("Komut paletini aç")}
+            title={t("Komut paleti (⌘K)")}
           >
             <Search className="w-3.5 h-3.5" />
-            <span className="text-xs">Ara…</span>
+            <span className="text-xs">{t("Ara…")}</span>
             <kbd className="inline-flex items-center justify-center h-5 px-1.5 rounded border border-border bg-background font-mono text-[10px] text-muted-foreground ml-1">
               ⌘K
             </kbd>
@@ -247,10 +250,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             size="icon"
             onClick={() => setPaletteOpen(true)}
             className="sm:hidden h-9 w-9 rounded-lg text-muted-foreground hover:bg-secondary"
-            aria-label="Komut paletini aç"
+            aria-label={t("Komut paletini aç")}
           >
             <Search className="w-4 h-4" />
           </Button>
+          <LanguageSwitcher compact />
           <ThemeToggle />
           <div className="flex items-center gap-2 lg:gap-3 text-[11px] lg:text-xs font-mono text-muted-foreground">
             <span className="hidden sm:inline">{new Date().toLocaleDateString('tr-TR')}</span>

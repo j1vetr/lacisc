@@ -1,28 +1,30 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
+import { useTranslation } from "react-i18next";
 import { Server, Mail, AlertTriangle, Satellite, Globe, MessageCircle, Clock, Ship } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
-const TABS = [
-  { href: "/settings", label: "SATCOM", icon: Server },
-  { href: "/settings/starlink", label: "TOTOTHEO", icon: Satellite },
-  { href: "/settings/norway", label: "NORWAY", icon: Globe },
-  { href: "/settings/email", label: "E-posta & Alarmlar", icon: Mail },
-  { href: "/settings/whatsapp", label: "WhatsApp", icon: MessageCircle },
-  { href: "/settings/ship-quotas", label: "Gemi Kota Düşümü", icon: Ship },
-  { href: "/settings/scheduler", label: "Zamanlayıcı", icon: Clock },
-  { href: "/settings/danger", label: "Tehlike Bölgesi", icon: AlertTriangle },
-];
-
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
-  useDocumentTitle("Ayarlar");
+  const { t } = useTranslation();
+  useDocumentTitle(t("Ayarlar"));
   const [location] = useLocation();
+
+  const TABS = [
+    { href: "/settings", label: "SATCOM", icon: Server },
+    { href: "/settings/starlink", label: "TOTOTHEO", icon: Satellite },
+    { href: "/settings/norway", label: "NORWAY", icon: Globe },
+    { href: "/settings/email", label: t("E-posta & Alarmlar"), icon: Mail },
+    { href: "/settings/whatsapp", label: "WhatsApp", icon: MessageCircle },
+    { href: "/settings/ship-quotas", label: t("Gemi Kota Düşümü"), icon: Ship },
+    { href: "/settings/scheduler", label: t("Zamanlayıcı"), icon: Clock },
+    { href: "/settings/danger", label: t("Tehlike Bölgesi"), icon: AlertTriangle },
+  ];
 
   return (
     <div className="space-y-6 lg:space-y-8 max-w-5xl animate-in fade-in duration-500 pb-8 lg:pb-12">
       <div className="space-y-2">
         <h1 className="text-[28px] sm:text-[40px] leading-[1.1] font-normal tracking-[-0.02em] text-foreground">
-          Ayarlar
+          {t("Ayarlar")}
         </h1>
       </div>
 

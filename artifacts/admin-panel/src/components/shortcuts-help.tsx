@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Dialog,
   DialogContent,
@@ -24,13 +25,14 @@ interface ShortcutsHelpProps {
 }
 
 export function ShortcutsHelp({ open, onOpenChange }: ShortcutsHelpProps) {
+  const { t } = useTranslation();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-xl max-w-md">
         <DialogHeader>
-          <DialogTitle>Klavye Kısayolları</DialogTitle>
+          <DialogTitle>{t("Klavye Kısayolları")}</DialogTitle>
           <DialogDescription>
-            Hızlı navigasyon için kullanabileceğiniz tuş kombinasyonları.
+            {t("Hızlı navigasyon için kullanabileceğiniz tuş kombinasyonları.")}
           </DialogDescription>
         </DialogHeader>
         <div className="divide-y divide-border -mx-6">
@@ -39,7 +41,7 @@ export function ShortcutsHelp({ open, onOpenChange }: ShortcutsHelpProps) {
               key={s.label}
               className="flex items-center justify-between py-2.5 px-6 text-sm"
             >
-              <span className="text-foreground">{s.label}</span>
+              <span className="text-foreground">{t(s.label)}</span>
               <div className="flex items-center gap-1">
                 {s.keys.map((k, i) => (
                   <React.Fragment key={i}>

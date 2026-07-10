@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { ArrowUpRight } from "lucide-react";
 
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { useTranslation } from "react-i18next";
 
 // Leaflet + markercluster lazy — müşteri ilk yüklemede kartları görür,
 // harita bir tick sonra mount eder.
@@ -26,6 +27,7 @@ function ShipCard({
   row: FleetRow;
   onOpen: () => void;
 }) {
+  const { t } = useTranslation();
   // Kullanım / Kota: plan tahsisi biliniyorsa onu kullan.
   const hasQuota = row.planAllowanceGb != null && row.planAllowanceGb > 0;
   const pct = hasQuota
@@ -45,7 +47,7 @@ function ShipCard({
       onClick={onOpen}
       className="sd-card w-full text-left p-5 sm:p-6 flex flex-col gap-5 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--sd-orange)]"
       style={{ minHeight: 184 }}
-      aria-label={`${row.shipName} detayını aç`}
+      aria-label={t("{{ship}} detayını aç", { ship: row.shipName })}
     >
       <div className="flex items-start gap-3">
         <span
@@ -114,7 +116,7 @@ function ShipCard({
             className="flex items-center gap-1 text-[12px] sd-detail-label"
             style={{ color: "var(--sd-muted)" }}
           >
-            Detay
+            {t("Detay")}
             <ArrowUpRight className="sd-arrow" size={14} strokeWidth={2} />
           </span>
         </div>
@@ -153,7 +155,8 @@ function SkeletonCard() {
 }
 
 export default function CustomerPanel() {
-  useDocumentTitle("Filom");
+  const { t } = useTranslation();
+  useDocumentTitle(t("Filom"));
   const [, setLocation] = useLocation();
   const { fleet, filteredFleet, query, isLoading } = useCustomerFleetContext();
 
@@ -166,17 +169,17 @@ export default function CustomerPanel() {
       {/* Page header */}
       <section className="sd-main-pad sd-page-head px-10 pt-10 pb-8 flex items-end justify-between gap-6">
         <div className="flex flex-col gap-2">
-          <span className="sd-eyebrow">Gemiler</span>
+          <span className="sd-eyebrow">{t("Gemiler")}</span>
           <h1
             className="text-[26px] sm:text-[30px] font-semibold leading-none"
             style={{ letterSpacing: "-0.025em" }}
           >
-            Genel Bakış
+            {t("Genel Bakış")}
           </h1>
         </div>
         <div className="sd-page-stats flex items-end gap-10">
           <div className="flex flex-col items-end gap-1">
-            <span className="sd-eyebrow">Bu ay toplam</span>
+            <span className="sd-eyebrow">{t("Bu ay toplam")}</span>
             <div className="flex items-baseline gap-1.5">
               <span
                 className="sd-tnum text-[24px] sm:text-[28px] font-semibold leading-none"
@@ -193,7 +196,7 @@ export default function CustomerPanel() {
             </div>
           </div>
           <div className="flex flex-col items-end gap-1">
-            <span className="sd-eyebrow">Aktif</span>
+            <span className="sd-eyebrow">{t("Aktif")}</span>
             <span
               className="sd-tnum text-[24px] sm:text-[28px] font-semibold leading-none"
               style={{ letterSpacing: "-0.02em" }}
@@ -223,7 +226,7 @@ export default function CustomerPanel() {
               letterSpacing: "0.12em",
             }}
           >
-            <span>Filonuz · Canlı konum</span>
+            <span>{t("Filonuz · Canlı konum")}</span>
           </div>
           <Suspense
             fallback={
@@ -257,10 +260,10 @@ export default function CustomerPanel() {
             style={{ color: "var(--sd-muted)" }}
           >
             {fleet.length === 0
-              ? "Henüz size atanmış bir gemi yok. Yöneticinizle iletişime geçin."
+              ? t("Henüz size atanmış bir gemi yok. Yöneticinizle iletişime geçin.")
               : query
-                ? `"${query}" araması için sonuç bulunamadı.`
-                : "Sonuç yok."}
+                ? t('"{{query}}" araması için sonuç bulunamadı.', { query })
+                : t("Sonuç yok.")}
           </div>
         ) : (
           <div

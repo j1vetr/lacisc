@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   useListAdminUsers,
   getListAdminUsersQueryKey,
@@ -68,7 +69,8 @@ function fmt(dt: string | null | undefined): string {
 }
 
 export default function AdminUsers() {
-  useDocumentTitle("Kullanıcılar");
+  const { t } = useTranslation();
+  useDocumentTitle(t("Kullanıcılar"));
   const qc = useQueryClient();
   const { toast } = useToast();
   const { data: me } = useGetMe({ query: { queryKey: getGetMeQueryKey() } });
@@ -88,10 +90,10 @@ export default function AdminUsers() {
         qc.invalidateQueries({ queryKey: getListAdminUsersQueryKey() });
         // Telefon/rol değişimi → filo haritası alıcı listesi etkilenebilir.
         qc.invalidateQueries({ queryKey: getGetFleetMapQueryKey() });
-        toast({ title: "Güncellendi" });
+        toast({ title: t("Güncellendi") });
         setEditOpen(null);
       },
-      onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
+      onError: (e: Error) => toast({ title: t("Hata"), description: t(e.message), variant: "destructive" }),
     },
   });
   const deleteMut = useDeleteAdminUser({
@@ -99,18 +101,18 @@ export default function AdminUsers() {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getListAdminUsersQueryKey() });
         qc.invalidateQueries({ queryKey: getGetFleetMapQueryKey() });
-        toast({ title: "Silindi" });
+        toast({ title: t("Silindi") });
       },
-      onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
+      onError: (e: Error) => toast({ title: t("Hata"), description: t(e.message), variant: "destructive" }),
     },
   });
   const resetMut = useResetAdminUserPassword({
     mutation: {
       onSuccess: () => {
-        toast({ title: "Şifre sıfırlandı" });
+        toast({ title: t("Şifre sıfırlandı") });
         setResetOpen(null);
       },
-      onError: (e: Error) => toast({ title: "Hata", description: e.message, variant: "destructive" }),
+      onError: (e: Error) => toast({ title: t("Hata"), description: t(e.message), variant: "destructive" }),
     },
   });
 
@@ -160,9 +162,10 @@ export default function AdminUsers() {
           });
         } catch (e) {
           toast({
-            title: "Kullanıcı oluşturuldu, KIT atama başarısız",
-            description:
+            title: t("Kullanıcı oluşturuldu, KIT atama başarısız"),
+            description: t(
               "Listeden satırın yanındaki KIT atama düğmesi ile tekrar deneyin.",
+            ),
             variant: "destructive",
           });
           qc.invalidateQueries({ queryKey: getListAdminUsersQueryKey() });
@@ -176,13 +179,13 @@ export default function AdminUsers() {
       // Yeni müşteri + KIT ataması → admin filo haritası kapsamı değişmez ama
       // müşteri kendi panelinde haritayı görmek için fresh data ister.
       qc.invalidateQueries({ queryKey: getGetFleetMapQueryKey() });
-      toast({ title: "Kullanıcı oluşturuldu" });
+      toast({ title: t("Kullanıcı oluşturuldu") });
       setCreateOpen(false);
       resetCreateForm();
     } catch (e) {
       toast({
-        title: "Hata",
-        description: (e as Error).message,
+        title: t("Hata"),
+        description: t((e as Error).message),
         variant: "destructive",
       });
     }
@@ -197,34 +200,34 @@ export default function AdminUsers() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-normal tracking-tight">Kullanıcılar</h1>
-          <p className="text-sm text-muted-foreground mt-1">Sistem kullanıcılarını ve rollerini yönetin.</p>
+          <h1 className="text-2xl font-normal tracking-tight">{t("Kullanıcılar")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("Sistem kullanıcılarını ve rollerini yönetin.")}</p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" /> Yeni Kullanıcı
+          <Plus className="w-4 h-4 mr-2" /> {t("Yeni Kullanıcı")}
         </Button>
       </div>
 
       <Card className="shadow-none border-border">
         <CardHeader>
-          <CardTitle className="text-base font-medium">Liste</CardTitle>
+          <CardTitle className="text-base font-medium">{t("Liste")}</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-sm text-muted-foreground">Yükleniyor…</div>
+            <div className="text-sm text-muted-foreground">{t("Yükleniyor…")}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-[11px] uppercase text-muted-foreground tracking-widest">
                   <tr className="border-b border-border">
-                    <th className="text-left py-2 font-medium">Ad</th>
-                    <th className="text-left py-2 font-medium">Kullanıcı adı / E-posta</th>
-                    <th className="text-left py-2 font-medium">Telefon</th>
-                    <th className="text-left py-2 font-medium">Rol</th>
-                    <th className="text-left py-2 font-medium">Atanmış KIT</th>
-                    <th className="text-left py-2 font-medium">Son Giriş</th>
-                    <th className="text-left py-2 font-medium">Durum</th>
-                    <th className="text-right py-2 font-medium">İşlem</th>
+                    <th className="text-left py-2 font-medium">{t("Ad")}</th>
+                    <th className="text-left py-2 font-medium">{t("Kullanıcı adı / E-posta")}</th>
+                    <th className="text-left py-2 font-medium">{t("Telefon")}</th>
+                    <th className="text-left py-2 font-medium">{t("Rol")}</th>
+                    <th className="text-left py-2 font-medium">{t("Atanmış KIT")}</th>
+                    <th className="text-left py-2 font-medium">{t("Son Giriş")}</th>
+                    <th className="text-left py-2 font-medium">{t("Durum")}</th>
+                    <th className="text-right py-2 font-medium">{t("İşlem")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -273,10 +276,10 @@ export default function AdminUsers() {
                         <td className="py-3">
                           {locked ? (
                             <Badge className="bg-destructive/10 text-destructive border-destructive/20">
-                              Kilitli
+                              {t("Kilitli")}
                             </Badge>
                           ) : (
-                            <span className="text-xs text-muted-foreground">Aktif</span>
+                            <span className="text-xs text-muted-foreground">{t("Aktif")}</span>
                           )}
                         </td>
                         <td className="py-3 text-right space-x-1">
@@ -284,7 +287,7 @@ export default function AdminUsers() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              title="KIT atamalarını yönet"
+                              title={t("KIT atamalarını yönet")}
                               onClick={() =>
                                 setAssignOpen({ id: u.id, name: u.name, username: u.username ?? null })
                               }
@@ -296,7 +299,7 @@ export default function AdminUsers() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              title="Kilidi aç"
+                              title={t("Kilidi aç")}
                               onClick={() =>
                                 updateMut.mutate({ id: u.id, data: { unlock: true } })
                               }
@@ -307,7 +310,7 @@ export default function AdminUsers() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            title="Düzenle"
+                            title={t("Düzenle")}
                             onClick={() =>
                               setEditOpen({
                                 id: u.id,
@@ -323,7 +326,7 @@ export default function AdminUsers() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            title="Şifre sıfırla"
+                            title={t("Şifre sıfırla")}
                             onClick={() => {
                               setResetPw("");
                               setResetOpen({ id: u.id, label: u.username || u.email || u.name });
@@ -334,12 +337,14 @@ export default function AdminUsers() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            title="Sil"
+                            title={t("Sil")}
                             disabled={u.id === me?.id || (u.role === "owner" && !isOwner)}
                             onClick={() => {
                               if (
                                 window.confirm(
-                                  `${u.username || u.email || u.name} kullanıcısı silinsin mi? Bu işlem geri alınamaz.`
+                                  t("{{label}} kullanıcısı silinsin mi? Bu işlem geri alınamaz.", {
+                                    label: u.username || u.email || u.name,
+                                  })
                                 )
                               ) {
                                 deleteMut.mutate({ id: u.id });
@@ -369,21 +374,21 @@ export default function AdminUsers() {
       >
         <DialogContent className={createForm.role === "customer" ? "max-w-2xl" : undefined}>
           <DialogHeader>
-            <DialogTitle>Yeni kullanıcı</DialogTitle>
+            <DialogTitle>{t("Yeni kullanıcı")}</DialogTitle>
             <DialogDescription>
-              Şifre en az 12 karakter, büyük/küçük harf, rakam ve özel karakter içermelidir.
+              {t("Şifre en az 12 karakter, büyük/küçük harf, rakam ve özel karakter içermelidir.")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label>Ad</Label>
+              <Label>{t("Ad")}</Label>
               <Input
                 value={createForm.name}
                 onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Rol</Label>
+              <Label>{t("Rol")}</Label>
               <Select
                 value={createForm.role}
                 onValueChange={(v) => {
@@ -396,23 +401,23 @@ export default function AdminUsers() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="customer">{ROLE_LABEL.customer}</SelectItem>
-                  <SelectItem value="viewer">{ROLE_LABEL.viewer}</SelectItem>
-                  <SelectItem value="admin">{ROLE_LABEL.admin}</SelectItem>
-                  {isOwner && <SelectItem value="owner">{ROLE_LABEL.owner}</SelectItem>}
+                  <SelectItem value="customer">{t(ROLE_LABEL.customer)}</SelectItem>
+                  <SelectItem value="viewer">{t(ROLE_LABEL.viewer)}</SelectItem>
+                  <SelectItem value="admin">{t(ROLE_LABEL.admin)}</SelectItem>
+                  {isOwner && <SelectItem value="owner">{t(ROLE_LABEL.owner)}</SelectItem>}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
               <Label>
-                Kullanıcı adı{" "}
+                {t("Kullanıcı adı")}{" "}
                 <span className="text-[11px] text-muted-foreground">
-                  ({createForm.role === "customer" ? "zorunlu" : "opsiyonel"}, 3-32 karakter, küçük harf/rakam/_.-)
+                  ({createForm.role === "customer" ? t("zorunlu") : t("opsiyonel")}, {t("3-32 karakter, küçük harf/rakam/_.-")})
                 </span>
               </Label>
               <Input
                 value={createForm.username}
-                placeholder={createForm.role === "customer" ? "musteri_adi" : "(otomatik türetilir)"}
+                placeholder={createForm.role === "customer" ? t("musteri_adi") : t("(otomatik türetilir)")}
                 onChange={(e) =>
                   setCreateForm((f) => ({ ...f, username: e.target.value.toLowerCase() }))
                 }
@@ -420,9 +425,9 @@ export default function AdminUsers() {
             </div>
             <div className="space-y-1.5">
               <Label>
-                E-posta{" "}
+                {t("E-posta")}{" "}
                 <span className="text-[11px] text-muted-foreground">
-                  ({createForm.role === "customer" ? "opsiyonel" : "zorunlu"})
+                  ({createForm.role === "customer" ? t("opsiyonel") : t("zorunlu")})
                 </span>
               </Label>
               <Input
@@ -433,9 +438,9 @@ export default function AdminUsers() {
             </div>
             <div className="space-y-1.5">
               <Label>
-                Telefon{" "}
+                {t("Telefon")}{" "}
                 <span className="text-[11px] text-muted-foreground">
-                  (opsiyonel — WhatsApp eşik bildirimi için, örn. 905321234567)
+                  {t("(opsiyonel — WhatsApp eşik bildirimi için, örn. 905321234567)")}
                 </span>
               </Label>
               <Input
@@ -446,7 +451,7 @@ export default function AdminUsers() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Şifre</Label>
+              <Label>{t("Şifre")}</Label>
               <Input
                 type="password"
                 value={createForm.password}
@@ -457,9 +462,9 @@ export default function AdminUsers() {
             {createForm.role === "customer" && (
               <div className="space-y-1.5 pt-2 border-t border-border">
                 <Label>
-                  KIT atamaları{" "}
+                  {t("KIT atamaları")}{" "}
                   <span className="text-[11px] text-muted-foreground">
-                    (oluşturma ile birlikte atanır — sonradan değiştirilebilir)
+                    {t("(oluşturma ile birlikte atanır — sonradan değiştirilebilir)")}
                   </span>
                 </Label>
                 <KitPickerInline
@@ -478,15 +483,15 @@ export default function AdminUsers() {
                 resetCreateForm();
               }}
             >
-              İptal
+              {t("İptal")}
             </Button>
             <Button
               disabled={createMut.isPending || createAssignMut.isPending}
               onClick={handleCreateSubmit}
             >
               {createForm.role === "customer" && createAssignedKits.size > 0
-                ? `Oluştur (+${createAssignedKits.size} KIT)`
-                : "Oluştur"}
+                ? t("Oluştur (+{{count}} KIT)", { count: createAssignedKits.size })
+                : t("Oluştur")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -496,12 +501,12 @@ export default function AdminUsers() {
       <Dialog open={!!editOpen} onOpenChange={(o) => !o && setEditOpen(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Kullanıcıyı düzenle</DialogTitle>
+            <DialogTitle>{t("Kullanıcıyı düzenle")}</DialogTitle>
           </DialogHeader>
           {editOpen && (
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <Label>Ad</Label>
+                <Label>{t("Ad")}</Label>
                 <Input
                   value={editOpen.name}
                   onChange={(e) =>
@@ -510,10 +515,10 @@ export default function AdminUsers() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Kullanıcı adı</Label>
+                <Label>{t("Kullanıcı adı")}</Label>
                 <Input
                   value={editOpen.username ?? ""}
-                  placeholder="(boş bırakılabilir — operatör hesapları için)"
+                  placeholder={t("(boş bırakılabilir — operatör hesapları için)")}
                   onChange={(e) =>
                     setEditOpen((s) =>
                       s ? { ...s, username: e.target.value.toLowerCase() } : s
@@ -523,9 +528,9 @@ export default function AdminUsers() {
               </div>
               <div className="space-y-1.5">
                 <Label>
-                  Telefon{" "}
+                  {t("Telefon")}{" "}
                   <span className="text-[11px] text-muted-foreground">
-                    (WHATSAPP İÇİN GEREKLİ)
+                    {t("(WHATSAPP İÇİN GEREKLİ)")}
                   </span>
                 </Label>
                 <Input
@@ -538,7 +543,7 @@ export default function AdminUsers() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Rol</Label>
+                <Label>{t("Rol")}</Label>
                 <Select
                   value={editOpen.role}
                   onValueChange={(v) =>
@@ -549,10 +554,10 @@ export default function AdminUsers() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="customer">{ROLE_LABEL.customer}</SelectItem>
-                    <SelectItem value="viewer">{ROLE_LABEL.viewer}</SelectItem>
-                    <SelectItem value="admin">{ROLE_LABEL.admin}</SelectItem>
-                    {isOwner && <SelectItem value="owner">{ROLE_LABEL.owner}</SelectItem>}
+                    <SelectItem value="customer">{t(ROLE_LABEL.customer)}</SelectItem>
+                    <SelectItem value="viewer">{t(ROLE_LABEL.viewer)}</SelectItem>
+                    <SelectItem value="admin">{t(ROLE_LABEL.admin)}</SelectItem>
+                    {isOwner && <SelectItem value="owner">{t(ROLE_LABEL.owner)}</SelectItem>}
                   </SelectContent>
                 </Select>
               </div>
@@ -560,7 +565,7 @@ export default function AdminUsers() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(null)}>
-              İptal
+              {t("İptal")}
             </Button>
             <Button
               disabled={updateMut.isPending}
@@ -577,7 +582,7 @@ export default function AdminUsers() {
                 });
               }}
             >
-              Kaydet
+              {t("Kaydet")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -587,9 +592,11 @@ export default function AdminUsers() {
       <AlertDialog open={!!resetOpen} onOpenChange={(o) => !o && setResetOpen(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Şifreyi sıfırla</AlertDialogTitle>
+            <AlertDialogTitle>{t("Şifreyi sıfırla")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {resetOpen?.label} için yeni bir şifre belirleyin. Aşağıdaki tüm gereksinimleri karşılamalıdır.
+              {t("{{label}} için yeni bir şifre belirleyin. Aşağıdaki tüm gereksinimleri karşılamalıdır.", {
+                label: resetOpen?.label,
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-3">
@@ -597,7 +604,7 @@ export default function AdminUsers() {
               type="password"
               value={resetPw}
               onChange={(e) => setResetPw(e.target.value)}
-              placeholder="Yeni şifre"
+              placeholder={t("Yeni şifre")}
               autoComplete="new-password"
               autoFocus
             />
@@ -605,11 +612,11 @@ export default function AdminUsers() {
             <ul className="text-[12px] space-y-1 rounded-md border bg-muted/40 p-2.5">
               {(
                 [
-                  { ok: resetPw.length >= 12, text: "En az 12 karakter" },
-                  { ok: /[A-Z]/.test(resetPw), text: "En az bir BÜYÜK harf (A-Z)" },
-                  { ok: /[a-z]/.test(resetPw), text: "En az bir küçük harf (a-z)" },
-                  { ok: /[0-9]/.test(resetPw), text: "En az bir rakam (0-9)" },
-                  { ok: /[^A-Za-z0-9]/.test(resetPw), text: "En az bir özel karakter (örn: !@#$)" },
+                  { ok: resetPw.length >= 12, text: t("En az 12 karakter") },
+                  { ok: /[A-Z]/.test(resetPw), text: t("En az bir BÜYÜK harf (A-Z)") },
+                  { ok: /[a-z]/.test(resetPw), text: t("En az bir küçük harf (a-z)") },
+                  { ok: /[0-9]/.test(resetPw), text: t("En az bir rakam (0-9)") },
+                  { ok: /[^A-Za-z0-9]/.test(resetPw), text: t("En az bir özel karakter (örn: !@#$)") },
                 ] as const
               ).map((r, i) => (
                 <li
@@ -623,7 +630,7 @@ export default function AdminUsers() {
             </ul>
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogCancel>{t("İptal")}</AlertDialogCancel>
             <AlertDialogAction
               disabled={
                 resetMut.isPending ||
@@ -639,7 +646,7 @@ export default function AdminUsers() {
                 resetMut.mutate({ id: resetOpen.id, data: { newPassword: resetPw } });
               }}
             >
-              {resetMut.isPending ? "Sıfırlanıyor…" : "Sıfırla"}
+              {resetMut.isPending ? t("Sıfırlanıyor…") : t("Sıfırla")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -670,6 +677,7 @@ function AssignKitsDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { toast } = useToast();
   const open = target !== null;
@@ -731,12 +739,12 @@ function AssignKitsDialog({
         // Atama değişimi müşteri-scope filo haritasını etkiler — invalidate.
         qc.invalidateQueries({ queryKey: getGetFleetMapQueryKey() });
         onSaved();
-        toast({ title: "Atamalar güncellendi" });
+        toast({ title: t("Atamalar güncellendi") });
         onClose();
         setTouched(false);
       },
       onError: (e: Error) =>
-        toast({ title: "Hata", description: e.message, variant: "destructive" }),
+        toast({ title: t("Hata"), description: t(e.message), variant: "destructive" }),
     },
   });
 
@@ -776,7 +784,7 @@ function AssignKitsDialog({
     >
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>KIT atamaları</DialogTitle>
+          <DialogTitle>{t("KIT atamaları")}</DialogTitle>
           <DialogDescription>
             <span className="font-medium text-foreground">{target?.name}</span>
             {target?.username && (
@@ -784,7 +792,7 @@ function AssignKitsDialog({
                 @{target.username}
               </span>
             )}
-            {" — "}seçilen KIT'leri bu müşteri panelinde görebilir.
+            {" — "}{t("seçilen KIT'leri bu müşteri panelinde görebilir.")}
           </DialogDescription>
         </DialogHeader>
 
@@ -793,14 +801,17 @@ function AssignKitsDialog({
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="KIT no veya gemi adı ara…"
+            placeholder={t("KIT no veya gemi adı ara…")}
             className="pl-9"
           />
         </div>
 
         <div className="text-xs text-muted-foreground flex items-center justify-between">
           <span>
-            {selected.size} seçili / {assignable.length} toplam
+            {t("{{selected}} seçili / {{total}} toplam", {
+              selected: selected.size,
+              total: assignable.length,
+            })}
           </span>
           <div className="flex gap-2">
             <Button
@@ -812,7 +823,7 @@ function AssignKitsDialog({
                 setSelected(new Set(filtered.map((k) => k.kitNo)));
               }}
             >
-              Görüneni seç
+              {t("Görüneni seç")}
             </Button>
             <Button
               variant="ghost"
@@ -823,17 +834,17 @@ function AssignKitsDialog({
                 setSelected(new Set());
               }}
             >
-              Tümünü temizle
+              {t("Tümünü temizle")}
             </Button>
           </div>
         </div>
 
         <ScrollArea className="h-[400px] border border-border rounded-lg">
           {kitsLoading || assignedLoading ? (
-            <div className="p-6 text-sm text-muted-foreground">Yükleniyor…</div>
+            <div className="p-6 text-sm text-muted-foreground">{t("Yükleniyor…")}</div>
           ) : assignable.length === 0 ? (
             <div className="p-6 text-sm text-muted-foreground">
-              Henüz hiç KIT verisi yok. Önce bir hesap senkronize edin.
+              {t("Henüz hiç KIT verisi yok. Önce bir hesap senkronize edin.")}
             </div>
           ) : (
             <div className="divide-y divide-border">
@@ -870,7 +881,7 @@ function AssignKitsDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            İptal
+            {t("İptal")}
           </Button>
           <Button
             disabled={updateMut.isPending}
@@ -881,7 +892,7 @@ function AssignKitsDialog({
               })
             }
           >
-            Kaydet ({selected.size})
+            {t("Kaydet ({{count}})", { count: selected.size })}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -906,6 +917,7 @@ function KitPickerInline({
   selected: Set<string>;
   onChange: (next: Set<string>) => void;
 }) {
+  const { t } = useTranslation();
   const { data: assignableData, isLoading } = useListAssignableKits({
     query: {
       queryKey: getListAssignableKitsQueryKey(),
@@ -942,13 +954,16 @@ function KitPickerInline({
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="KIT no veya gemi adı ara…"
+          placeholder={t("KIT no veya gemi adı ara…")}
           className="pl-9 h-8 text-xs"
         />
       </div>
       <div className="text-[11px] text-muted-foreground flex items-center justify-between">
         <span>
-          {selected.size} seçili / {assignable.length} toplam
+          {t("{{selected}} seçili / {{total}} toplam", {
+            selected: selected.size,
+            total: assignable.length,
+          })}
         </span>
         <div className="flex gap-1">
           <Button
@@ -958,7 +973,7 @@ function KitPickerInline({
             type="button"
             onClick={() => onChange(new Set(filtered.map((k) => k.kitNo)))}
           >
-            Görüneni seç
+            {t("Görüneni seç")}
           </Button>
           <Button
             variant="ghost"
@@ -967,16 +982,16 @@ function KitPickerInline({
             type="button"
             onClick={() => onChange(new Set())}
           >
-            Tümünü temizle
+            {t("Tümünü temizle")}
           </Button>
         </div>
       </div>
       <ScrollArea className="h-[260px] border border-border rounded-lg">
         {isLoading ? (
-          <div className="p-6 text-sm text-muted-foreground">Yükleniyor…</div>
+          <div className="p-6 text-sm text-muted-foreground">{t("Yükleniyor…")}</div>
         ) : assignable.length === 0 ? (
           <div className="p-6 text-sm text-muted-foreground">
-            Henüz hiç KIT verisi yok. Önce bir hesap senkronize edin.
+            {t("Henüz hiç KIT verisi yok. Önce bir hesap senkronize edin.")}
           </div>
         ) : (
           <div className="divide-y divide-border">

@@ -1,10 +1,12 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
 export default function NotFound() {
-  useDocumentTitle("Sayfa Bulunamadı");
+  const { t } = useTranslation();
+  useDocumentTitle(t("Sayfa Bulunamadı"));
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md mx-4">

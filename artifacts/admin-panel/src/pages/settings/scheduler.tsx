@@ -1,6 +1,7 @@
 import React from "react";
 import { Clock, Loader2, AlertTriangle, Power, RotateCcw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   useGetSchedulerSettings,
   getGetSchedulerSettingsQueryKey,
@@ -34,13 +35,15 @@ import SettingsLayout from "./layout";
 
 const PRESETS = [15, 30, 60, 120, 180, 360];
 
-function formatPreset(min: number) {
-  if (min < 60) return `${min} dakika`;
-  const h = min / 60;
-  return Number.isInteger(h) ? `${h} saat` : `${h.toFixed(1)} saat`;
-}
-
 export default function SchedulerSettingsPage() {
+  const { t } = useTranslation();
+  const formatPreset = (min: number) => {
+    if (min < 60) return t("{{min}} dakika", { min });
+    const h = min / 60;
+    return Number.isInteger(h)
+      ? t("{{h}} saat", { h })
+      : t("{{h}} saat", { h: h.toFixed(1) });
+  };
   const { data, isLoading, refetch } = useGetSchedulerSettings({
     query: {
       queryKey: getGetSchedulerSettingsQueryKey(),
@@ -71,8 +74,8 @@ export default function SchedulerSettingsPage() {
     if (intervalMinutes < min || intervalMinutes > max) {
       toast({
         variant: "destructive",
-        title: "Geçersiz aralık",
-        description: `Aralık ${min} ile ${max} dakika arasında olmalı.`,
+        title: t("Geçersiz aralık"),
+        description: t("Aralık {{min}} ile {{max}} dakika arasında olmalı.", { min, max }),
       });
       return;
     }
@@ -85,34 +88,41 @@ export default function SchedulerSettingsPage() {
         queryKey: getGetSchedulerSettingsQueryKey(),
       });
       toast({
-        title: "Kaydedildi",
+        title: t("Kaydedildi"),
         description: enabled
-          ? `Otomatik sync her ${formatPreset(intervalMinutes)} çalışacak.`
-          : "Otomatik sync devre dışı bırakıldı.",
+          ? t("Otomatik sync her {{interval}} çalışacak.", { interval: formatPreset(intervalMinutes) })
+          : t("Otomatik sync devre dışı bırakıldı."),
       });
     } catch (e) {
       toast({
         variant: "destructive",
-        title: "Kaydedilemedi",
-        description: (e as Error).message,
+        title: t("Kaydedilemedi"),
+        description: t((e as Error).message),
       });
     }
   };
 
   const onCancel = async () => {
-    if (!confirm("Çalışan sync'leri iptal etmek istiyor musunuz? Devam eden Playwright/Starlink/Leo Bridge işlemleri arka planda tamamlanabilir, ancak DB kayıtları 'cancelled' olarak işaretlenecek.")) return;
+    if (
+      !confirm(
+        t(
+          "Çalışan sync'leri iptal etmek istiyor musunuz? Devam eden Playwright/Starlink/Leo Bridge işlemleri arka planda tamamlanabilir, ancak DB kayıtları 'cancelled' olarak işaretlenecek.",
+        ),
+      )
+    )
+      return;
     try {
       const r = await cancelMutation.mutateAsync();
       toast({
-        title: "İptal istendi",
-        description: r.message,
+        title: t("İptal istendi"),
+        description: t(r.message),
       });
       await refetch();
     } catch (e) {
       toast({
         variant: "destructive",
-        title: "İptal başarısız",
-        description: (e as Error).message,
+        title: t("İptal başarısız"),
+        description: t((e as Error).message),
       });
     }
   };
@@ -124,12 +134,12 @@ export default function SchedulerSettingsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg font-normal">
               <Clock className="h-4 w-4 text-muted-foreground" />
-              Otomatik senkronizasyon zamanlayıcı
+              {t("Otomatik senkronizasyon zamanlayıcı")}
             </CardTitle>
             <CardDescription>
-              Cron tüm hesaplar için Starlink → Leo Bridge → Satcom sırasıyla çalışır.
-              Aralığı azaltmak portal yüküne dikkat ederek yapılmalı; Satcom Playwright
-              taraması en kötü ~20 dakika sürebilir.
+              {t(
+                "Cron tüm hesaplar için Starlink → Leo Bridge → Satcom sırasıyla çalışır. Aralığı azaltmak portal yüküne dikkat ederek yapılmalı; Satcom Playwright taraması en kötü ~20 dakika sürebilir.",
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -142,9 +152,9 @@ export default function SchedulerSettingsPage() {
               <>
                 <div className="flex items-center justify-between gap-4 rounded-md border border-border p-4">
                   <div>
-                    <Label className="text-sm font-medium">Otomatik sync etkin</Label>
+                    <Label className="text-sm font-medium">{t("Otomatik sync etkin")}</Label>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Kapatırsan cron durur. Manuel "Sync" butonları çalışmaya devam eder.
+                      {t("Kapatırsan cron durur. Manuel \"Sync\" butonları çalışmaya devam eder.")}
                     </p>
                   </div>
                   <Switch
@@ -157,7 +167,7 @@ export default function SchedulerSettingsPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <Label className="text-sm font-medium">Aralık</Label>
+                  <Label className="text-sm font-medium">{t("Aralık")}</Label>
                   <div className="flex flex-wrap gap-2">
                     {PRESETS.map((p) => (
                       <Button
@@ -191,7 +201,7 @@ export default function SchedulerSettingsPage() {
                       className="w-32 font-mono"
                     />
                     <span className="text-sm text-muted-foreground">
-                      dakika ({min}–{max})
+                      {t("dakika ({{min}}–{{max}})", { min, max })}
                     </span>
                   </div>
                 </div>
@@ -199,7 +209,7 @@ export default function SchedulerSettingsPage() {
                 <div className="grid grid-cols-2 gap-4 rounded-md border border-border p-4 text-sm">
                   <div>
                     <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Sıradaki çalışma
+                      {t("Sıradaki çalışma")}
                     </div>
                     <div className="mt-1 font-mono">
                       {data?.enabled ? formatDate(data.nextRunAt) : "—"}
@@ -207,16 +217,16 @@ export default function SchedulerSettingsPage() {
                   </div>
                   <div>
                     <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Şu an
+                      {t("Şu an")}
                     </div>
                     <div className="mt-1">
                       {data?.isRunning ? (
                         <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Sync çalışıyor
+                          {t("Sync çalışıyor")}
                         </span>
                       ) : (
-                        <span className="text-muted-foreground">Boşta</span>
+                        <span className="text-muted-foreground">{t("Boşta")}</span>
                       )}
                     </div>
                   </div>
@@ -230,7 +240,7 @@ export default function SchedulerSettingsPage() {
                     {updateMutation.isPending && (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     )}
-                    Kaydet
+                    {t("Kaydet")}
                   </Button>
                   {dirty && (
                     <Button
@@ -244,7 +254,7 @@ export default function SchedulerSettingsPage() {
                       }}
                     >
                       <RotateCcw className="h-4 w-4 mr-2" />
-                      Geri al
+                      {t("Geri al")}
                     </Button>
                   )}
                 </div>
@@ -257,22 +267,22 @@ export default function SchedulerSettingsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg font-normal">
               <Power className="h-4 w-4 text-muted-foreground" />
-              Çalışan sync'i durdur
+              {t("Çalışan sync'i durdur")}
             </CardTitle>
             <CardDescription>
-              Tüm <code className="text-xs">sync_logs</code> tablolarındaki "running"
-              kayıtları "cancelled" olarak işaretler ve Satcom hesap-içi kilidini
-              serbest bırakır. Server yeniden başlatıldığında sıkışan satırlar zaten
-              otomatik olarak "failed" olur (boot self-heal).
+              {t("Tüm")} <code className="text-xs">sync_logs</code>{" "}
+              {t(
+                "tablolarındaki \"running\" kayıtları \"cancelled\" olarak işaretler ve Satcom hesap-içi kilidini serbest bırakır. Server yeniden başlatıldığında sıkışan satırlar zaten otomatik olarak \"failed\" olur (boot self-heal).",
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="rounded-md border border-amber-500/30 bg-amber-50 dark:bg-amber-950/20 p-3 mb-4 text-xs flex gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
               <span>
-                Soft-cancel: arka plandaki Playwright/Starlink/Leo Bridge isteği
-                tamamen kesilemez — devam edebilir ve final yazımı sessizce no-op
-                olur. Acil durumlarda kullanın.
+                {t(
+                  "Soft-cancel: arka plandaki Playwright/Starlink/Leo Bridge isteği tamamen kesilemez — devam edebilir ve final yazımı sessizce no-op olur. Acil durumlarda kullanın.",
+                )}
               </span>
             </div>
             <Button
@@ -283,7 +293,7 @@ export default function SchedulerSettingsPage() {
               {cancelMutation.isPending && (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               )}
-              {data?.isRunning ? "Çalışan sync'i durdur" : "Aktif sync yok"}
+              {data?.isRunning ? t("Çalışan sync'i durdur") : t("Aktif sync yok")}
             </Button>
           </CardContent>
         </Card>

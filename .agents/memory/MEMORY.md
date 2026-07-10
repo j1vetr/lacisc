@@ -1,1 +1,2 @@
 - [WhatsApp alert delivery](whatsapp-alert-delivery.md) — wpileti.com anti-spam → alerts batched once/day from a DB queue; two atomicity invariants must survive refactors.
+- [i18n key strategy](i18n-key-strategy.md) — admin-panel uses literal Turkish text as the i18next key; keep new backend/UI strings in sync across all 5 resource dictionaries.

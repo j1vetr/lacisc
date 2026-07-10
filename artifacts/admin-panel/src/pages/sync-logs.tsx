@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
 import {
   useGetSyncLogs,
   getGetSyncLogsQueryKey,
@@ -31,7 +32,8 @@ import { formatNumber, formatDate } from "@/lib/format";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
 export default function SyncLogs() {
-  useDocumentTitle("Senkronizasyon");
+  const { t } = useTranslation();
+  useDocumentTitle(t("Senkronizasyon"));
   const [page, setPage] = useState(1);
   const limit = 20;
   const queryClient = useQueryClient();
@@ -57,16 +59,16 @@ export default function SyncLogs() {
     syncNowMutation.mutate(undefined, {
       onSuccess: (res) => {
         toast({
-          title: "Senkronizasyon Başladı",
-          description: res.message || "Manuel senkronizasyon tetiklendi.",
+          title: t("Senkronizasyon Başladı"),
+          description: (res.message ? t(res.message) : t("Manuel senkronizasyon tetiklendi.")),
         });
         queryClient.invalidateQueries({ queryKey: getGetSyncLogsQueryKey({ page, limit }) });
         queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
       },
       onError: (err: Error) => {
         toast({
-          title: "Senkronizasyon Başarısız",
-          description: err.message || "Senkronizasyon başlatılamadı.",
+          title: t("Senkronizasyon Başarısız"),
+          description: t(err.message) || t("Senkronizasyon başlatılamadı."),
           variant: "destructive",
         });
       },
@@ -76,13 +78,13 @@ export default function SyncLogs() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'success':
-        return <Badge className="bg-[#9fc9a2] text-foreground hover:bg-[#9fc9a2]/90 border-none shadow-none rounded-[9999px] px-3 font-medium text-[11px] tracking-wide"><CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> BAŞARILI</Badge>;
+        return <Badge className="bg-[#9fc9a2] text-foreground hover:bg-[#9fc9a2]/90 border-none shadow-none rounded-[9999px] px-3 font-medium text-[11px] tracking-wide"><CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> {t("BAŞARILI")}</Badge>;
       case 'failed':
-        return <Badge className="bg-[#dfa88f] text-foreground hover:bg-[#dfa88f]/90 border-none shadow-none rounded-[9999px] px-3 font-medium text-[11px] tracking-wide"><AlertCircle className="w-3.5 h-3.5 mr-1.5" /> BAŞARISIZ</Badge>;
+        return <Badge className="bg-[#dfa88f] text-foreground hover:bg-[#dfa88f]/90 border-none shadow-none rounded-[9999px] px-3 font-medium text-[11px] tracking-wide"><AlertCircle className="w-3.5 h-3.5 mr-1.5" /> {t("BAŞARISIZ")}</Badge>;
       case 'running':
-        return <Badge className="bg-[#9fbbe0] text-foreground hover:bg-[#9fbbe0]/90 border-none shadow-none rounded-[9999px] px-3 font-medium text-[11px] tracking-wide"><RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" /> ÇALIŞIYOR</Badge>;
+        return <Badge className="bg-[#9fbbe0] text-foreground hover:bg-[#9fbbe0]/90 border-none shadow-none rounded-[9999px] px-3 font-medium text-[11px] tracking-wide"><RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" /> {t("ÇALIŞIYOR")}</Badge>;
       default:
-        return <Badge variant="outline" className="border-border text-muted-foreground shadow-none rounded-[9999px] px-3 font-medium text-[11px] tracking-wide uppercase"><Clock className="w-3.5 h-3.5 mr-1.5" /> BEKLEMEDE</Badge>;
+        return <Badge variant="outline" className="border-border text-muted-foreground shadow-none rounded-[9999px] px-3 font-medium text-[11px] tracking-wide uppercase"><Clock className="w-3.5 h-3.5 mr-1.5" /> {t("BEKLEMEDE")}</Badge>;
     }
   };
 
@@ -102,8 +104,8 @@ export default function SyncLogs() {
     <div className="space-y-6 lg:space-y-8 flex flex-col lg:h-[calc(100vh-8rem)] animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 lg:gap-6 shrink-0">
         <div className="space-y-2">
-          <h1 className="text-[28px] sm:text-[40px] leading-[1.1] font-normal tracking-[-0.02em] text-foreground">Senkronizasyon Kayıtları</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Portal üzerinden yapılan tüm veri çekme işlemlerinin kronolojik dökümü.</p>
+          <h1 className="text-[28px] sm:text-[40px] leading-[1.1] font-normal tracking-[-0.02em] text-foreground">{t("Senkronizasyon Kayıtları")}</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">{t("Portal üzerinden yapılan tüm veri çekme işlemlerinin kronolojik dökümü.")}</p>
         </div>
         {canWrite && (
           <Button
@@ -112,7 +114,7 @@ export default function SyncLogs() {
             className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-none transition-colors h-10 px-5 text-sm font-medium shrink-0"
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? "animate-spin" : ""}`} />
-            {isSyncing ? "SENKRONİZE EDİLİYOR..." : "ŞİMDİ SENKRONİZE ET"}
+            {isSyncing ? t("SENKRONİZE EDİLİYOR...") : t("ŞİMDİ SENKRONİZE ET")}
           </Button>
         )}
       </div>
@@ -128,13 +130,13 @@ export default function SyncLogs() {
           <Table className="relative w-full text-[13px]">
             <Header className="sticky top-0 z-10 bg-card shadow-[0_1px_0_0_var(--color-border)]">
               <Row className="hover:bg-transparent border-none">
-                <Head className="w-[160px] pl-4 sm:pl-8 font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Durum</Head>
-                <Head className="w-[200px] font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Başlangıç</Head>
-                <Head className="w-[100px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Süre</Head>
-                <Head className="w-[100px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Bulunan Kayıt</Head>
-                <Head className="w-[100px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Eklenen</Head>
-                <Head className="w-[100px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Güncellenen</Head>
-                <Head className="w-full pl-4 sm:pl-8 font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">Hata / Mesaj</Head>
+                <Head className="w-[160px] pl-4 sm:pl-8 font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">{t("Durum")}</Head>
+                <Head className="w-[200px] font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">{t("Başlangıç")}</Head>
+                <Head className="w-[100px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">{t("Süre")}</Head>
+                <Head className="w-[100px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">{t("Bulunan Kayıt")}</Head>
+                <Head className="w-[100px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">{t("Eklenen")}</Head>
+                <Head className="w-[100px] text-right font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">{t("Güncellenen")}</Head>
+                <Head className="w-full pl-4 sm:pl-8 font-semibold uppercase tracking-widest text-[11px] text-muted-foreground h-12">{t("Hata / Mesaj")}</Head>
               </Row>
             </Header>
             <Body className="divide-y divide-border">
@@ -160,18 +162,18 @@ export default function SyncLogs() {
                         </div>
                         <div>
                           <p className="text-sm font-medium text-foreground">
-                            Henüz portal hesabı yok
+                            {t("Henüz portal hesabı yok")}
                           </p>
                           <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
                             {canWrite
-                              ? "Senkronizasyon başlatabilmek için en az bir hesap eklemelisiniz."
-                              : "Bir yöneticinin Ayarlar'dan portal hesabı eklemesi gerekiyor."}
+                              ? t("Senkronizasyon başlatabilmek için en az bir hesap eklemelisiniz.")
+                              : t("Bir yöneticinin Ayarlar'dan portal hesabı eklemesi gerekiyor.")}
                           </p>
                         </div>
                         {canWrite && (
                           <Link href="/settings">
                             <Button className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-none mt-1">
-                              <Plus className="w-4 h-4 mr-2" /> Hesap Ekle
+                              <Plus className="w-4 h-4 mr-2" /> {t("Hesap Ekle")}
                             </Button>
                           </Link>
                         )}
@@ -183,10 +185,10 @@ export default function SyncLogs() {
                         </div>
                         <div>
                           <p className="text-sm font-medium text-foreground">
-                            Henüz senkronizasyon kaydı yok
+                            {t("Henüz senkronizasyon kaydı yok")}
                           </p>
                           <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
-                            Otomatik tur her gece 01:00'da çalışır. İsterseniz hemen başlatın.
+                            {t("Otomatik tur her gece 01:00'da çalışır. İsterseniz hemen başlatın.")}
                           </p>
                         </div>
                         {canWrite && (
@@ -196,7 +198,7 @@ export default function SyncLogs() {
                             className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-none mt-1"
                           >
                             <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? "animate-spin" : ""}`} />
-                            Şimdi Senkronize Et
+                            {t("Şimdi Senkronize Et")}
                           </Button>
                         )}
                       </div>
@@ -225,8 +227,8 @@ export default function SyncLogs() {
                       {row.recordsUpdated != null && row.recordsUpdated > 0 ? `+${formatNumber(row.recordsUpdated, 0)}` : "-"}
                     </Cell>
                     <Cell className="pl-4 sm:pl-8 text-xs pr-4 sm:pr-8">
-                      <div className={`truncate max-w-[400px] xl:max-w-[700px] ${row.status === 'failed' ? 'text-destructive font-mono' : 'text-muted-foreground'}`} title={row.message || ""}>
-                        {row.message || "-"}
+                      <div className={`truncate max-w-[400px] xl:max-w-[700px] ${row.status === 'failed' ? 'text-destructive font-mono' : 'text-muted-foreground'}`} title={row.message ? t(row.message) : ""}>
+                        {row.message ? t(row.message) : "-"}
                       </div>
                     </Cell>
                   </Row>
@@ -239,8 +241,8 @@ export default function SyncLogs() {
         {/* Pagination */}
         <div className="border-t border-border p-3 px-4 sm:px-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card shrink-0">
           <div className="text-[12px] sm:text-[13px] text-muted-foreground flex items-center gap-3 flex-wrap">
-            {isFetching && <span className="flex items-center text-primary"><RefreshCw className="w-3 h-3 mr-1.5 animate-spin" /> Yükleniyor</span>}
-            <span>Kayıtlar {((page - 1) * limit) + 1}-{Math.min(page * limit, data?.total || 0)} / {formatNumber(data?.total || 0, 0)}</span>
+            {isFetching && <span className="flex items-center text-primary"><RefreshCw className="w-3 h-3 mr-1.5 animate-spin" /> {t("Yükleniyor")}</span>}
+            <span>{t("Kayıtlar {{from}}-{{to}} / {{total}}", { from: ((page - 1) * limit) + 1, to: Math.min(page * limit, data?.total || 0), total: formatNumber(data?.total || 0, 0) })}</span>
           </div>
           <div className="flex items-center gap-3 justify-end">
             <Button 
@@ -250,7 +252,7 @@ export default function SyncLogs() {
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1 || isLoading}
             >
-              Yeni
+              {t("Yeni")}
             </Button>
             <div className="text-xs font-mono bg-secondary px-3 py-1.5 rounded-lg text-foreground">
               {page} / {data?.totalPages || 1}
@@ -262,7 +264,7 @@ export default function SyncLogs() {
               onClick={() => setPage(p => p + 1)}
               disabled={page >= (data?.totalPages || 1) || isLoading}
             >
-              Eski
+              {t("Eski")}
             </Button>
           </div>
         </div>

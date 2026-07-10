@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Satellite, Plus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   useListStarlinkAccounts,
   getListStarlinkAccountsQueryKey,
@@ -22,6 +23,7 @@ import { StarlinkAccountFormDialog } from "./starlink-account-form";
 import type { StarlinkAccount } from "./types";
 
 export default function StarlinkAccountsPage() {
+  const { t } = useTranslation();
   const { data: accounts, isLoading } = useListStarlinkAccounts({
     query: { queryKey: getListStarlinkAccountsQueryKey() },
   });
@@ -45,12 +47,10 @@ export default function StarlinkAccountsPage() {
                 <div className="p-1.5 bg-background rounded border border-border">
                   <Satellite className="w-4 h-4 text-foreground" />
                 </div>
-                Tototheo Hesapları
+                {t("Tototheo Hesapları")}
               </CardTitle>
               <CardDescription className="mt-1 text-sm text-muted-foreground">
-                Aktif hesapların hepsi otomatik (her 30 dk) ve manuel sync
-                turlarında sırayla taranır. Bir hesap düşerse diğerleri devam
-                eder.
+                {t("Aktif hesapların hepsi otomatik (her 30 dk) ve manuel sync turlarında sırayla taranır. Bir hesap düşerse diğerleri devam eder.")}
               </CardDescription>
             </div>
             <Button
@@ -58,7 +58,7 @@ export default function StarlinkAccountsPage() {
               className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-none h-9 px-4"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Yeni Hesap
+              {t("Yeni Hesap")}
             </Button>
           </div>
         </CardHeader>
@@ -74,17 +74,16 @@ export default function StarlinkAccountsPage() {
                 <Satellite className="w-5 h-5 text-muted-foreground" />
               </div>
               <p className="text-sm font-medium text-foreground mb-1">
-                Henüz Tototheo hesabı eklenmedi
+                {t("Henüz Tototheo hesabı eklenmedi")}
               </p>
               <p className="text-xs text-muted-foreground max-w-sm mx-auto mb-5">
-                Senkronizasyon başlatabilmek için en az bir Tototheo Bearer
-                token tanımlamalısınız.
+                {t("Senkronizasyon başlatabilmek için en az bir Tototheo Bearer token tanımlamalısınız.")}
               </p>
               <Button
                 onClick={() => setCreating(true)}
                 className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-none"
               >
-                <Plus className="w-4 h-4 mr-2" /> İlk Hesabı Ekle
+                <Plus className="w-4 h-4 mr-2" /> {t("İlk Hesabı Ekle")}
               </Button>
             </div>
           ) : (

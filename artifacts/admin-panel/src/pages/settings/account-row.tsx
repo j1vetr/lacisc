@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   ShieldCheck,
@@ -42,6 +43,7 @@ export function AccountRow({
   onEdit: () => void;
   onChanged: () => void;
 }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const testMutation = useTestStationAccountConnection();
@@ -54,15 +56,15 @@ export function AccountRow({
       {
         onSuccess: (res) => {
           toast({
-            title: res.success ? "Bağlantı Doğrulandı" : "Bağlantı Başarısız",
-            description: res.message,
+            title: res.success ? t("Bağlantı Doğrulandı") : t("Bağlantı Başarısız"),
+            description: t(res.message),
             variant: res.success ? "default" : "destructive",
           });
         },
         onError: (err: unknown) => {
           toast({
-            title: "Test Hatası",
-            description: (err instanceof Error ? err.message : null) || "Bağlantı testi başarısız.",
+            title: t("Test Hatası"),
+            description: (err instanceof Error ? t(err.message) : null) || t("Bağlantı testi başarısız."),
             variant: "destructive",
           });
         },
@@ -76,15 +78,15 @@ export function AccountRow({
       {
         onSuccess: () => {
           toast({
-            title: "Hesap Silindi",
-            description: `${account.label || account.username} ve tüm verisi temizlendi.`,
+            title: t("Hesap Silindi"),
+            description: t("{{name}} ve tüm verisi temizlendi.", { name: account.label || account.username }),
           });
           queryClient.invalidateQueries();
         },
         onError: (err: unknown) => {
           toast({
-            title: "Silme Başarısız",
-            description: (err instanceof Error ? err.message : null) || "Hesap silinemedi.",
+            title: t("Silme Başarısız"),
+            description: (err instanceof Error ? t(err.message) : null) || t("Hesap silinemedi."),
             variant: "destructive",
           });
         },
@@ -98,16 +100,16 @@ export function AccountRow({
       {
         onSuccess: (res) => {
           toast({
-            title: "Hesap Verisi Temizlendi",
-            description: res.message,
+            title: t("Hesap Verisi Temizlendi"),
+            description: t(res.message),
           });
           onChanged();
           queryClient.invalidateQueries();
         },
         onError: (err: unknown) => {
           toast({
-            title: "Temizlik Başarısız",
-            description: (err instanceof Error ? err.message : null) || "Veriler silinemedi.",
+            title: t("Temizlik Başarısız"),
+            description: (err instanceof Error ? t(err.message) : null) || t("Veriler silinemedi."),
             variant: "destructive",
           });
         },
@@ -128,14 +130,14 @@ export function AccountRow({
                 variant="outline"
                 className="text-[10px] px-1.5 py-0 h-5 border-[#9fc9a2]/60 bg-[#9fc9a2]/10 text-foreground gap-1"
               >
-                <Power className="w-2.5 h-2.5" /> Aktif
+                <Power className="w-2.5 h-2.5" /> {t("Aktif")}
               </Badge>
             ) : (
               <Badge
                 variant="outline"
                 className="text-[10px] px-1.5 py-0 h-5 border-border text-muted-foreground gap-1"
               >
-                <PowerOff className="w-2.5 h-2.5" /> Pasif
+                <PowerOff className="w-2.5 h-2.5" /> {t("Pasif")}
               </Badge>
             )}
             <Badge
@@ -156,7 +158,7 @@ export function AccountRow({
                 account.lastSuccessSyncAt ? "bg-[#1f8a65]" : "bg-muted-foreground"
               }`}
             />
-            Son başarılı: {formatDate(account.lastSuccessSyncAt) || "—"}
+            {t("Son başarılı:")} {formatDate(account.lastSuccessSyncAt) || t("—")}
           </div>
           {account.lastErrorMessage && (
             <div className="text-[11px] font-mono text-[#cf2d56] flex items-start gap-1.5 max-w-xl">
@@ -179,7 +181,7 @@ export function AccountRow({
             ) : (
               <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
             )}
-            Test
+            {t("Test")}
           </Button>
           <Button
             variant="outline"
@@ -188,7 +190,7 @@ export function AccountRow({
             onClick={onEdit}
           >
             <Pencil className="w-3.5 h-3.5 mr-1.5" />
-            Düzenle
+            {t("Düzenle")}
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -199,26 +201,25 @@ export function AccountRow({
                 disabled={wipeMutation.isPending}
               >
                 <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                Veriyi Sil
+                {t("Veriyi Sil")}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent className="rounded-xl">
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  "{displayName}" hesabının verisi silinsin mi?
+                  {t('"{{name}}" hesabının verisi silinsin mi?', { name: displayName })}
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  Bu hesaba bağlı KIT'ler, dönem toplamları ve CDR'lar silinecek. Hesap
-                  kimlik bilgileri korunur; sonraki sync geçmişi yeniden çeker.
+                  {t("Bu hesaba bağlı KIT'ler, dönem toplamları ve CDR'lar silinecek. Hesap kimlik bilgileri korunur; sonraki sync geçmişi yeniden çeker.")}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel className="rounded-lg">Vazgeç</AlertDialogCancel>
+                <AlertDialogCancel className="rounded-lg">{t("Vazgeç")}</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleWipeOne}
                   className="rounded-lg bg-[#cf2d56] text-white hover:bg-[#cf2d56]/90"
                 >
-                  Evet, verileri sil
+                  {t("Evet, verileri sil")}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -233,24 +234,23 @@ export function AccountRow({
                 disabled={deleteMutation.isPending}
               >
                 <XCircle className="w-3.5 h-3.5 mr-1.5" />
-                Sil
+                {t("Sil")}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent className="rounded-xl">
               <AlertDialogHeader>
-                <AlertDialogTitle>"{displayName}" hesabını sil?</AlertDialogTitle>
+                <AlertDialogTitle>{t('"{{name}}" hesabını sil?', { name: displayName })}</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Hesap ve TÜM verisi (KIT'ler, dönem toplamları, CDR'lar) kalıcı olarak
-                  silinecek. Bu işlem <strong>geri alınamaz</strong>.
+                  {t("Hesap ve TÜM verisi (KIT'ler, dönem toplamları, CDR'lar) kalıcı olarak silinecek. Bu işlem")} <strong>{t("geri alınamaz")}</strong>.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel className="rounded-lg">Vazgeç</AlertDialogCancel>
+                <AlertDialogCancel className="rounded-lg">{t("Vazgeç")}</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleDelete}
                   className="rounded-lg bg-[#cf2d56] text-white hover:bg-[#cf2d56]/90"
                 >
-                  Evet, hesabı sil
+                  {t("Evet, hesabı sil")}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

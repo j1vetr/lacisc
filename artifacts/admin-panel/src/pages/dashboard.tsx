@@ -1,6 +1,7 @@
 import { lazy, Suspense, useMemo } from "react";
 import { Link } from "wouter";
 import { AlertCircle, ArrowRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 // Leaflet + markercluster ~80kb gz — bundle'ı şişirmemek için lazy.
 const FleetMap = lazy(() => import("@/components/fleet-map"));
@@ -71,7 +72,8 @@ const SOURCE_DETAIL_PREFIX: Record<Source, string> = {
 };
 
 export default function Dashboard() {
-  useDocumentTitle("Panel");
+  const { t } = useTranslation();
+  useDocumentTitle(t("Panel"));
 
   const { data: me } = useGetMe({
     query: { queryKey: getGetMeQueryKey(), staleTime: 60_000 },
@@ -207,14 +209,14 @@ export default function Dashboard() {
         <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-6">
           <AlertCircle className="w-8 h-8 text-destructive" />
         </div>
-        <h2 className="text-2xl font-normal tracking-tight mb-2 text-foreground">Sistem Hatası</h2>
-        <p className="text-muted-foreground max-w-md mx-auto mb-6">{error?.message || "Operasyon paneli yüklenemedi."}</p>
+        <h2 className="text-2xl font-normal tracking-tight mb-2 text-foreground">{t("Sistem Hatası")}</h2>
+        <p className="text-muted-foreground max-w-md mx-auto mb-6">{(error?.message && t(error.message)) || t("Operasyon paneli yüklenemedi.")}</p>
         <Button
           onClick={() => queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() })}
           variant="outline"
           className="rounded-lg shadow-none"
         >
-          Yeniden Dene
+          {t("Yeniden Dene")}
         </Button>
       </div>
     );
@@ -226,7 +228,7 @@ export default function Dashboard() {
     <div className="space-y-5 sm:space-y-6 animate-in fade-in duration-500">
       {/* === ÜST KPI: 3 kart, sayılar dikey ortalı === */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <KpiCard eyebrow="TOPLAM TERMİNAL">
+        <KpiCard eyebrow={t("TOPLAM TERMİNAL")}>
           {isLoading ? (
             <Skeleton className="h-10 w-20 rounded" />
           ) : (
@@ -262,7 +264,7 @@ export default function Dashboard() {
           )}
         </KpiCard>
 
-        <KpiCard eyebrow="AKTİF DÖNEM">
+        <KpiCard eyebrow={t("AKTİF DÖNEM")}>
           {isLoading ? (
             <Skeleton className="h-10 w-32 rounded" />
           ) : (
@@ -272,18 +274,18 @@ export default function Dashboard() {
           )}
         </KpiCard>
 
-        <KpiCard eyebrow="SİSTEM DURUMU">
+        <KpiCard eyebrow={t("SİSTEM DURUMU")}>
           {isLoading ? (
             <Skeleton className="h-10 w-24 rounded" />
           ) : (
             <>
               <div className="flex items-center gap-2.5">
                 <span className={`inline-block w-2.5 h-2.5 rounded-full ${sysStatus.dotClass}`} />
-                <span className="text-xl sm:text-2xl font-medium text-foreground tracking-tight">{sysStatus.label}</span>
+                <span className="text-xl sm:text-2xl font-medium text-foreground tracking-tight">{t(sysStatus.label)}</span>
               </div>
               <div className="mt-3 text-[10px] uppercase tracking-[0.10em] text-muted-foreground font-mono tabular-nums">
-                SON SYNC ·{" "}
-                {summary?.lastSuccessSyncAt ? formatDate(summary.lastSuccessSyncAt) : "BEKLENİYOR"}
+                {t("SON SYNC")} ·{" "}
+                {summary?.lastSuccessSyncAt ? formatDate(summary.lastSuccessSyncAt) : t("BEKLENİYOR")}
               </div>
             </>
           )}
@@ -294,7 +296,7 @@ export default function Dashboard() {
       <div className="rounded-xl border border-border bg-card p-5 sm:p-6">
         <div className="flex items-center justify-between mb-3">
           <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-medium">
-            FİLO HARİTASI · CANLI KONUM
+            {t("FİLO HARİTASI · CANLI KONUM")}
           </span>
         </div>
         <Suspense
@@ -311,7 +313,7 @@ export default function Dashboard() {
         <div className="rounded-xl border border-border bg-card p-5 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-medium">
-              KAYNAK DAĞILIMI · DÖNEM TERMİNAL TOPLAMI
+              {t("KAYNAK DAĞILIMI · DÖNEM TERMİNAL TOPLAMI")}
             </span>
             <span className="hidden sm:inline-block font-mono text-[10px] uppercase tracking-[0.10em] text-muted-foreground">
               {formatNumber(totalGb, 0)} GB
@@ -351,7 +353,7 @@ export default function Dashboard() {
         <div className="lg:col-span-2 rounded-xl border border-border bg-card flex flex-col">
           <div className="flex items-center justify-between px-5 sm:px-6 pt-5 pb-3">
             <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-medium">
-              YÜKSEK KULLANIM · TERMİNAL
+              {t("YÜKSEK KULLANIM · TERMİNAL")}
             </span>
             <Link href="/kits">
               <Button
@@ -359,7 +361,7 @@ export default function Dashboard() {
                 size="sm"
                 className="h-7 px-2 text-[11px] uppercase tracking-[0.10em] text-muted-foreground hover:bg-secondary rounded-md"
               >
-                TÜMÜ <ArrowRight className="w-3 h-3 ml-1" />
+                {t("TÜMÜ")} <ArrowRight className="w-3 h-3 ml-1" />
               </Button>
             </Link>
           </div>
@@ -371,7 +373,7 @@ export default function Dashboard() {
             </div>
           ) : movers.length === 0 ? (
             <div className="text-center py-12 text-sm text-muted-foreground">
-              Henüz terminal verisi yok.
+              {t("Henüz terminal verisi yok.")}
             </div>
           ) : (
             <div className="flex-1 flex flex-col">
@@ -420,7 +422,7 @@ export default function Dashboard() {
                           </>
                         ) : (
                           <span className="text-[10px] uppercase tracking-[0.10em] text-muted-foreground">
-                            TARİFESİZ
+                            {t("TARİFESİZ")}
                           </span>
                         )}
                       </div>
@@ -458,7 +460,7 @@ export default function Dashboard() {
                 </div>
                 {!isCustomer && (
                   <span className={`inline-flex items-center h-[18px] px-2 rounded-full border text-[9px] font-semibold uppercase tracking-[0.08em] ${SOURCE_PILL[s.source]}`}>
-                    {s.accounts} HESAP
+                    {t("{{count}} HESAP", { count: s.accounts })}
                   </span>
                 )}
               </div>
@@ -467,7 +469,7 @@ export default function Dashboard() {
                 <span className="text-[12px] text-muted-foreground font-normal">GB</span>
               </div>
               <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.10em] text-muted-foreground">
-                {s.kits} TERMİNAL
+                {t("{{count}} TERMİNAL", { count: s.kits })}
               </div>
             </div>
           ))}

@@ -1,4 +1,5 @@
 import React, { useMemo, useState, lazy, Suspense } from "react";
+import { useTranslation } from "react-i18next";
 
 const TerminalMap = lazy(() => import("@/components/terminal-map"));
 import { Link } from "wouter";
@@ -71,6 +72,7 @@ function formatDay(dayDate: string) {
 }
 
 export default function StarlinkDetail({ kit }: { kit: string }) {
+  const { t } = useTranslation();
   useDocumentTitle(kit);
   const isCustomer = useIsCustomer();
   const queryClient = useQueryClient();
@@ -210,7 +212,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
           )}
           {detail?.updatedAt && (
             <span className="ml-auto flex items-center gap-1.5">
-              <Clock className="w-3 h-3" /> Son Bağlantı {formatDate(detail.updatedAt)}
+              <Clock className="w-3 h-3" /> {t("Son Bağlantı")} {formatDate(detail.updatedAt)}
             </span>
           )}
         </div>
@@ -222,7 +224,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Radio className="w-4 h-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold tracking-tight">Canlı Telemetri</h2>
+              <h2 className="text-sm font-semibold tracking-tight">{t("Canlı Telemetri")}</h2>
             </div>
           </div>
           <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -233,7 +235,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
             ) : (
               <>
                 <MetricTile
-                  label="Sinyal"
+                  label={t("Sinyal")}
                   value={
                     detail?.signalQuality != null
                       ? formatNumber(detail.signalQuality * 100, 0)
@@ -244,14 +246,14 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                   tone={(detail?.signalQuality ?? 0) >= 0.8 ? "ok" : "neutral"}
                 />
                 <MetricTile
-                  label="Gecikme"
+                  label={t("Gecikme")}
                   value={detail?.latency != null ? detail.latency : "—"}
                   unit="ms"
                   icon={<Activity className="w-3 h-3" />}
                   tone={(detail?.latency ?? 999) < 80 ? "ok" : "neutral"}
                 />
                 <MetricTile
-                  label="Ping Drop"
+                  label={t("Ping Drop")}
                   value={
                     pingDropRate != null ? formatNumber(pingDropRate * 100, 2) : "—"
                   }
@@ -259,7 +261,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                   icon={<TrendingUp className="w-3 h-3" />}
                 />
                 <MetricTile
-                  label="İndirme"
+                  label={t("İndirme")}
                   value={
                     detail?.downloadSpeed != null
                       ? formatNumber(detail.downloadSpeed, 1)
@@ -269,7 +271,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                   icon={<Download className="w-3 h-3" />}
                 />
                 <MetricTile
-                  label="Yükleme"
+                  label={t("Yükleme")}
                   value={
                     detail?.uploadSpeed != null
                       ? formatNumber(detail.uploadSpeed, 1)
@@ -279,7 +281,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                   icon={<Upload className="w-3 h-3" />}
                 />
                 <MetricTile
-                  label="Engel Yok"
+                  label={t("Engel Yok")}
                   value={
                     detail?.obstruction != null
                       ? formatNumber((1 - detail.obstruction) * 100, 1)
@@ -298,7 +300,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Compass className="w-4 h-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold tracking-tight">Konum</h2>
+              <h2 className="text-sm font-semibold tracking-tight">{t("Konum")}</h2>
             </div>
             {detail?.lastSeenAt && (
               <span className="text-[10px] font-mono text-muted-foreground">
@@ -330,7 +332,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
             ) : (
               <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
                 <MapPin className="w-3.5 h-3.5 mr-1.5 opacity-50" />
-                Konum bilgisi yok.
+                {t("Konum bilgisi yok.")}
               </div>
             )}
           </div>
@@ -342,7 +344,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
         <div className="px-4 py-3 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
             <HardDrive className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold tracking-tight">Plan ve Kota</h2>
+            <h2 className="text-sm font-semibold tracking-tight">{t("Plan ve Kota")}</h2>
             <Pill tone="info">{periodLabel}</Pill>
           </div>
           {plan && (
@@ -357,7 +359,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
               {/* Sol: hero — kullanılan / tahsis */}
               <div className="lg:col-span-5">
                 <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-2">
-                  Bu Dönem Kullanım
+                  {t("Bu Dönem Kullanım")}
                 </div>
                 <div className="flex items-baseline gap-2">
                   <span className="font-mono text-5xl tracking-tight tabular-nums">
@@ -379,9 +381,9 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                       />
                     </div>
                     <div className="mt-2 flex items-center justify-between text-[11px] font-mono text-muted-foreground">
-                      <span>%{formatNumber(usedPct, 1)} dolu</span>
+                      <span>{t("%{{pct}} dolu", { pct: formatNumber(usedPct, 1) })}</span>
                       {planAllowance != null && (
-                        <span>%{formatNumber(100 - Math.min(usedPct, 100), 1)} boş</span>
+                        <span>{t("%{{pct}} boş", { pct: formatNumber(100 - Math.min(usedPct, 100), 1) })}</span>
                       )}
                     </div>
                   </div>
@@ -391,13 +393,13 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
               {/* Sağ: 3'lü mini-stats */}
               <div className="lg:col-span-7 grid grid-cols-3 gap-3">
                 <QuotaStat
-                  label="Kullanılan"
+                  label={t("Kullanılan")}
                   value={formatNumber(used, 1)}
                   unit="GB"
                   tone="primary"
                 />
                 <QuotaStat
-                  label="Kalan"
+                  label={t("Kalan")}
                   value={remaining != null ? formatNumber(remaining, 1) : "—"}
                   unit={remaining != null ? "GB" : undefined}
                   tone={
@@ -407,7 +409,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                   }
                 />
                 <QuotaStat
-                  label="Toplam Tahsis"
+                  label={t("Toplam Tahsis")}
                   value={planAllowance != null ? formatNumber(planAllowance, 0) : "—"}
                   unit={planAllowance != null ? "GB" : undefined}
                   tone="muted"
@@ -416,7 +418,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
 
               {planAllowance == null && (
                 <div className="lg:col-span-12 text-xs text-muted-foreground">
-                  Plan tahsisi bilinmiyor — sadece kullanım gösteriliyor.
+                  {t("Plan tahsisi bilinmiyor — sadece kullanım gösteriliyor.")}
                 </div>
               )}
             </div>
@@ -427,15 +429,15 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
             <div className="mt-6 pt-4 border-t border-border">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                  Manuel Kota
+                  {t("Manuel Kota")}
                 </span>
                 {detail?.manualPlanGb != null ? (
                   <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-mono bg-[#f54e00]/10 text-[#f54e00] border border-[#f54e00]/20">
-                    Manuel: {formatNumber(detail.manualPlanGb, 0)} GB
+                    {t("Manuel: {{gb}} GB", { gb: formatNumber(detail.manualPlanGb, 0) })}
                   </span>
                 ) : (
                   <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-mono bg-secondary text-muted-foreground">
-                    Otomatik
+                    {t("Otomatik")}
                   </span>
                 )}
                 {isAdmin && !manualEditMode && (
@@ -446,7 +448,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                     }}
                     className="ml-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    Düzenle
+                    {t("Düzenle")}
                   </button>
                 )}
               </div>
@@ -458,7 +460,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                     step="1"
                     value={manualInputVal}
                     onChange={(e) => setManualInputVal(e.target.value)}
-                    placeholder="GB (boş = otomatik)"
+                    placeholder={t("GB (boş = otomatik)")}
                     className="h-8 w-40 rounded border border-border bg-background px-2.5 font-mono text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                   <button
@@ -479,7 +481,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                     }}
                     className="h-8 px-3 rounded text-[12px] font-medium bg-foreground text-background disabled:opacity-50"
                   >
-                    {manualPlanMutation.isPending ? "…" : "Kaydet"}
+                    {manualPlanMutation.isPending ? "…" : t("Kaydet")}
                   </button>
                   {detail?.manualPlanGb != null && (
                     <button
@@ -497,17 +499,17 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                       }}
                       className="h-8 px-3 rounded text-[12px] border border-border text-muted-foreground hover:text-foreground disabled:opacity-50"
                     >
-                      Temizle
+                      {t("Temizle")}
                     </button>
                   )}
                   <button
                     onClick={() => setManualEditMode(false)}
                     className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    İptal
+                    {t("İptal")}
                   </button>
                   {manualPlanMutation.isError && (
-                    <span className="text-[11px] text-destructive">Hata — tekrar deneyin.</span>
+                    <span className="text-[11px] text-destructive">{t("Hata — tekrar deneyin.")}</span>
                   )}
                 </div>
               )}
@@ -521,7 +523,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
         <div className="px-4 py-3 border-b border-border flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold tracking-tight">Günlük Tüketim</h2>
+            <h2 className="text-sm font-semibold tracking-tight">{t("Günlük Tüketim")}</h2>
             <Pill>{periodLabel}</Pill>
           </div>
           {periodOptions.length > 0 && (
@@ -543,7 +545,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
             <Skeleton className="h-full w-full rounded-lg" />
           ) : chartData.length === 0 ? (
             <div className="h-full flex items-center justify-center text-sm text-muted-foreground border border-dashed border-border rounded-lg">
-              Bu dönem için günlük okuma yok.
+              {t("Bu dönem için günlük okuma yok.")}
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
@@ -599,7 +601,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
         <div className="px-4 py-3 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CalendarClock className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold tracking-tight">Aylık Geçmiş</h2>
+            <h2 className="text-sm font-semibold tracking-tight">{t("Aylık Geçmiş")}</h2>
           </div>
         </div>
         {monthlyLoading ? (
@@ -608,7 +610,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
           </div>
         ) : !monthly || monthly.length === 0 ? (
           <div className="m-4 text-center py-12 text-sm text-muted-foreground border border-dashed border-border rounded-lg">
-            Henüz aylık veri yok.
+            {t("Henüz aylık veri yok.")}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -616,10 +618,10 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
               <thead className="bg-secondary/40">
                 <tr>
                   {[
-                    { label: "Dönem", align: "left", pad: "pl-4" },
-                    { label: "Toplam", align: "right" },
-                    { label: "Kullanılan Miktar", align: "right" },
-                    { label: "Tarama", align: "right", pad: "pr-4" },
+                    { label: t("Dönem"), align: "left", pad: "pl-4" },
+                    { label: t("Toplam"), align: "right" },
+                    { label: t("Kullanılan Miktar"), align: "right" },
+                    { label: t("Tarama"), align: "right", pad: "pr-4" },
                   ].map((h) => (
                     <th
                       key={h.label}

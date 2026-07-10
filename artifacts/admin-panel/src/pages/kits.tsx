@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
+import { useTranslation } from "react-i18next";
 import {
   useGetKits,
   getGetKitsQueryKey,
@@ -86,7 +87,8 @@ const SOURCE_LABEL: Record<Source, string> = {
 };
 
 export default function Kits() {
-  useDocumentTitle("KIT Özeti");
+  const { t } = useTranslation();
+  useDocumentTitle(t("KIT Özeti"));
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -246,10 +248,10 @@ export default function Kits() {
       <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 sm:gap-6">
         <div className="space-y-2 min-w-0 w-full sm:w-auto">
           <h1 className="text-[28px] sm:text-[40px] leading-[1.1] font-normal tracking-[-0.02em] text-foreground">
-            KIT Özeti
+            {t("KIT Özeti")}
           </h1>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] sm:text-[11px] tracking-[0.12em] uppercase text-muted-foreground font-medium tabular-nums">
-            <span>{unified.length} TERMİNAL</span>
+            <span>{t("{{count}} TERMİNAL", { count: unified.length })}</span>
             <span className="opacity-50">·</span>
             <span className="inline-flex items-center gap-1.5">
               <span className={`inline-block w-1.5 h-1.5 rounded-full ${SOURCE_CLASS.satcom}`} />
@@ -294,11 +296,11 @@ export default function Kits() {
             Terminal
           </span>
           <span className="hidden sm:block text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-medium text-right">
-            Dönem GB
+            {t("Dönem GB")}
           </span>
           <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-medium text-right">
-            <span className="sm:hidden">Kullanım</span>
-            <span className="hidden sm:inline">Kota</span>
+            <span className="sm:hidden">{t("Kullanım")}</span>
+            <span className="hidden sm:inline">{t("Kota")}</span>
           </span>
         </div>
 
@@ -386,9 +388,9 @@ export default function Kits() {
                   {r.isIdle ? (
                     <span
                       className="text-[10px] uppercase tracking-widest text-muted-foreground border border-border rounded-full px-2 py-0.5 whitespace-nowrap"
-                      title="Bu hesapta henüz fatura/CDR üretmemiş — telemetri/lokasyon mevcut"
+                      title={t("Bu hesapta henüz fatura/CDR üretmemiş — telemetri/lokasyon mevcut")}
                     >
-                      Henüz kullanım yok
+                      {t("Henüz kullanım yok")}
                     </span>
                   ) : pct !== null ? (
                     <>
@@ -467,6 +469,7 @@ function KitManualPlanButton({
   currentManualPlanGb: number | null;
   offsetRight: "right-1" | "right-9";
 }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -495,7 +498,7 @@ function KitManualPlanButton({
     const trimmed = value.trim();
     const manualPlanGb = trimmed === "" ? null : parseFloat(trimmed);
     if (trimmed !== "" && (isNaN(manualPlanGb!) || manualPlanGb! < 0)) {
-      toast({ title: "Geçersiz değer", description: "GB değeri 0 veya üzeri bir sayı olmalı.", variant: "destructive" });
+      toast({ title: t("Geçersiz değer"), description: t("GB değeri 0 veya üzeri bir sayı olmalı."), variant: "destructive" });
       return;
     }
 
@@ -507,19 +510,19 @@ function KitManualPlanButton({
     (mutation.mutate as (p: typeof params, opts: object) => void)(params, {
       onSuccess: () => {
         toast({
-          title: manualPlanGb == null ? "Kota Override Temizlendi" : "Kota Override Kaydedildi",
+          title: manualPlanGb == null ? t("Kota Override Temizlendi") : t("Kota Override Kaydedildi"),
           description:
             manualPlanGb == null
-              ? `${kitNo} için manuel kota kaldırıldı, otomatik değer kullanılacak.`
-              : `${kitNo} için kota ${manualPlanGb} GB olarak ayarlandı.`,
+              ? t("{{kitNo}} için manuel kota kaldırıldı, otomatik değer kullanılacak.", { kitNo })
+              : t("{{kitNo}} için kota {{gb}} GB olarak ayarlandı.", { kitNo, gb: manualPlanGb }),
         });
         queryClient.invalidateQueries();
         setOpen(false);
       },
       onError: (err: unknown) => {
         toast({
-          title: "Kayıt Başarısız",
-          description: (err instanceof Error ? err.message : null) || "Kota güncellenemedi.",
+          title: t("Kayıt Başarısız"),
+          description: (err instanceof Error ? t(err.message) : null) || t("Kota güncellenemedi."),
           variant: "destructive",
         });
       },
@@ -530,8 +533,8 @@ function KitManualPlanButton({
     <>
       <button
         type="button"
-        title="Manuel kota düzenle"
-        aria-label="Manuel kota düzenle"
+        title={t("Manuel kota düzenle")}
+        aria-label={t("Manuel kota düzenle")}
         onClick={handleOpen}
         className={`absolute ${offsetRight} top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-foreground hover:bg-secondary transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
       >
@@ -545,7 +548,7 @@ function KitManualPlanButton({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="rounded-xl max-w-sm" onClick={(e) => e.stopPropagation()}>
           <DialogHeader>
-            <DialogTitle>Manuel Kota Override</DialogTitle>
+            <DialogTitle>{t("Manuel Kota Override")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="text-sm text-muted-foreground">
@@ -554,14 +557,14 @@ function KitManualPlanButton({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="manual-plan-input" className="text-sm">
-                Kota (GB) <span className="text-muted-foreground font-normal">— boş bırakın = otomatik</span>
+                {t("Kota (GB)")} <span className="text-muted-foreground font-normal">{t("— boş bırakın = otomatik")}</span>
               </Label>
               <Input
                 id="manual-plan-input"
                 type="number"
                 min={0}
                 step="any"
-                placeholder="Örn: 100"
+                placeholder={t("Örn: 100")}
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 className="font-mono shadow-none"
@@ -570,14 +573,14 @@ function KitManualPlanButton({
             </div>
             {currentManualPlanGb != null && (
               <p className="text-xs text-muted-foreground">
-                Mevcut override: <span className="font-mono text-foreground">{currentManualPlanGb} GB</span>.
-                Boş bırakıp kaydet = override'ı temizle.
+                {t("Mevcut override:")} <span className="font-mono text-foreground">{currentManualPlanGb} GB</span>.{" "}
+                {t("Boş bırakıp kaydet = override'ı temizle.")}
               </p>
             )}
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" className="rounded-lg shadow-none" onClick={() => setOpen(false)}>
-              Vazgeç
+              {t("Vazgeç")}
             </Button>
             <Button
               className="rounded-lg shadow-none"
@@ -585,7 +588,7 @@ function KitManualPlanButton({
               disabled={isPending}
             >
               {isPending && <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />}
-              Kaydet
+              {t("Kaydet")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -603,6 +606,7 @@ function KitDeleteButton({
   kitNo: string;
   shipName: string | null;
 }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const deleteStarlink = useDeleteStarlinkTerminal();
@@ -616,17 +620,17 @@ function KitDeleteButton({
       {
         onSuccess: () => {
           toast({
-            title: "Terminal Silindi",
-            description: `${kitNo} ${sourceLabel} kaynağından temizlendi.`,
+            title: t("Terminal Silindi"),
+            description: t("{{kitNo}} {{sourceLabel}} kaynağından temizlendi.", { kitNo, sourceLabel }),
           });
           queryClient.invalidateQueries();
         },
         onError: (err: unknown) => {
           toast({
-            title: "Silme Başarısız",
+            title: t("Silme Başarısız"),
             description:
-              (err instanceof Error ? err.message : null) ||
-              "Terminal silinemedi.",
+              (err instanceof Error ? t(err.message) : null) ||
+              t("Terminal silinemedi."),
             variant: "destructive",
           });
         },
@@ -639,8 +643,8 @@ function KitDeleteButton({
       <AlertDialogTrigger asChild>
         <button
           type="button"
-          title="Terminali sil"
-          aria-label="Terminali sil"
+          title={t("Terminali sil")}
+          aria-label={t("Terminali sil")}
           className="absolute right-1 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {mutation.isPending ? (
@@ -652,22 +656,20 @@ function KitDeleteButton({
       </AlertDialogTrigger>
       <AlertDialogContent className="rounded-xl">
         <AlertDialogHeader>
-          <AlertDialogTitle>Terminali sil?</AlertDialogTitle>
+          <AlertDialogTitle>{t("Terminali sil?")}</AlertDialogTitle>
           <AlertDialogDescription>
             <span className="font-mono">{kitNo}</span>
-            {shipName ? ` (${shipName})` : ""} terminali ve tüm geçmişi{" "}
-            <strong>{sourceLabel}</strong> kaynağından kalıcı olarak silinecek.
-            KIT hâlâ bu kaynakta aktifse bir sonraki senkronizasyonda tekrar
-            eklenir.
+            {shipName ? ` (${shipName})` : ""} {t("terminali ve tüm geçmişi")}{" "}
+            <strong>{sourceLabel}</strong> {t("kaynağından kalıcı olarak silinecek. KIT hâlâ bu kaynakta aktifse bir sonraki senkronizasyonda tekrar eklenir.")}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel className="rounded-lg">Vazgeç</AlertDialogCancel>
+          <AlertDialogCancel className="rounded-lg">{t("Vazgeç")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleDelete}
             className="rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            Sil
+            {t("Sil")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -692,6 +694,7 @@ function EmptyState({
   isCustomer: boolean;
   onClearFilter: () => void;
 }) {
+  const { t } = useTranslation();
   if (customerHasNoAssignments) {
     return (
       <div className="flex flex-col items-center gap-3 py-16 text-center">
@@ -699,9 +702,9 @@ function EmptyState({
           <Terminal className="w-5 h-5 text-muted-foreground" />
         </div>
         <div>
-          <p className="text-sm font-medium text-foreground">Henüz size atanmış terminal yok</p>
+          <p className="text-sm font-medium text-foreground">{t("Henüz size atanmış terminal yok")}</p>
           <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
-            Lütfen yöneticinizle iletişime geçin.
+            {t("Lütfen yöneticinizle iletişime geçin.")}
           </p>
         </div>
       </div>
@@ -714,23 +717,23 @@ function EmptyState({
           <Server className="w-5 h-5 text-muted-foreground" />
         </div>
         <div>
-          <p className="text-sm font-medium text-foreground">Henüz veri kaynağı yok</p>
+          <p className="text-sm font-medium text-foreground">{t("Henüz veri kaynağı yok")}</p>
           <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
             {canManageAccounts
-              ? "KIT verisi görmek için bir Satcom portal hesabı ekleyin veya Tototheo entegrasyonunu açın."
-              : "Henüz veri kaynağı yok. Bir yöneticinin Ayarlar'dan kaynak eklemesi gerekiyor."}
+              ? t("KIT verisi görmek için bir Satcom portal hesabı ekleyin veya Tototheo entegrasyonunu açın.")
+              : t("Henüz veri kaynağı yok. Bir yöneticinin Ayarlar'dan kaynak eklemesi gerekiyor.")}
           </p>
         </div>
         {canManageAccounts && (
           <div className="flex gap-2 flex-wrap justify-center">
             <Link href="/settings">
               <Button className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-none">
-                <Plus className="w-4 h-4 mr-2" /> Satcom Hesap
+                <Plus className="w-4 h-4 mr-2" /> {t("Satcom Hesap")}
               </Button>
             </Link>
             <Link href="/settings/starlink">
               <Button variant="outline" className="rounded-lg shadow-none">
-                <Satellite className="w-4 h-4 mr-2" /> Tototheo Aç
+                <Satellite className="w-4 h-4 mr-2" /> {t("Tototheo Aç")}
               </Button>
             </Link>
           </div>
@@ -746,14 +749,14 @@ function EmptyState({
         </div>
         <div>
           <p className="text-sm font-medium text-foreground">
-            "{debouncedSearch}" ile eşleşen terminal yok
+            {t('"{{search}}" ile eşleşen terminal yok', { search: debouncedSearch })}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Filtreyi temizleyip tüm terminalleri görebilirsiniz.
+            {t("Filtreyi temizleyip tüm terminalleri görebilirsiniz.")}
           </p>
         </div>
         <Button variant="outline" onClick={onClearFilter} className="rounded-lg shadow-none">
-          Filtreyi Temizle
+          {t("Filtreyi Temizle")}
         </Button>
       </div>
     );
@@ -764,15 +767,15 @@ function EmptyState({
         <Terminal className="w-5 h-5 text-muted-foreground" />
       </div>
       <div>
-        <p className="text-sm font-medium text-foreground">Henüz KIT verisi yok</p>
+        <p className="text-sm font-medium text-foreground">{t("Henüz KIT verisi yok")}</p>
         <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
-          İlk senkronizasyon turundan sonra terminaller burada listelenir.
+          {t("İlk senkronizasyon turundan sonra terminaller burada listelenir.")}
         </p>
       </div>
       {!isCustomer && (
         <Link href="/sync-logs">
           <Button variant="outline" className="rounded-lg shadow-none">
-            Senkronizasyon Sayfasına Git
+            {t("Senkronizasyon Sayfasına Git")}
           </Button>
         </Link>
       )}

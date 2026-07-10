@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import {
   useGetSyncProgress,
   getGetSyncProgressQueryKey,
@@ -15,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
  * Polls only while authenticated (no /me result → render nothing).
  */
 export function SyncCompletionToast() {
+  const { t } = useTranslation();
   const { data: me } = useGetMe({
     query: { queryKey: getGetMeQueryKey(), staleTime: 60_000, retry: false },
   });
@@ -37,10 +39,16 @@ export function SyncCompletionToast() {
     if (wasRunning.current && !progress.running) {
       const failed = progress.failures > 0;
       toast({
-        title: failed ? "Senkronizasyon Tamamlandı (Hatalı)" : "Senkronizasyon Tamamlandı",
+        title: failed
+          ? t("Senkronizasyon Tamamlandı (Hatalı)")
+          : t("Senkronizasyon Tamamlandı"),
         description:
           progress.lastMessage ||
-          `${progress.rowsFound} satır · +${progress.rowsInserted} eklendi · ~${progress.rowsUpdated} güncellendi`,
+          t("{{found}} satır · +{{inserted}} eklendi · ~{{updated}} güncellendi", {
+            found: progress.rowsFound,
+            inserted: progress.rowsInserted,
+            updated: progress.rowsUpdated,
+          }),
         variant: failed ? "destructive" : "default",
       });
     }
@@ -53,6 +61,7 @@ export function SyncCompletionToast() {
     progress?.rowsInserted,
     progress?.rowsUpdated,
     toast,
+    t,
   ]);
 
   return null;

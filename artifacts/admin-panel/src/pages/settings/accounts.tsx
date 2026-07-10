@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Server, Plus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   useListStationAccounts,
   getListStationAccountsQueryKey,
@@ -22,6 +23,7 @@ import { AccountFormDialog } from "./account-form";
 import type { StationAccount } from "./types";
 
 export default function AccountsPage() {
+  const { t } = useTranslation();
   const { data: accounts, isLoading } = useListStationAccounts({
     query: { queryKey: getListStationAccountsQueryKey() },
   });
@@ -43,10 +45,10 @@ export default function AccountsPage() {
                 <div className="p-1.5 bg-background rounded border border-border">
                   <Server className="w-4 h-4 text-foreground" />
                 </div>
-                Portal Hesapları
+                {t("Portal Hesapları")}
               </CardTitle>
               <CardDescription className="mt-1 text-sm text-muted-foreground">
-                Aktif hesapların hepsi otomatik ve manuel sync turlarında sırayla taranır.
+                {t("Aktif hesapların hepsi otomatik ve manuel sync turlarında sırayla taranır.")}
               </CardDescription>
             </div>
             <Button
@@ -54,7 +56,7 @@ export default function AccountsPage() {
               className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-none h-9 px-4"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Yeni Hesap
+              {t("Yeni Hesap")}
             </Button>
           </div>
         </CardHeader>
@@ -70,16 +72,16 @@ export default function AccountsPage() {
                 <Server className="w-5 h-5 text-muted-foreground" />
               </div>
               <p className="text-sm font-medium text-foreground mb-1">
-                Henüz portal hesabı eklenmedi
+                {t("Henüz portal hesabı eklenmedi")}
               </p>
               <p className="text-xs text-muted-foreground max-w-sm mx-auto mb-5">
-                Senkronizasyon başlatabilmek için en az bir Station Satcom portal hesabı eklemelisiniz.
+                {t("Senkronizasyon başlatabilmek için en az bir Station Satcom portal hesabı eklemelisiniz.")}
               </p>
               <Button
                 onClick={() => setCreating(true)}
                 className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-none"
               >
-                <Plus className="w-4 h-4 mr-2" /> İlk Hesabı Ekle
+                <Plus className="w-4 h-4 mr-2" /> {t("İlk Hesabı Ekle")}
               </Button>
             </div>
           ) : (

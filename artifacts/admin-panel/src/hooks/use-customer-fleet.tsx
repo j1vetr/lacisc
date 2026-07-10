@@ -4,6 +4,7 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
+import { useTranslation } from "react-i18next";
 import {
   useGetKits,
   getGetKitsQueryKey,
@@ -48,6 +49,7 @@ export type FleetState = {
 };
 
 export function useCustomerFleet(): FleetState {
+  const { t: tr } = useTranslation();
   const satcomQ = useGetKits(
     { sortBy: "totalGib" },
     {
@@ -76,7 +78,7 @@ export function useCustomerFleet(): FleetState {
       out.push({
         source: "satcom",
         kitNo: k.kitNo,
-        shipName: k.shipName?.trim() || "Adsız Gemi",
+        shipName: k.shipName?.trim() || tr("Adsız Gemi"),
         // Satcom GiB → GB; Starlink + Norway zaten GB.
         currentPeriodGb: (k.totalGib ?? 0) * 1.073741824,
         planAllowanceGb: k.planAllowanceGb ?? null,
@@ -87,7 +89,7 @@ export function useCustomerFleet(): FleetState {
       out.push({
         source: "starlink",
         kitNo: t.kitSerialNumber,
-        shipName: t.nickname?.trim() || t.assetName?.trim() || "Adsız Gemi",
+        shipName: t.nickname?.trim() || t.assetName?.trim() || tr("Adsız Gemi"),
         currentPeriodGb: t.currentPeriodTotalGb ?? 0,
         planAllowanceGb: t.planAllowanceGb ?? null,
         online: t.isOnline ?? false,
@@ -97,7 +99,7 @@ export function useCustomerFleet(): FleetState {
       out.push({
         source: "norway",
         kitNo: t.kitSerialNumber,
-        shipName: t.nickname?.trim() || "Adsız Gemi",
+        shipName: t.nickname?.trim() || tr("Adsız Gemi"),
         currentPeriodGb: t.currentPeriodTotalGb ?? 0,
         planAllowanceGb: t.planAllowanceGb ?? null,
         online: t.isOnline ?? false,
@@ -105,7 +107,7 @@ export function useCustomerFleet(): FleetState {
     }
     out.sort((a, b) => b.currentPeriodGb - a.currentPeriodGb);
     return out;
-  }, [satcomQ.data, starlinkQ.data, leobridgeQ.data]);
+  }, [satcomQ.data, starlinkQ.data, leobridgeQ.data, tr]);
 
   // True until ALL three queries have resolved at least once. We use the
   // react-query convention: a query is "loading" only on its first fetch

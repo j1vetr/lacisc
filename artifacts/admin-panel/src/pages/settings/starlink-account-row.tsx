@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
 import {
   AlertTriangle,
@@ -41,6 +42,7 @@ export function StarlinkAccountRow({
   account: StarlinkAccount;
   onEdit: () => void;
 }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
@@ -56,17 +58,17 @@ export function StarlinkAccountRow({
       {
         onSuccess: (res) => {
           toast({
-            title: res.success ? "Bağlantı Doğrulandı" : "Bağlantı Başarısız",
-            description: res.message,
+            title: res.success ? t("Bağlantı Doğrulandı") : t("Bağlantı Başarısız"),
+            description: t(res.message),
             variant: res.success ? "default" : "destructive",
           });
         },
         onError: (err: unknown) => {
           toast({
-            title: "Test Hatası",
+            title: t("Test Hatası"),
             description:
-              (err instanceof Error ? err.message : null) ||
-              "Bağlantı testi başarısız.",
+              (err instanceof Error ? t(err.message) : null) ||
+              t("Bağlantı testi başarısız."),
             variant: "destructive",
           });
         },
@@ -80,17 +82,17 @@ export function StarlinkAccountRow({
       {
         onSuccess: () => {
           toast({
-            title: "Senkronizasyon Başlatıldı",
-            description: `${displayName} için Tototheo senkronizasyonu başladı.`,
+            title: t("Senkronizasyon Başlatıldı"),
+            description: t("{{name}} için Tototheo senkronizasyonu başladı.", { name: displayName }),
           });
           navigate("/sync-logs");
         },
         onError: (err: unknown) => {
           toast({
-            title: "Senkronizasyon Başlatılamadı",
+            title: t("Senkronizasyon Başlatılamadı"),
             description:
-              (err instanceof Error ? err.message : null) ||
-              "Bir senkronizasyon zaten çalışıyor olabilir.",
+              (err instanceof Error ? t(err.message) : null) ||
+              t("Bir senkronizasyon zaten çalışıyor olabilir."),
             variant: "destructive",
           });
         },
@@ -104,16 +106,16 @@ export function StarlinkAccountRow({
       {
         onSuccess: () => {
           toast({
-            title: "Hesap Silindi",
-            description: `${displayName} ve tüm verisi temizlendi.`,
+            title: t("Hesap Silindi"),
+            description: t("{{name}} ve tüm verisi temizlendi.", { name: displayName }),
           });
           queryClient.invalidateQueries();
         },
         onError: (err: unknown) => {
           toast({
-            title: "Silme Başarısız",
+            title: t("Silme Başarısız"),
             description:
-              (err instanceof Error ? err.message : null) || "Hesap silinemedi.",
+              (err instanceof Error ? t(err.message) : null) || t("Hesap silinemedi."),
             variant: "destructive",
           });
         },
@@ -134,35 +136,35 @@ export function StarlinkAccountRow({
                 variant="outline"
                 className="text-[10px] px-1.5 py-0 h-5 border-[#9fc9a2]/60 bg-[#9fc9a2]/10 text-foreground gap-1"
               >
-                <Power className="w-2.5 h-2.5" /> Aktif
+                <Power className="w-2.5 h-2.5" /> {t("Aktif")}
               </Badge>
             ) : (
               <Badge
                 variant="outline"
                 className="text-[10px] px-1.5 py-0 h-5 border-border text-muted-foreground gap-1"
               >
-                <PowerOff className="w-2.5 h-2.5" /> Pasif
+                <PowerOff className="w-2.5 h-2.5" /> {t("Pasif")}
               </Badge>
             )}
             <Badge
               variant="outline"
               className="text-[10px] px-1.5 py-0 h-5 border-border text-muted-foreground font-mono"
             >
-              {account.kitCount} Terminal
+              {t("{{count}} Terminal", { count: account.kitCount })}
             </Badge>
             {!account.hasToken && (
               <Badge
                 variant="outline"
                 className="text-[10px] px-1.5 py-0 h-5 border-[#dfa88f]/60 bg-[#dfa88f]/10 text-[#cf2d56] gap-1"
               >
-                <AlertTriangle className="w-2.5 h-2.5" /> Token yok
+                <AlertTriangle className="w-2.5 h-2.5" /> {t("Token yok")}
               </Badge>
             )}
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground font-mono">
             <span className="truncate">{account.apiBaseUrl}</span>
             <span>·</span>
-            <span>her {account.syncIntervalMinutes} dk</span>
+            <span>{t("her {{count}} dk", { count: account.syncIntervalMinutes })}</span>
           </div>
           <div className="text-[11px] text-muted-foreground font-mono">
             <span
@@ -172,7 +174,7 @@ export function StarlinkAccountRow({
                   : "bg-muted-foreground"
               }`}
             />
-            Son başarılı: {formatDate(account.lastSuccessSyncAt) || "—"}
+            {t("Son başarılı:")} {formatDate(account.lastSuccessSyncAt) || t("—")}
           </div>
           {account.lastErrorMessage && (
             <div className="text-[11px] font-mono text-[#cf2d56] flex items-start gap-1.5 max-w-xl">
@@ -190,7 +192,7 @@ export function StarlinkAccountRow({
             onClick={handleSync}
             disabled={syncMutation.isPending || !account.isActive}
             title={
-              !account.isActive ? "Pasif hesap senkronize edilemez" : undefined
+              !account.isActive ? t("Pasif hesap senkronize edilemez") : undefined
             }
           >
             {syncMutation.isPending ? (
@@ -198,7 +200,7 @@ export function StarlinkAccountRow({
             ) : (
               <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
             )}
-            Sync
+            {t("Sync")}
           </Button>
           <Button
             variant="outline"
@@ -212,7 +214,7 @@ export function StarlinkAccountRow({
             ) : (
               <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
             )}
-            Test
+            {t("Test")}
           </Button>
           <Button
             variant="outline"
@@ -221,7 +223,7 @@ export function StarlinkAccountRow({
             onClick={onEdit}
           >
             <Pencil className="w-3.5 h-3.5 mr-1.5" />
-            Düzenle
+            {t("Düzenle")}
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -232,27 +234,26 @@ export function StarlinkAccountRow({
                 disabled={deleteMutation.isPending}
               >
                 <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                Sil
+                {t("Sil")}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent className="rounded-xl">
               <AlertDialogHeader>
-                <AlertDialogTitle>"{displayName}" hesabını sil?</AlertDialogTitle>
+                <AlertDialogTitle>{t('"{{name}}" hesabını sil?', { name: displayName })}</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Hesap ve TÜM verisi (terminaller, günlük/aylık kullanım
-                  geçmişi) kalıcı olarak silinecek. Bu işlem{" "}
-                  <strong>geri alınamaz</strong>.
+                  {t("Hesap ve TÜM verisi (terminaller, günlük/aylık kullanım geçmişi) kalıcı olarak silinecek. Bu işlem")}{" "}
+                  <strong>{t("geri alınamaz")}</strong>.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel className="rounded-lg">
-                  Vazgeç
+                  {t("Vazgeç")}
                 </AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleDelete}
                   className="rounded-lg bg-[#cf2d56] text-white hover:bg-[#cf2d56]/90"
                 >
-                  Evet, hesabı sil
+                  {t("Evet, hesabı sil")}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useTranslation } from "react-i18next";
 import {
   Select,
   SelectContent,
@@ -21,7 +22,8 @@ function fmt(dt: string | null | undefined): string {
 }
 
 export default function AuditLogs() {
-  useDocumentTitle("Denetim Kayıtları");
+  const { t } = useTranslation();
+  useDocumentTitle(t("Denetim Kayıtları"));
   const [page, setPage] = useState(1);
   const [action, setAction] = useState<string>("__all__");
   const [actorEmail, setActorEmail] = useState<string>("");
@@ -55,9 +57,9 @@ export default function AuditLogs() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-normal tracking-tight">Denetim Kayıtları</h1>
+        <h1 className="text-2xl font-normal tracking-tight">{t("Denetim Kayıtları")}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Sistem üzerinde gerçekleştirilen tüm önemli işlemlerin kaydı.
+          {t("Sistem üzerinde gerçekleştirilen tüm önemli işlemlerin kaydı.")}
         </p>
       </div>
 
@@ -65,17 +67,17 @@ export default function AuditLogs() {
         <CardHeader className="space-y-4">
           <div className="flex items-center justify-between gap-3">
             <CardTitle className="text-base font-medium">
-              {data ? `${data.total} kayıt` : "Yükleniyor…"}
+              {data ? t("{{count}} kayıt", { count: data.total }) : t("Yükleniyor…")}
             </CardTitle>
             {hasFilters && (
               <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8">
-                <X className="w-3.5 h-3.5 mr-1" /> Filtreleri Temizle
+                <X className="w-3.5 h-3.5 mr-1" /> {t("Filtreleri Temizle")}
               </Button>
             )}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="space-y-1">
-              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Eylem</Label>
+              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("Eylem")}</Label>
               <Select
                 value={action}
                 onValueChange={(v) => {
@@ -84,10 +86,10 @@ export default function AuditLogs() {
                 }}
               >
                 <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Tüm eylemler" />
+                  <SelectValue placeholder={t("Tüm eylemler")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">Tüm eylemler</SelectItem>
+                  <SelectItem value="__all__">{t("Tüm eylemler")}</SelectItem>
                   {actions.map((a) => (
                     <SelectItem key={a} value={a}>
                       {a}
@@ -97,7 +99,7 @@ export default function AuditLogs() {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Kullanıcı (e-posta)</Label>
+              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("Kullanıcı (e-posta)")}</Label>
               <Input
                 value={actorEmail}
                 onChange={(e) => {
@@ -109,7 +111,7 @@ export default function AuditLogs() {
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Başlangıç</Label>
+              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("Başlangıç")}</Label>
               <Input
                 type="datetime-local"
                 value={from}
@@ -121,7 +123,7 @@ export default function AuditLogs() {
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Bitiş</Label>
+              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("Bitiş")}</Label>
               <Input
                 type="datetime-local"
                 value={to}
@@ -136,18 +138,18 @@ export default function AuditLogs() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-sm text-muted-foreground">Yükleniyor…</div>
+            <div className="text-sm text-muted-foreground">{t("Yükleniyor…")}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-[11px] uppercase text-muted-foreground tracking-widest">
                   <tr className="border-b border-border">
-                    <th className="text-left py-2 font-medium">Zaman</th>
-                    <th className="text-left py-2 font-medium">Aktör</th>
-                    <th className="text-left py-2 font-medium">Eylem</th>
-                    <th className="text-left py-2 font-medium">Hedef</th>
+                    <th className="text-left py-2 font-medium">{t("Zaman")}</th>
+                    <th className="text-left py-2 font-medium">{t("Aktör")}</th>
+                    <th className="text-left py-2 font-medium">{t("Eylem")}</th>
+                    <th className="text-left py-2 font-medium">{t("Hedef")}</th>
                     <th className="text-left py-2 font-medium">IP</th>
-                    <th className="text-left py-2 font-medium">Sonuç</th>
+                    <th className="text-left py-2 font-medium">{t("Sonuç")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -157,7 +159,7 @@ export default function AuditLogs() {
                       <td className="py-2">
                         <div className="text-xs">{l.actorName ?? "—"}</div>
                         <div className="text-[11px] text-muted-foreground font-mono">
-                          {l.actorEmail ?? "anonim"}
+                          {l.actorEmail ?? t("anonim")}
                         </div>
                       </td>
                       <td className="py-2 font-mono text-xs">{l.action}</td>
@@ -165,16 +167,16 @@ export default function AuditLogs() {
                       <td className="py-2 font-mono text-[11px]">{l.ip ?? "—"}</td>
                       <td className="py-2">
                         {l.success ? (
-                          <Badge variant="outline" className="text-xs">başarılı</Badge>
+                          <Badge variant="outline" className="text-xs">{t("başarılı")}</Badge>
                         ) : (
                           <Badge className="bg-destructive/10 text-destructive border-destructive/20 text-xs">
-                            başarısız
+                            {t("başarısız")}
                           </Badge>
                         )}
                         {l.meta != null && (
                           <details className="mt-1">
                             <summary className="text-[10px] text-muted-foreground cursor-pointer">
-                              detay
+                              {t("detay")}
                             </summary>
                             <pre className="text-[10px] font-mono mt-1 max-w-md whitespace-pre-wrap break-all bg-secondary/40 p-2 rounded">
                               {JSON.stringify(l.meta, null, 2)}
@@ -187,7 +189,7 @@ export default function AuditLogs() {
                   {logs.length === 0 && (
                     <tr>
                       <td colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
-                        Kayıt bulunamadı.
+                        {t("Kayıt bulunamadı.")}
                       </td>
                     </tr>
                   )}
@@ -198,7 +200,7 @@ export default function AuditLogs() {
 
           <div className="flex items-center justify-between pt-4 mt-4 border-t border-border">
             <div className="text-xs text-muted-foreground font-mono">
-              Sayfa {page} / {totalPages}
+              {t("Sayfa")} {page} / {totalPages}
             </div>
             <div className="flex gap-1">
               <Button

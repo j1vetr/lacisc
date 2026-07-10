@@ -3,6 +3,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Mail, Send, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   useGetEmailSettings,
   getGetEmailSettingsQueryKey,
@@ -52,6 +53,7 @@ const emailSettingsSchema = z.object({
 type EmailSettingsFormValues = z.infer<typeof emailSettingsSchema>;
 
 export default function EmailSettingsPage() {
+  const { t } = useTranslation();
   const { data: settings, isLoading } = useGetEmailSettings({
     query: { queryKey: getGetEmailSettingsQueryKey() },
   });
@@ -113,17 +115,17 @@ export default function EmailSettingsPage() {
       {
         onSuccess: () => {
           toast({
-            title: "E-posta Ayarları Kaydedildi",
+            title: t("E-posta Ayarları Kaydedildi"),
             description: values.enabled
-              ? "Eşik uyarıları aktif."
-              : "Yapılandırma kaydedildi (uyarılar pasif).",
+              ? t("Eşik uyarıları aktif.")
+              : t("Yapılandırma kaydedildi (uyarılar pasif)."),
           });
           queryClient.invalidateQueries({ queryKey: getGetEmailSettingsQueryKey() });
         },
         onError: (err: unknown) => {
           toast({
-            title: "Kayıt Başarısız",
-            description: err instanceof Error ? err.message : "Ayarlar kaydedilemedi.",
+            title: t("Kayıt Başarısız"),
+            description: err instanceof Error ? t(err.message) : t("Ayarlar kaydedilemedi."),
             variant: "destructive",
           });
         },
@@ -137,15 +139,15 @@ export default function EmailSettingsPage() {
       {
         onSuccess: (res) => {
           toast({
-            title: res.success ? "Test E-Postası Gönderildi" : "Test Başarısız",
-            description: res.message,
+            title: res.success ? t("Test E-Postası Gönderildi") : t("Test Başarısız"),
+            description: t(res.message),
             variant: res.success ? "default" : "destructive",
           });
         },
         onError: (err: unknown) => {
           toast({
-            title: "Test Başarısız",
-            description: err instanceof Error ? err.message : "Mail gönderilemedi.",
+            title: t("Test Başarısız"),
+            description: err instanceof Error ? t(err.message) : t("Mail gönderilemedi."),
             variant: "destructive",
           });
         },
@@ -161,11 +163,12 @@ export default function EmailSettingsPage() {
             <div className="p-1.5 bg-background rounded border border-border">
               <Mail className="w-4 h-4 text-foreground" />
             </div>
-            E-posta Uyarıları
+            {t("E-posta Uyarıları")}
           </CardTitle>
           <CardDescription className="mt-1 text-sm text-muted-foreground">
-            Bir KIT, aktif dönemde her N GB'lık eşiği geçtiğinde alıcılara tek bir bildirim
-            gider. Aynı eşik bir daha mail göndermez (her dönem otomatik sıfırlanır).
+            {t(
+              "Bir KIT, aktif dönemde her N GB'lık eşiği geçtiğinde alıcılara tek bir bildirim gider. Aynı eşik bir daha mail göndermez (her dönem otomatik sıfırlanır)."
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-4 sm:p-6 lg:p-8">
@@ -181,10 +184,10 @@ export default function EmailSettingsPage() {
                     <FormItem className="flex items-center justify-between rounded-lg border border-border p-3 bg-background">
                       <div className="space-y-0.5 pr-3">
                         <FormLabel className="text-sm font-medium text-foreground">
-                          Uyarıları Etkinleştir
+                          {t("Uyarıları Etkinleştir")}
                         </FormLabel>
                         <FormDescription className="text-xs">
-                          Kapatınca eşik geçişlerinde mail gönderilmez.
+                          {t("Kapatınca eşik geçişlerinde mail gönderilmez.")}
                         </FormDescription>
                       </div>
                       <FormControl>
@@ -206,7 +209,7 @@ export default function EmailSettingsPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                            SMTP Host
+                            {t("SMTP Host")}
                           </FormLabel>
                           <FormControl>
                             <Input
@@ -249,10 +252,10 @@ export default function EmailSettingsPage() {
                     <FormItem className="flex items-center justify-between rounded-lg border border-border p-3 bg-background">
                       <div className="space-y-0.5 pr-3">
                         <FormLabel className="text-sm font-medium text-foreground">
-                          SSL/TLS (port 465)
+                          {t("SSL/TLS (port 465)")}
                         </FormLabel>
                         <FormDescription className="text-xs">
-                          587/STARTTLS için kapalı bırakın, 465 doğrudan TLS için açın.
+                          {t("587/STARTTLS için kapalı bırakın, 465 doğrudan TLS için açın.")}
                         </FormDescription>
                       </div>
                       <FormControl>
@@ -273,7 +276,7 @@ export default function EmailSettingsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                          SMTP Kullanıcı
+                          {t("SMTP Kullanıcı")}
                         </FormLabel>
                         <FormControl>
                           <Input
@@ -293,10 +296,10 @@ export default function EmailSettingsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                          SMTP Şifre{" "}
+                          {t("SMTP Şifre")}{" "}
                           {settings?.hasPassword && (
                             <span className="text-muted-foreground normal-case">
-                              (değiştirmek için doldur)
+                              {t("(değiştirmek için doldur)")}
                             </span>
                           )}
                         </FormLabel>
@@ -322,7 +325,7 @@ export default function EmailSettingsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                          Gönderen E-posta
+                          {t("Gönderen E-posta")}
                         </FormLabel>
                         <FormControl>
                           <Input
@@ -342,7 +345,7 @@ export default function EmailSettingsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                          Gönderen Adı
+                          {t("Gönderen Adı")}
                         </FormLabel>
                         <FormControl>
                           <Input
@@ -362,7 +365,7 @@ export default function EmailSettingsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                        Yönetici Mail Adresleri
+                        {t("Yönetici Mail Adresleri")}
                       </FormLabel>
                       <FormControl>
                         <Textarea
@@ -374,8 +377,9 @@ export default function EmailSettingsPage() {
                         />
                       </FormControl>
                       <FormDescription className="text-xs">
-                        Birden fazla adres girebilirsiniz — virgülle, noktalı virgülle veya
-                        yeni satırla ayırın.
+                        {t(
+                          "Birden fazla adres girebilirsiniz — virgülle, noktalı virgülle veya yeni satırla ayırın."
+                        )}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -388,7 +392,7 @@ export default function EmailSettingsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                        Uyarı Eşik Adımı (GB)
+                        {t("Uyarı Eşik Adımı (GB)")}
                       </FormLabel>
                       <FormControl>
                         <Input
@@ -398,7 +402,9 @@ export default function EmailSettingsPage() {
                         />
                       </FormControl>
                       <FormDescription className="text-xs">
-                        Varsayılan 100 — KIT 100, 200, 300, ... GB'ı geçtiğinde mail gider.
+                        {t(
+                          "Varsayılan 100 — KIT 100, 200, 300, ... GB'ı geçtiğinde mail gider."
+                        )}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -418,7 +424,7 @@ export default function EmailSettingsPage() {
                     ) : (
                       <Send className="w-4 h-4 mr-2" />
                     )}
-                    Test Maili Gönder
+                    {t("Test Maili Gönder")}
                   </Button>
                   <Button
                     type="submit"
@@ -428,7 +434,7 @@ export default function EmailSettingsPage() {
                     {updateMutation.isPending && (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     )}
-                    Kaydet
+                    {t("Kaydet")}
                   </Button>
                 </div>
               </form>

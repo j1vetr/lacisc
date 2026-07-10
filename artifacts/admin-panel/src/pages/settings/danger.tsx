@@ -4,6 +4,7 @@ import { useWipeStationData } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "react-i18next";
 import {
   Card,
   CardContent,
@@ -27,6 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import SettingsLayout from "./layout";
 
 export default function DangerPage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const wipeMutation = useWipeStationData();
@@ -37,15 +39,15 @@ export default function DangerPage() {
       {
         onSuccess: (res) => {
           toast({
-            title: "Tüm Veriler Temizlendi",
-            description: res.message || "Tüm hesapların verisi silindi.",
+            title: t("Tüm Veriler Temizlendi"),
+            description: (res.message ? t(res.message) : t("Tüm hesapların verisi silindi.")),
           });
           queryClient.invalidateQueries();
         },
         onError: (err: unknown) => {
           toast({
-            title: "Temizlik Başarısız",
-            description: (err instanceof Error ? err.message : null) || "Veriler silinemedi.",
+            title: t("Temizlik Başarısız"),
+            description: (err instanceof Error ? t(err.message) : null) || t("Veriler silinemedi."),
             variant: "destructive",
           });
         },
@@ -61,21 +63,20 @@ export default function DangerPage() {
             <div className="p-1.5 bg-background rounded border border-[#cf2d56]/30">
               <AlertTriangle className="w-4 h-4 text-[#cf2d56]" />
             </div>
-            Tehlike Bölgesi
+            {t("Tehlike Bölgesi")}
           </CardTitle>
           <CardDescription className="mt-1 text-sm text-muted-foreground">
-            Aşağıdaki işlem TÜM hesapların verisini siler. Geri alınamaz.
+            {t("Aşağıdaki işlem TÜM hesapların verisini siler. Geri alınamaz.")}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-4 sm:p-6 lg:p-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 p-4 rounded-lg border border-[#cf2d56]/20 bg-background">
             <div className="space-y-1 pr-4">
               <p className="text-sm font-medium text-foreground">
-                Tüm Hesapların Tüm Verisini Sil
+                {t("Tüm Hesapların Tüm Verisini Sil")}
               </p>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                KIT'ler, dönem toplamları, CDR satırları ve sync kayıtları silinir. Hesap
-                kimlik bilgileri korunur. Sonraki sync tüm geçmişi yeniden çeker.
+                {t("KIT'ler, dönem toplamları, CDR satırları ve sync kayıtları silinir. Hesap kimlik bilgileri korunur. Sonraki sync tüm geçmişi yeniden çeker.")}
               </p>
             </div>
             <AlertDialog>
@@ -88,20 +89,18 @@ export default function DangerPage() {
                   <Trash2
                     className={`w-4 h-4 mr-2 ${wipeMutation.isPending ? "animate-pulse" : ""}`}
                   />
-                  Tüm Verileri Temizle
+                  {t("Tüm Verileri Temizle")}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent className="rounded-xl">
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Tüm hesapların verisi silinsin mi?</AlertDialogTitle>
+                  <AlertDialogTitle>{t("Tüm hesapların verisi silinsin mi?")}</AlertDialogTitle>
                   <AlertDialogDescription className="leading-relaxed">
-                    Bu işlem <strong>geri alınamaz</strong>. Tüm KIT'ler, dönem toplamları,
-                    CDR kayıtları ve sync geçmişi silinecek. Portal kimlik bilgileri (URL,
-                    kullanıcı, şifre) korunur.
+                    Bu işlem <strong>{t("geri alınamaz")}</strong>{t(". Tüm KIT'ler, dönem toplamları,\n                    CDR kayıtları ve sync geçmişi silinecek. Portal kimlik bilgileri (URL,\n                    kullanıcı, şifre) korunur.")}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel className="rounded-lg">Vazgeç</AlertDialogCancel>
+                  <AlertDialogCancel className="rounded-lg">{t("Vazgeç")}</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={handleWipeAll}
                     className="rounded-lg bg-[#cf2d56] text-white hover:bg-[#cf2d56]/90"

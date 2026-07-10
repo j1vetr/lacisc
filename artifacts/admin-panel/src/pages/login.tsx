@@ -1,5 +1,6 @@
 import { useLocation } from "wouter";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -34,17 +35,11 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
-const loginSchema = z.object({
-  identifier: z
-    .string()
-    .min(1, { message: "KULLANICI ADI VEYA E-POSTA ZORUNLUDUR." }),
-  password: z.string().min(1, { message: "ŞİFRE ZORUNLUDUR." }),
-});
-
-type LoginFormValues = z.infer<typeof loginSchema>;
+type LoginFormValues = { identifier: string; password: string };
 
 export default function Login() {
-  useDocumentTitle("GİRİŞ");
+  const { t } = useTranslation();
+  useDocumentTitle(t("GİRİŞ"));
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const loginMutation = useLogin();
@@ -52,6 +47,13 @@ export default function Login() {
   const brandSrc = useThemedAsset(brandLogo, brandLogoWhite);
 
   const [showPassword, setShowPassword] = useState(false);
+
+  const loginSchema = z.object({
+    identifier: z
+      .string()
+      .min(1, { message: t("KULLANICI ADI VEYA E-POSTA ZORUNLUDUR.") }),
+    password: z.string().min(1, { message: t("ŞİFRE ZORUNLUDUR.") }),
+  });
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -67,8 +69,8 @@ export default function Login() {
         },
         onError: (err: Error) => {
           toast({
-            title: "ERİŞİM REDDEDİLDİ",
-            description: err.message || "GEÇERSİZ KİMLİK BİLGİLERİ.",
+            title: t("ERİŞİM REDDEDİLDİ"),
+            description: t(err.message) || t("GEÇERSİZ KİMLİK BİLGİLERİ."),
             variant: "destructive",
           });
         },
@@ -135,34 +137,35 @@ export default function Login() {
           <div className="relative z-10 flex-1 flex flex-col justify-center space-y-8">
             <div className="space-y-3 max-w-[420px]">
               <div className="text-[11px] uppercase tracking-[0.22em] text-primary font-semibold">
-                FİLO YÖNETİM PANELİ
+                {t("FİLO YÖNETİM PANELİ")}
               </div>
               <h1 className="text-[28px] xl:text-[32px] leading-[1.15] font-semibold tracking-tight text-foreground uppercase">
-                FİLONUZ,
+                {t("FİLONUZ,")}
                 <br />
-                TEK EKRANDA.
+                {t("TEK EKRANDA.")}
               </h1>
               <p className="text-[13px] leading-relaxed text-muted-foreground normal-case">
-                Filonuzun konumunu, kota kullanımını ve telemetri bilgilerini
-                gerçek zamanlı olarak tek panelden takip edin.
+                {t(
+                  "Filonuzun konumunu, kota kullanımını ve telemetri bilgilerini gerçek zamanlı olarak tek panelden takip edin."
+                )}
               </p>
             </div>
 
             <div className="space-y-3 pt-2">
               <FeatureRow
                 icon={<Globe2 className="w-4 h-4" />}
-                label="TÜM HATLAR TEK GÖRÜNÜMDE"
+                label={t("TÜM HATLAR TEK GÖRÜNÜMDE")}
               />
               <FeatureRow
                 icon={<Activity className="w-4 h-4" />}
-                label="GERÇEK ZAMANLI KOTA TAKİBİ"
+                label={t("GERÇEK ZAMANLI KOTA TAKİBİ")}
               />
             </div>
           </div>
 
           {/* Geliştirici — altta */}
           <div className="relative z-10 flex items-center gap-3 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-            <span className="font-semibold">GELİŞTİRİCİ</span>
+            <span className="font-semibold">{t("GELİŞTİRİCİ")}</span>
             <img
               src={toovSrc}
               alt="TOOV"
@@ -184,15 +187,15 @@ export default function Login() {
 
           <div className="space-y-2 mb-8">
             <div className="text-[12px] uppercase tracking-[0.22em] text-primary font-semibold">
-              HOŞ GELDİNİZ
+              {t("HOŞ GELDİNİZ")}
             </div>
             <h2 className="text-[32px] sm:text-[34px] leading-[1.1] font-semibold tracking-tight text-foreground uppercase">
-              HESABINIZA
+              {t("HESABINIZA")}
               <br />
-              GİRİŞ YAPIN
+              {t("GİRİŞ YAPIN")}
             </h2>
             <p className="text-sm text-muted-foreground pt-1">
-              Operasyon panelinize erişmek için kimlik bilgilerinizi girin.
+              {t("Operasyon panelinize erişmek için kimlik bilgilerinizi girin.")}
             </p>
           </div>
 
@@ -207,13 +210,13 @@ export default function Login() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">
-                      KULLANICI ADI VEYA E-POSTA
+                      {t("KULLANICI ADI VEYA E-POSTA")}
                     </FormLabel>
                     <FormControl>
                       <div className="relative">
                         <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
                         <Input
-                          placeholder="Kullanıcı adınız"
+                          placeholder={t("Kullanıcı adınız")}
                           {...field}
                           autoComplete="username"
                           className="bg-[#f6f8fb] dark:bg-background border-[#e6e9ef] dark:border-border h-12 rounded-xl pl-10 text-sm focus-visible:ring-primary focus-visible:bg-white shadow-none"
@@ -230,7 +233,7 @@ export default function Login() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">
-                      ŞİFRE
+                      {t("ŞİFRE")}
                     </FormLabel>
                     <FormControl>
                       <div className="relative">
@@ -247,7 +250,7 @@ export default function Login() {
                           onClick={() => setShowPassword((v) => !v)}
                           className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted-foreground/70 hover:text-foreground transition-colors"
                           aria-label={
-                            showPassword ? "Şifreyi gizle" : "Şifreyi göster"
+                            showPassword ? t("Şifreyi gizle") : t("Şifreyi göster")
                           }
                         >
                           {showPassword ? (
@@ -269,7 +272,7 @@ export default function Login() {
                 disabled={loginMutation.isPending}
               >
                 <span className="inline-flex items-center gap-2">
-                  {loginMutation.isPending ? "GİRİŞ YAPILIYOR…" : "GİRİŞ YAP"}
+                  {loginMutation.isPending ? t("GİRİŞ YAPILIYOR…") : t("GİRİŞ YAP")}
                   {!loginMutation.isPending && (
                     <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                   )}
@@ -281,14 +284,14 @@ export default function Login() {
           <div className="mt-8 flex items-start gap-2.5 text-xs text-muted-foreground justify-center text-center">
             <Headphones className="w-4 h-4 flex-shrink-0 mt-0.5" />
             <span>
-              Erişim sorunları için lütfen yöneticinizle iletişime geçin.
+              {t("Erişim sorunları için lütfen yöneticinizle iletişime geçin.")}
             </span>
           </div>
 
           {/* Mobilde alt: TOOV */}
           <div className="lg:hidden mt-8 pt-6 border-t border-border flex items-center justify-center gap-3">
             <span className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">
-              GELİŞTİRİCİ
+              {t("GELİŞTİRİCİ")}
             </span>
             <img
               src={toovSrc}

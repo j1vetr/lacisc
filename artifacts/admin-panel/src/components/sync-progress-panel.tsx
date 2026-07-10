@@ -3,6 +3,7 @@ import { useGetSyncProgress, getGetSyncProgressQueryKey } from "@workspace/api-c
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Activity, CheckCircle2, AlertCircle, Loader2, Info } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 function levelStyle(level: string): { dot: string; text: string } {
   switch (level) {
@@ -31,6 +32,7 @@ interface SyncProgressPanelProps {
 }
 
 export function SyncProgressPanel({ active = true }: SyncProgressPanelProps) {
+  const { t } = useTranslation();
   const { data: progress } = useGetSyncProgress({
     query: {
       queryKey: getGetSyncProgressQueryKey(),
@@ -87,7 +89,7 @@ export function SyncProgressPanel({ active = true }: SyncProgressPanelProps) {
       ? "Norway"
       : phase === "satcom"
       ? "Satcom"
-      : "Beklemede";
+      : t("Beklemede");
 
   // Phase-aware percent. Satcom uses the (account × period × kit) composite
   // formula; Starlink/Leo Bridge use simple terminal-fraction (processed/total)
@@ -132,12 +134,12 @@ export function SyncProgressPanel({ active = true }: SyncProgressPanelProps) {
             </div>
             <div>
               <CardTitle className="text-base font-normal tracking-tight">
-                Senkronizasyon Akışı
+                {t("Senkronizasyon Akışı")}
               </CardTitle>
               <CardDescription className="mt-0.5 text-xs">
                 {progress.running
-                  ? `Faz: ${phaseLabel}`
-                  : progress.lastMessage || "Beklemede"}
+                  ? t("Faz: {{phase}}", { phase: phaseLabel })
+                  : (progress.lastMessage && t(progress.lastMessage)) || t("Beklemede")}
               </CardDescription>
             </div>
           </div>
@@ -164,7 +166,7 @@ export function SyncProgressPanel({ active = true }: SyncProgressPanelProps) {
               </div>
               <div className="rounded-md border border-[#9fc9a2]/60 bg-[#9fc9a2]/10 p-2">
                 <div className="text-[9px] font-semibold uppercase tracking-widest text-foreground">
-                  Başarılı
+                  {t("Başarılı")}
                 </div>
                 <div className="font-mono text-[13px] text-foreground tabular-nums mt-0.5">
                   {phase === "starlink"
@@ -180,7 +182,7 @@ export function SyncProgressPanel({ active = true }: SyncProgressPanelProps) {
                 }`}
               >
                 <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  Atlanan
+                  {t("Atlanan")}
                 </div>
                 <div className="font-mono text-[13px] text-foreground tabular-nums mt-0.5">
                   {phase === "starlink"
@@ -193,7 +195,7 @@ export function SyncProgressPanel({ active = true }: SyncProgressPanelProps) {
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="rounded-md border border-border p-2">
                 <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  Hesap
+                  {t("Hesap")}
                 </div>
                 <div className="font-mono text-[13px] text-foreground tabular-nums mt-0.5">
                   {acctIdx} / {progress.totalAccounts}
@@ -201,7 +203,7 @@ export function SyncProgressPanel({ active = true }: SyncProgressPanelProps) {
               </div>
               <div className="rounded-md border border-border p-2">
                 <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  Dönem
+                  {t("Dönem")}
                 </div>
                 <div className="font-mono text-[13px] text-foreground tabular-nums mt-0.5">
                   {periodIdx} / {progress.totalPeriods}
@@ -209,7 +211,7 @@ export function SyncProgressPanel({ active = true }: SyncProgressPanelProps) {
               </div>
               <div className="rounded-md border border-border p-2">
                 <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  KIT
+                  {t("KIT")}
                 </div>
                 <div className="font-mono text-[13px] text-foreground tabular-nums mt-0.5">
                   {kitIdx} / {progress.totalKits}
@@ -220,7 +222,7 @@ export function SyncProgressPanel({ active = true }: SyncProgressPanelProps) {
           {progress.running && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-secondary/60 border border-border text-[12px] flex-wrap">
               <Activity className="w-3.5 h-3.5 text-primary shrink-0" />
-              <span className="text-muted-foreground">Şu an:</span>
+              <span className="text-muted-foreground">{t("Şu an:")}</span>
               {phase === "starlink" ? (
                 <>
                   <span className="font-medium text-foreground truncate">
@@ -264,7 +266,7 @@ export function SyncProgressPanel({ active = true }: SyncProgressPanelProps) {
         <div className="grid grid-cols-4 gap-2">
           <div className="rounded-md border border-border p-2 text-center">
             <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Bulunan
+              {t("Bulunan")}
             </div>
             <div className="font-mono text-sm text-foreground tabular-nums mt-0.5">
               {progress.rowsFound}
@@ -272,7 +274,7 @@ export function SyncProgressPanel({ active = true }: SyncProgressPanelProps) {
           </div>
           <div className="rounded-md border border-[#9fc9a2]/60 bg-[#9fc9a2]/10 p-2 text-center">
             <div className="text-[9px] font-semibold uppercase tracking-widest text-foreground">
-              Eklenen
+              {t("Eklenen")}
             </div>
             <div className="font-mono text-sm text-foreground tabular-nums mt-0.5">
               {progress.rowsInserted}
@@ -280,7 +282,7 @@ export function SyncProgressPanel({ active = true }: SyncProgressPanelProps) {
           </div>
           <div className="rounded-md border border-[#c0a8dd]/60 bg-[#c0a8dd]/10 p-2 text-center">
             <div className="text-[9px] font-semibold uppercase tracking-widest text-foreground">
-              Güncel.
+              {t("Güncel.")}
             </div>
             <div className="font-mono text-sm text-foreground tabular-nums mt-0.5">
               {progress.rowsUpdated}
@@ -294,7 +296,7 @@ export function SyncProgressPanel({ active = true }: SyncProgressPanelProps) {
             }`}
           >
             <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Atlanan
+              {t("Atlanan")}
             </div>
             <div className="font-mono text-sm text-foreground tabular-nums mt-0.5">
               {progress.failures}
@@ -307,7 +309,7 @@ export function SyncProgressPanel({ active = true }: SyncProgressPanelProps) {
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-1.5">
               <Info className="w-3 h-3" />
-              Canlı Akış
+              {t("Canlı Akış")}
             </div>
             <div
               ref={feedRef}
@@ -336,7 +338,7 @@ export function SyncProgressPanel({ active = true }: SyncProgressPanelProps) {
         {!progress.running && progress.accountResults.length > 0 && (
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">
-              Hesap Sonuçları
+              {t("Hesap Sonuçları")}
             </div>
             <div className="space-y-1.5">
               {progress.accountResults.map((r) => (
@@ -357,7 +359,11 @@ export function SyncProgressPanel({ active = true }: SyncProgressPanelProps) {
                     <span className="font-medium text-foreground truncate">{r.label}</span>
                   </div>
                   <div className="font-mono text-[11px] text-muted-foreground tabular-nums shrink-0">
-                    {r.recordsFound} satır · +{r.recordsInserted} / ~{r.recordsUpdated}
+                    {t("{{found}} satır · +{{inserted}} / ~{{updated}}", {
+                      found: r.recordsFound,
+                      inserted: r.recordsInserted,
+                      updated: r.recordsUpdated,
+                    })}
                   </div>
                 </div>
               ))}

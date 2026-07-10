@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -55,6 +56,7 @@ export function StarlinkAccountFormDialog({
   account?: StarlinkAccount | null;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const createMutation = useCreateStarlinkAccount();
   const updateMutation = useUpdateStarlinkAccount();
@@ -111,18 +113,18 @@ export function StarlinkAccountFormDialog({
         {
           onSuccess: () => {
             toast({
-              title: "Hesap Eklendi",
-              description: `${values.label || "Yeni hesap"} kuyruğa alındı.`,
+              title: t("Hesap Eklendi"),
+              description: t("{{name}} kuyruğa alındı.", { name: values.label || t("Yeni hesap") }),
             });
             onSaved();
             onOpenChange(false);
           },
           onError: (err: unknown) => {
             toast({
-              title: "Kayıt Başarısız",
+              title: t("Kayıt Başarısız"),
               description:
-                (err instanceof Error ? err.message : null) ||
-                "Hesap eklenemedi.",
+                (err instanceof Error ? t(err.message) : null) ||
+                t("Hesap eklenemedi."),
               variant: "destructive",
             });
           },
@@ -144,7 +146,7 @@ export function StarlinkAccountFormDialog({
         {
           onSuccess: () => {
             toast({
-              title: "Hesap Güncellendi",
+              title: t("Hesap Güncellendi"),
               description: `${values.label || `#${account.id}`} kaydedildi.`,
             });
             onSaved();
@@ -152,10 +154,10 @@ export function StarlinkAccountFormDialog({
           },
           onError: (err: unknown) => {
             toast({
-              title: "Güncelleme Başarısız",
+              title: t("Güncelleme Başarısız"),
               description:
-                (err instanceof Error ? err.message : null) ||
-                "Hesap güncellenemedi.",
+                (err instanceof Error ? t(err.message) : null) ||
+                t("Hesap güncellenemedi."),
               variant: "destructive",
             });
           },
@@ -171,12 +173,12 @@ export function StarlinkAccountFormDialog({
       <DialogContent className="rounded-xl max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {mode === "create" ? "Yeni Tototheo Hesabı" : "Hesabı Düzenle"}
+            {mode === "create" ? t("Yeni Tototheo Hesabı") : t("Hesabı Düzenle")}
           </DialogTitle>
           <DialogDescription>
             {mode === "create"
-              ? "Hesap eklendikten sonra otomatik sync turlarına dahil edilir."
-              : "Token alanı boş bırakılırsa mevcut token korunur."}
+              ? t("Hesap eklendikten sonra otomatik sync turlarına dahil edilir.")
+              : t("Token alanı boş bırakılırsa mevcut token korunur.")}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -187,18 +189,18 @@ export function StarlinkAccountFormDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Hesap Adı (Etiket)
+                    {t("Hesap Adı (Etiket)")}
                   </FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Örn. Yılmazlar Filo"
+                      placeholder={t("Örn. Yılmazlar Filo")}
                       {...field}
                       value={field.value ?? ""}
                       className="bg-background border-border h-10 rounded-lg text-sm shadow-none"
                     />
                   </FormControl>
                   <FormDescription className="text-xs">
-                    UI'da hesap rozeti olarak görünür.
+                    {t("UI'da hesap rozeti olarak görünür.")}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -220,8 +222,7 @@ export function StarlinkAccountFormDialog({
                     />
                   </FormControl>
                   <FormDescription className="text-xs">
-                    Tototheo Swagger sayfasındaki temel adres. Genellikle
-                    değiştirilmez.
+                    {t("Tototheo Swagger sayfasındaki temel adres. Genellikle değiştirilmez.")}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -236,7 +237,7 @@ export function StarlinkAccountFormDialog({
                     Bearer Token{" "}
                     {mode === "edit" && (
                       <span className="text-muted-foreground normal-case">
-                        (değiştirmek için doldur)
+                        ({t("değiştirmek için doldur")})
                       </span>
                     )}
                   </FormLabel>
@@ -253,8 +254,7 @@ export function StarlinkAccountFormDialog({
                     />
                   </FormControl>
                   <FormDescription className="text-xs">
-                    AES-256-GCM ile şifrelenmiş olarak saklanır. Bu sayfada bir
-                    daha gösterilmez.
+                    {t("AES-256-GCM ile şifrelenmiş olarak saklanır. Bu sayfada bir daha gösterilmez.")}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -267,10 +267,10 @@ export function StarlinkAccountFormDialog({
                 <FormItem className="flex items-center justify-between rounded-lg border border-border p-3 bg-background">
                   <div className="space-y-0.5 pr-3">
                     <FormLabel className="text-sm font-medium text-foreground">
-                      Aktif
+                      {t("Aktif")}
                     </FormLabel>
                     <FormDescription className="text-xs">
-                      Pasif hesaplar sync turunda atlanır.
+                      {t("Pasif hesaplar sync turunda atlanır.")}
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -290,7 +290,7 @@ export function StarlinkAccountFormDialog({
                 onClick={() => onOpenChange(false)}
                 className="rounded-lg shadow-none"
               >
-                Vazgeç
+                {t("Vazgeç")}
               </Button>
               <Button
                 type="submit"
@@ -298,7 +298,7 @@ export function StarlinkAccountFormDialog({
                 className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-none"
               >
                 {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {mode === "create" ? "Hesabı Ekle" : "Kaydet"}
+                {mode === "create" ? t("Hesabı Ekle") : t("Kaydet")}
               </Button>
             </DialogFooter>
           </form>
