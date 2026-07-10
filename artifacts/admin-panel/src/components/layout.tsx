@@ -254,7 +254,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           >
             <Search className="w-4 h-4" />
           </Button>
-          <LanguageSwitcher compact />
+          <LanguageSwitcher compact variant="solid" />
           <ThemeToggle />
           <div className="flex items-center gap-2 lg:gap-3 text-[11px] lg:text-xs font-mono text-muted-foreground">
             <span className="hidden sm:inline">{new Date().toLocaleDateString('tr-TR')}</span>

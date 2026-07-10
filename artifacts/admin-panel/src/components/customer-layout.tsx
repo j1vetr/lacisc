@@ -350,7 +350,7 @@ export default function CustomerLayout({
               </div>
             </div>
 
-            <LanguageSwitcher compact />
+            <LanguageSwitcher compact variant="solid" />
 
             <button
               type="button"
