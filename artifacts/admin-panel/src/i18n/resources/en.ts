@@ -709,6 +709,12 @@ const en: Record<string, string> = {
   "Henüz Tototheo hesabı eklenmedi": "No Tototheo account added yet",
   "Senkronizasyon başlatabilmek için en az bir Tototheo Bearer token tanımlamalısınız.": "You must define at least one Tototheo Bearer token to start synchronization.",
   "Son Bağlantı": "Last Connection",
+
+  // Task #42 — KIT detail i18n fixes
+  "SON SENKRON:": "LAST SYNC:",
+  "IP Adresi:": "IP Address:",
+  "Veri yok": "No data",
+  "Veri": "Data",
 };
 
 export default en;

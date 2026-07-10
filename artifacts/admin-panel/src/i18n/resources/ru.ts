@@ -708,6 +708,12 @@ const ru: Record<string, string> = {
   "Henüz Tototheo hesabı eklenmedi": "Аккаунт Tototheo пока не добавлен",
   "Senkronizasyon başlatabilmek için en az bir Tototheo Bearer token tanımlamalısınız.": "Чтобы начать синхронизацию, определите хотя бы один Bearer-токен Tototheo.",
   "Son Bağlantı": "Последнее подключение",
+
+  // Task #42 — KIT detail i18n fixes
+  "SON SENKRON:": "ПОСЛЕДНЯЯ СИНХРОНИЗАЦИЯ:",
+  "IP Adresi:": "IP-адрес:",
+  "Veri yok": "Нет данных",
+  "Veri": "Данные",
 };
 
 export default ru;

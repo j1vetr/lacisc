@@ -708,6 +708,12 @@ const zh: Record<string, string> = {
   "Henüz Tototheo hesabı eklenmedi": "尚未添加 Tototheo 账户",
   "Senkronizasyon başlatabilmek için en az bir Tototheo Bearer token tanımlamalısınız.": "必须定义至少一个 Tototheo Bearer 令牌才能开始同步。",
   "Son Bağlantı": "最近连接",
+
+  // Task #42 — KIT detail i18n fixes
+  "SON SENKRON:": "最后同步：",
+  "IP Adresi:": "IP 地址：",
+  "Veri yok": "暂无数据",
+  "Veri": "数据",
 };
 
 export default zh;

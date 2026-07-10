@@ -184,11 +184,12 @@ function MiniSparkline({
   decimals?: number;
   gradientId: string;
 }) {
+  const { t } = useTranslation();
   const valid = data.filter((d) => d.value != null);
   if (valid.length === 0) {
     return (
       <div className="h-16 flex items-center justify-center text-[11px] text-muted-foreground">
-        Veri yok
+        {t("Veri yok")}
       </div>
     );
   }
@@ -432,7 +433,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
               <Link href="/kits">
                 <div className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
                   <ArrowLeft className="w-3.5 h-3.5" />
-                  Terminaller
+                  {t("Terminaller")}
                 </div>
               </Link>
               <span className="text-border">/</span>
@@ -454,11 +455,11 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
               <Pill tone={isOnline ? "ok" : "warn"}>
                 {isOnline ? (
                   <>
-                    <Wifi className="w-2.5 h-2.5" /> Aktif
+                    <Wifi className="w-2.5 h-2.5" /> {t("Aktif")}
                   </>
                 ) : (
                   <>
-                    <WifiOff className="w-2.5 h-2.5" /> Pasif
+                    <WifiOff className="w-2.5 h-2.5" /> {t("Pasif")}
                   </>
                 )}
               </Pill>
@@ -482,7 +483,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
           {detail?.lastSyncedAt && (
             <span className="ml-auto inline-flex items-center gap-1.5 uppercase tracking-wider">
               <Clock className="w-3 h-3" />
-              SON SENKRON: {formatDate(detail.lastSyncedAt)}
+              {t("SON SENKRON:")} {formatDate(detail.lastSyncedAt)}
             </span>
           )}
         </div>
@@ -580,7 +581,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Compass className="w-4 h-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold tracking-tight">Konum</h2>
+              <h2 className="text-sm font-semibold tracking-tight">{t("Konum")}</h2>
             </div>
             {location?.lastSeenAt && (
               <span className="text-[10px] font-mono text-muted-foreground">
@@ -616,7 +617,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
             ) : (
               <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
                 <MapPin className="w-3.5 h-3.5 mr-1.5 opacity-50" />
-                Konum bilgisi yok.
+                {t("Konum bilgisi yok.")}
               </div>
             )}
           </div>
@@ -711,15 +712,15 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
             <div className="mt-6 pt-4 border-t border-border">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                  Manuel Kota
+                  {t("Manuel Kota")}
                 </span>
                 {detail?.manualPlanGb != null ? (
                   <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-mono bg-[#f54e00]/10 text-[#f54e00] border border-[#f54e00]/20">
-                    Manuel: {formatNumber(detail.manualPlanGb, 0)} GB
+                    {t("Manuel: {{gb}} GB", { gb: formatNumber(detail.manualPlanGb, 0) })}
                   </span>
                 ) : (
                   <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-mono bg-secondary text-muted-foreground">
-                    Otomatik
+                    {t("Otomatik")}
                   </span>
                 )}
                 {isAdmin && !manualEditMode && (
@@ -968,7 +969,7 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                   formatter={(v: number) => [
                     // Daily byDay zaten GB cinsinden topluyor.
                     `${formatNumber(v, 2)} GB`,
-                    "Veri",
+                    t("Veri"),
                   ]}
                 />
                 <Area

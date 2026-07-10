@@ -169,7 +169,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
               <Link href="/kits">
                 <div className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
                   <ArrowLeft className="w-3.5 h-3.5" />
-                  Terminaller
+                  {t("Terminaller")}
                 </div>
               </Link>
               <span className="text-border">/</span>
@@ -187,11 +187,11 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
               <Pill tone={detail?.isOnline ? "ok" : "warn"}>
                 {detail?.isOnline ? (
                   <>
-                    <Wifi className="w-2.5 h-2.5" /> Aktif
+                    <Wifi className="w-2.5 h-2.5" /> {t("Aktif")}
                   </>
                 ) : (
                   <>
-                    <WifiOff className="w-2.5 h-2.5" /> Pasif
+                    <WifiOff className="w-2.5 h-2.5" /> {t("Pasif")}
                   </>
                 )}
               </Pill>
@@ -206,7 +206,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
           )}
           {ipv4 && (
             <span>
-              <span className="text-muted-foreground">IP Adresi:</span>{" "}
+              <span className="text-muted-foreground">{t("IP Adresi:")}</span>{" "}
               <span className="text-foreground">{ipv4}</span>
             </span>
           )}
@@ -581,7 +581,7 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                     fontFamily: "Inter, sans-serif",
                     fontSize: 12,
                   }}
-                  formatter={(v: number) => [`${formatNumber(v, 2)} GB`, "Veri"]}
+                  formatter={(v: number) => [`${formatNumber(v, 2)} GB`, t("Veri")]}
                 />
                 <Area
                   type="monotone"

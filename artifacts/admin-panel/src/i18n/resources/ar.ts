@@ -708,6 +708,12 @@ const ar: Record<string, string> = {
   "Henüz Tototheo hesabı eklenmedi": "لم تتم إضافة حساب Tototheo بعد",
   "Senkronizasyon başlatabilmek için en az bir Tototheo Bearer token tanımlamalısınız.": "يجب تعريف رمز Tototheo Bearer واحد على الأقل لبدء المزامنة.",
   "Son Bağlantı": "آخر اتصال",
+
+  // Task #42 — KIT detail i18n fixes
+  "SON SENKRON:": "آخر مزامنة:",
+  "IP Adresi:": "عنوان IP:",
+  "Veri yok": "لا توجد بيانات",
+  "Veri": "البيانات",
 };
 
 export default ar;
