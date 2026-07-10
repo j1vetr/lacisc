@@ -567,6 +567,18 @@ export const ListShipQuotaDeductionsResponseItem = zod.object({
   effectiveGb: zod
     .number()
     .describe("manualGb ?? apiTotalGb — düşüm hesaplarında kullanılan değer."),
+  planAllowanceGb: zod
+    .number()
+    .nullish()
+    .describe(
+      "Efektif KIT'in paket kotası (manuel override ?? otomatik tespit); sadece görsel kota barı içindir.",
+    ),
+  kitEffectiveUsageGb: zod
+    .number()
+    .nullish()
+    .describe(
+      "Efektif KIT'in o dönemki ham kullanımından bu satırın effectiveGb'si düşülmüş hali (sistemdeki 'efektif kullanım' tanımıyla aynı); ham kullanım bulunamazsa null.",
+    ),
   isActive: zod.boolean(),
   updatedAt: zod.coerce.date(),
 });
@@ -610,6 +622,18 @@ export const UpdateShipQuotaDeductionResponse = zod.object({
   effectiveGb: zod
     .number()
     .describe("manualGb ?? apiTotalGb — düşüm hesaplarında kullanılan değer."),
+  planAllowanceGb: zod
+    .number()
+    .nullish()
+    .describe(
+      "Efektif KIT'in paket kotası (manuel override ?? otomatik tespit); sadece görsel kota barı içindir.",
+    ),
+  kitEffectiveUsageGb: zod
+    .number()
+    .nullish()
+    .describe(
+      "Efektif KIT'in o dönemki ham kullanımından bu satırın effectiveGb'si düşülmüş hali (sistemdeki 'efektif kullanım' tanımıyla aynı); ham kullanım bulunamazsa null.",
+    ),
   isActive: zod.boolean(),
   updatedAt: zod.coerce.date(),
 });

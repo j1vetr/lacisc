@@ -404,6 +404,13 @@ export default function ShipQuotaSettingsPage() {
 
                   {deductions.map((row) => {
                     const reduced = row.effectiveGb !== row.apiTotalGb;
+                    const quotaPct =
+                      row.planAllowanceGb &&
+                      row.planAllowanceGb > 0 &&
+                      row.kitEffectiveUsageGb != null
+                        ? Math.min(100, (row.kitEffectiveUsageGb / row.planAllowanceGb) * 100)
+                        : null;
+                    const quotaWarn = quotaPct !== null && quotaPct >= 80;
                     return (
                       <div
                         key={row.id}
@@ -422,6 +429,28 @@ export default function ShipQuotaSettingsPage() {
                             {row.period}
                             {row.externalKitNumber ? ` · ${row.externalKitNumber}` : ""}
                           </p>
+                          {quotaPct !== null && (
+                            <div
+                              className="flex items-center gap-1.5 mt-1.5"
+                              title={`Efektif kullanım: ${row.kitEffectiveUsageGb?.toFixed(1)} / ${row.planAllowanceGb} GB`}
+                            >
+                              <div className="flex-1 max-w-[90px] h-[3px] rounded-full bg-border overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all ${
+                                    quotaWarn ? "bg-primary" : "bg-foreground"
+                                  }`}
+                                  style={{ width: `${quotaPct}%` }}
+                                />
+                              </div>
+                              <span
+                                className={`font-mono text-[10px] whitespace-nowrap ${
+                                  quotaWarn ? "text-primary" : "text-muted-foreground"
+                                }`}
+                              >
+                                {row.kitEffectiveUsageGb?.toFixed(1)}/{row.planAllowanceGb} GB
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         <div className="min-w-0 pr-3">

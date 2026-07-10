@@ -12,6 +12,13 @@ Bazı gemiler kendi Starlink/Satcom/Norway bant genişliklerini yolcularına yen
 - **OpenAPI + codegen**: `ShipQuotaSettings`/`ShipQuotaSettingsUpdate`/`ShipQuotaSyncResult`/`ShipQuotaDeduction`/`ShipQuotaDeductionUpdate`/`ShipQuotaSource` şemaları + path'ler eklendi, Orval hooks üretildi.
 - **Prod migration**: bkz. replit.md gotcha (db push YOK, manuel SQL).
 
+### Düşüm tablosunda gemi bazlı kota barı (Task #37 devamı)
+`/settings/ship-quotas` düşüm tablosunda gemi adının yanına, o KIT'in **efektif** (resale düşümü sonrası) kullanımını plan kotasına oranlayan küçük bir ilerleme çubuğu eklendi.
+- **Backend**: `ship-quota.ts`'e `getPlanAllowanceMap`/`getKitRawUsageMap` helper'ları eklendi; `ShipQuotaDeductionView`/`listShipQuotaDeductions` artık `planAllowanceGb` (Satcom plan-adı parse veya `manual_plan_gb`; Starlink/Norway'de bilinmiyorsa `null`) ve `kitEffectiveUsageGb` (o KIT'in ham dönem kullanımı — Satcom'da GiB→GB çevrilmiş — eksi **bu satırın** `effectiveGb` düşümü) alanlarını döner. Ortak `parseSatcomPlanAllowanceGb` `satcom-plan.ts`'e çıkarılıp `records.ts` ile paylaşıldı (tekrar yok).
+- **UI**: `ship-quotas.tsx` Gemi hücresi, her iki alan da doluysa `kits.tsx` ile aynı bar/eşik deseniyle (≥%80 turuncu uyarı) mini çubuk + `X/Y GB` etiketi gösterir; biri eksikse (bilinmeyen plan veya eşleşmemiş gemi) çubuk gizli kalır.
+- **OpenAPI + codegen**: `ShipQuotaDeduction` şemasına iki alan eklendi, Orval hooks yeniden üretildi.
+- Multi-account KIT'lerde (aynı `kitNo` birden fazla credential'da) yeni lookup'lar credential ile ayrım yapmaz — birden çok satır varsa ham kullanımın **max**'ı alınır (mevcut `findKitBySerial`/`findKitByShipName` `.limit(1)` basitleştirme emsaliyle tutarlı).
+
 ## June 2026
 
 ### Manuel paket kotası override (2026-06-10)

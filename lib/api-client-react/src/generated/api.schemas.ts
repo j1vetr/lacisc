@@ -770,6 +770,10 @@ export interface ShipQuotaDeduction {
   effectiveKitNo?: string | null;
   /** manualGb ?? apiTotalGb — düşüm hesaplarında kullanılan değer. */
   effectiveGb: number;
+  /** Efektif KIT'in paket kotası (manuel override ?? otomatik tespit); sadece görsel kota barı içindir. */
+  planAllowanceGb?: number | null;
+  /** Efektif KIT'in o dönemki ham kullanımından bu satırın effectiveGb'si düşülmüş hali (sistemdeki 'efektif kullanım' tanımıyla aynı); ham kullanım bulunamazsa null. */
+  kitEffectiveUsageGb?: number | null;
   isActive: boolean;
   updatedAt: string;
 }

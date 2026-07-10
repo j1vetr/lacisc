@@ -17,9 +17,13 @@ import {
   stationKits,
   starlinkTerminals,
   leobridgeTerminals,
+  stationKitPeriodTotal,
+  starlinkTerminalPeriodTotal,
+  leobridgeTerminalPeriodTotal,
 } from "@workspace/db";
 import { decrypt, encrypt } from "./crypto";
 import { logger } from "./logger";
+import { parseSatcomPlanAllowanceGb } from "./satcom-plan";
 
 // Güvenlik: SSRF önlemi için endpoint sabittir — kullanıcı tarafından
 // değiştirilemez (whatsapp.ts'teki host-pinleme yaklaşımıyla tutarlı).
@@ -445,6 +449,12 @@ export type ShipQuotaDeductionView = {
   effectiveSource: ShipQuotaSource | null;
   effectiveKitNo: string | null;
   effectiveGb: number;
+  planAllowanceGb: number | null;
+  // Efektif KIT'in o dönemki ham kullanımından bu satırın yeniden-satış
+  // hacmi (effectiveGb) düşülmüş hali — dashboard/alarm'ların gösterdiği
+  // "efektif kullanım" ile aynı tanım (bkz. getDeductionMapForPeriod).
+  // Ham kullanım bulunamazsa (henüz sync yoksa) null.
+  kitEffectiveUsageGb: number | null;
   isActive: boolean;
   updatedAt: Date;
 };
@@ -471,9 +481,188 @@ function toDeductionView(
     effectiveSource,
     effectiveKitNo,
     effectiveGb,
+    planAllowanceGb: null,
+    kitEffectiveUsageGb: null,
     isActive: row.isActive,
     updatedAt: row.updatedAt,
   };
+}
+
+// Efektif KIT'in paket kotasını (manualPlanGb ?? auto-detected) üç kaynak
+// tablosundan toplu olarak çeker — deductions listesindeki her satır için
+// ayrı sorgu atmak yerine kaynak başına tek IN(...) sorgusu. Sadece görsel
+// "kota barı" içindir; alarm/eşik mantığı bu değeri kullanmaz.
+async function getPlanAllowanceMap(
+  matches: { source: ShipQuotaSource; kitNo: string }[]
+): Promise<Map<string, number | null>> {
+  const map = new Map<string, number | null>();
+  const bySource: Record<ShipQuotaSource, string[]> = {
+    satcom: [],
+    starlink: [],
+    leobridge: [],
+  };
+  const seen = new Set<string>();
+  for (const m of matches) {
+    const key = `${m.source}:${m.kitNo.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    bySource[m.source].push(m.kitNo);
+  }
+
+  if (bySource.satcom.length > 0) {
+    const rows = await db
+      .select({
+        kitNo: stationKits.kitNo,
+        activePlanName: stationKits.activePlanName,
+        manualPlanGb: stationKits.manualPlanGb,
+      })
+      .from(stationKits)
+      .where(inArray(stationKits.kitNo, bySource.satcom));
+    for (const r of rows) {
+      map.set(
+        `satcom:${r.kitNo.toLowerCase()}`,
+        r.manualPlanGb ?? parseSatcomPlanAllowanceGb(r.activePlanName)
+      );
+    }
+  }
+  if (bySource.starlink.length > 0) {
+    const rows = await db
+      .select({
+        kitNo: starlinkTerminals.kitSerialNumber,
+        planAllowanceGb: starlinkTerminals.planAllowanceGb,
+        manualPlanGb: starlinkTerminals.manualPlanGb,
+      })
+      .from(starlinkTerminals)
+      .where(inArray(starlinkTerminals.kitSerialNumber, bySource.starlink));
+    for (const r of rows) {
+      map.set(
+        `starlink:${r.kitNo.toLowerCase()}`,
+        r.manualPlanGb ?? r.planAllowanceGb ?? null
+      );
+    }
+  }
+  if (bySource.leobridge.length > 0) {
+    const rows = await db
+      .select({
+        kitNo: leobridgeTerminals.kitSerialNumber,
+        planAllowanceGb: leobridgeTerminals.planAllowanceGb,
+        manualPlanGb: leobridgeTerminals.manualPlanGb,
+      })
+      .from(leobridgeTerminals)
+      .where(inArray(leobridgeTerminals.kitSerialNumber, bySource.leobridge));
+    for (const r of rows) {
+      map.set(
+        `leobridge:${r.kitNo.toLowerCase()}`,
+        r.manualPlanGb ?? r.planAllowanceGb ?? null
+      );
+    }
+  }
+  return map;
+}
+
+// Satcom hâlâ GiB — records.ts'teki aynı 1.073741824 dönüşümüyle tutarlı
+// (bkz. replit.md "Satcom GiB → GB").
+const GIB_TO_GB = 1.073741824;
+
+// Efektif KIT'in o dönemki HAM kullanımını üç period-total tablosundan
+// toplu çeker — kaynak+dönem başına tek IN(...) sorgusu. Sadece görsel kota
+// barı içindir (planAllowanceGb ile aynı köken/limitasyon).
+async function getKitRawUsageMap(
+  matches: { source: ShipQuotaSource; kitNo: string; period: string }[]
+): Promise<Map<string, number | null>> {
+  const map = new Map<string, number | null>();
+  const bySource: Record<ShipQuotaSource, Set<string>> = {
+    satcom: new Set(),
+    starlink: new Set(),
+    leobridge: new Set(),
+  };
+  const periods = new Set<string>();
+  const kitsBySource: Record<ShipQuotaSource, string[]> = {
+    satcom: [],
+    starlink: [],
+    leobridge: [],
+  };
+  for (const m of matches) {
+    periods.add(m.period);
+    const kitKey = m.kitNo.toLowerCase();
+    if (!bySource[m.source].has(kitKey)) {
+      bySource[m.source].add(kitKey);
+      kitsBySource[m.source].push(m.kitNo);
+    }
+  }
+  if (periods.size === 0) return map;
+  const periodList = Array.from(periods);
+
+  if (kitsBySource.satcom.length > 0) {
+    const rows = await db
+      .select({
+        kitNo: stationKitPeriodTotal.kitNo,
+        period: stationKitPeriodTotal.period,
+        totalGib: stationKitPeriodTotal.totalGib,
+      })
+      .from(stationKitPeriodTotal)
+      .where(
+        and(
+          inArray(stationKitPeriodTotal.kitNo, kitsBySource.satcom),
+          inArray(stationKitPeriodTotal.period, periodList)
+        )
+      );
+    for (const r of rows) {
+      const key = `satcom:${r.kitNo.toLowerCase()}:${r.period}`;
+      const gb = r.totalGib != null ? r.totalGib * GIB_TO_GB : null;
+      const prev = map.get(key);
+      // Aynı kitNo birden fazla credential'da görünebilir (multi-account) —
+      // görsel bar için en yüksek ham kullanım tutulur.
+      map.set(key, gb == null ? (prev ?? null) : Math.max(prev ?? 0, gb));
+    }
+  }
+  if (kitsBySource.starlink.length > 0) {
+    const rows = await db
+      .select({
+        kitNo: starlinkTerminalPeriodTotal.kitSerialNumber,
+        period: starlinkTerminalPeriodTotal.period,
+        totalGb: starlinkTerminalPeriodTotal.totalGb,
+      })
+      .from(starlinkTerminalPeriodTotal)
+      .where(
+        and(
+          inArray(starlinkTerminalPeriodTotal.kitSerialNumber, kitsBySource.starlink),
+          inArray(starlinkTerminalPeriodTotal.period, periodList)
+        )
+      );
+    for (const r of rows) {
+      const key = `starlink:${r.kitNo.toLowerCase()}:${r.period}`;
+      const prev = map.get(key);
+      map.set(
+        key,
+        r.totalGb == null ? (prev ?? null) : Math.max(prev ?? 0, r.totalGb)
+      );
+    }
+  }
+  if (kitsBySource.leobridge.length > 0) {
+    const rows = await db
+      .select({
+        kitNo: leobridgeTerminalPeriodTotal.kitSerialNumber,
+        period: leobridgeTerminalPeriodTotal.period,
+        totalGb: leobridgeTerminalPeriodTotal.totalGb,
+      })
+      .from(leobridgeTerminalPeriodTotal)
+      .where(
+        and(
+          inArray(leobridgeTerminalPeriodTotal.kitSerialNumber, kitsBySource.leobridge),
+          inArray(leobridgeTerminalPeriodTotal.period, periodList)
+        )
+      );
+    for (const r of rows) {
+      const key = `leobridge:${r.kitNo.toLowerCase()}:${r.period}`;
+      const prev = map.get(key);
+      map.set(
+        key,
+        r.totalGb == null ? (prev ?? null) : Math.max(prev ?? 0, r.totalGb)
+      );
+    }
+  }
+  return map;
 }
 
 export async function listShipQuotaDeductions(
@@ -492,7 +681,44 @@ export async function listShipQuotaDeductions(
           desc(shipQuotaDeductions.period),
           desc(shipQuotaDeductions.updatedAt)
         );
-  return rows.map(toDeductionView);
+  const views = rows.map(toDeductionView);
+
+  const matchedViews = views.filter(
+    (
+      v
+    ): v is ShipQuotaDeductionView & {
+      effectiveSource: ShipQuotaSource;
+      effectiveKitNo: string;
+    } => v.effectiveSource !== null && v.effectiveKitNo !== null
+  );
+  const [planMap, usageMap] = await Promise.all([
+    getPlanAllowanceMap(
+      matchedViews.map((v) => ({ source: v.effectiveSource, kitNo: v.effectiveKitNo }))
+    ),
+    getKitRawUsageMap(
+      matchedViews.map((v) => ({
+        source: v.effectiveSource,
+        kitNo: v.effectiveKitNo,
+        period: v.period,
+      }))
+    ),
+  ]);
+
+  return views.map((v) => ({
+    ...v,
+    kitEffectiveUsageGb: (() => {
+      if (!v.effectiveSource || !v.effectiveKitNo) return null;
+      const rawGb = usageMap.get(
+        `${v.effectiveSource}:${v.effectiveKitNo.toLowerCase()}:${v.period}`
+      );
+      if (rawGb == null) return null;
+      return applyDeduction(rawGb, v.effectiveGb);
+    })(),
+    planAllowanceGb:
+      v.effectiveSource && v.effectiveKitNo
+        ? planMap.get(`${v.effectiveSource}:${v.effectiveKitNo.toLowerCase()}`) ?? null
+        : null,
+  }));
 }
 
 export type ShipQuotaDeductionUpdate = {

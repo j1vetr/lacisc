@@ -40,6 +40,7 @@ Detaylı "şu an nasıl çalışıyor" referansı. Hızlı operatör özeti içi
 - For Satcom, the GiB→GB conversion happens first, then resale GB is subtracted — the "effective" usage shown/alerted on is always decimal GB across all three sources.
 - Admin UI: `/settings/ship-quotas` (enable/API key/manual sync + status card; deductions table with per-row active toggle + manual override dialog, "Otomatiğe Dön" resets to auto-match).
 - `manualSource`/`manualKitNo` are always set or cleared together (server-enforced in `updateShipQuotaDeduction`) — a lone `manualSource` would leave `effectiveKitNo` falling back to `matchedKitNo`, which was resolved under the *original* `matchedSource`, silently deducting the wrong terminal.
+- Deductions table also surfaces a per-row quota-usage bar next to the ship name: `listShipQuotaDeductions` joins in `planAllowanceGb` (Satcom plan-name parse via shared `satcom-plan.ts`, or `manual_plan_gb` override; null for Starlink/Norway — unknown quota) and `kitEffectiveUsageGb` (that KIT's raw period usage, GiB→GB converted for Satcom, minus *this row's* `effectiveGb`). Bar renders only when both are non-null.
 
 ## API & client
 
