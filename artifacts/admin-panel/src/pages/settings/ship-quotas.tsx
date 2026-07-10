@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Ship, RefreshCw, Loader2, Pencil, RotateCcw } from "lucide-react";
+import { Ship, RefreshCw, Loader2, Pencil, RotateCcw, ArrowRight } from "lucide-react";
 import {
   useGetShipQuotaSettings,
   getGetShipQuotaSettingsQueryKey,
@@ -52,6 +52,9 @@ const SOURCE_LABEL: Record<ShipQuotaSource, string> = {
 };
 
 const NONE_VALUE = "__none__";
+
+const DEDUCTION_GRID =
+  "grid grid-cols-[minmax(180px,1.5fr)_minmax(180px,1.2fr)_140px_72px_44px] gap-x-4 items-center";
 
 export default function ShipQuotaSettingsPage() {
   const { data: settings, isLoading } = useGetShipQuotaSettings({
@@ -355,104 +358,132 @@ export default function ShipQuotaSettingsPage() {
               "Düzenle" ile manuel olarak düzeltebilir veya satırı devre dışı
               bırakabilirsiniz.
             </CardDescription>
-            <div className="pt-3">
+            <div className="pt-3 flex items-center gap-3">
               <Input
                 value={periodFilter}
                 onChange={(e) => setPeriodFilter(e.target.value)}
                 placeholder="Dönem filtrele (YYYYMM) — boş = tümü"
                 className="font-mono text-sm bg-background border-border h-9 rounded-lg shadow-none max-w-xs"
               />
+              {!deductionsLoading && (
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {deductions.length} kayıt
+                </span>
+              )}
             </div>
           </CardHeader>
           <CardContent className="p-4 sm:p-6 lg:p-8">
             {deductionsLoading ? (
-              <Skeleton className="h-48 w-full rounded-lg" />
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-14 w-full rounded-lg" />
+                ))}
+              </div>
+            ) : deductions.length === 0 ? (
+              <div className="py-10 text-center text-muted-foreground text-xs rounded-lg border border-dashed border-border">
+                Kayıt yok. "Şimdi Senkronize Et" ile ilk senkronu çalıştırın.
+              </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-[11px] uppercase text-muted-foreground tracking-widest">
-                    <tr className="border-b border-border">
-                      <th className="text-left py-2 font-medium">Dönem</th>
-                      <th className="text-left py-2 font-medium">Gemi</th>
-                      <th className="text-left py-2 font-medium">Dış KIT</th>
-                      <th className="text-right py-2 font-medium">API GB</th>
-                      <th className="text-left py-2 font-medium">Eşleşme</th>
-                      <th className="text-right py-2 font-medium">Efektif GB</th>
-                      <th className="text-center py-2 font-medium">Aktif</th>
-                      <th className="text-right py-2 font-medium">İşlem</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {deductions.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={8}
-                          className="py-6 text-center text-muted-foreground text-xs"
-                        >
-                          Kayıt yok. "Şimdi Senkronize Et" ile ilk senkronu
-                          çalıştırın.
-                        </td>
-                      </tr>
-                    ) : (
-                      deductions.map((row) => (
-                        <tr
-                          key={row.id}
-                          className={`border-b border-border/60 hover:bg-secondary/40 ${
-                            !row.isActive ? "opacity-50" : ""
-                          }`}
-                        >
-                          <td className="py-3 font-mono text-xs">{row.period}</td>
-                          <td className="py-3 text-xs">{row.externalShipName}</td>
-                          <td className="py-3 font-mono text-xs">
-                            {row.externalKitNumber || "—"}
-                          </td>
-                          <td className="py-3 text-right font-mono text-xs">
-                            {row.apiTotalGb.toFixed(2)}
-                          </td>
-                          <td className="py-3 text-xs">
-                            {row.effectiveSource && row.effectiveKitNo ? (
-                              <span className="flex flex-col">
-                                <span>
-                                  {SOURCE_LABEL[row.effectiveSource]} ·{" "}
-                                  <span className="font-mono">
-                                    {row.effectiveKitNo}
-                                  </span>
+                <div className="min-w-[760px]">
+                  <div className={`${DEDUCTION_GRID} px-2 py-2.5 border-b border-border`}>
+                    <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-medium">
+                      Gemi
+                    </span>
+                    <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-medium">
+                      Eşleşme
+                    </span>
+                    <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-medium text-right">
+                      Kullanım (GB)
+                    </span>
+                    <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-medium text-center">
+                      Aktif
+                    </span>
+                    <span />
+                  </div>
+
+                  {deductions.map((row) => {
+                    const reduced = row.effectiveGb !== row.apiTotalGb;
+                    return (
+                      <div
+                        key={row.id}
+                        className={`${DEDUCTION_GRID} px-2 py-3.5 border-b border-border/60 hover:bg-secondary/40 transition-colors ${
+                          !row.isActive ? "opacity-50" : ""
+                        }`}
+                      >
+                        <div className="min-w-0 pr-3">
+                          <p
+                            className="text-sm font-medium text-foreground truncate"
+                            title={row.externalShipName}
+                          >
+                            {row.externalShipName}
+                          </p>
+                          <p className="font-mono text-[11px] text-muted-foreground truncate">
+                            {row.period}
+                            {row.externalKitNumber ? ` · ${row.externalKitNumber}` : ""}
+                          </p>
+                        </div>
+
+                        <div className="min-w-0 pr-3">
+                          {row.effectiveSource && row.effectiveKitNo ? (
+                            <>
+                              <p className="text-sm text-foreground truncate">
+                                {SOURCE_LABEL[row.effectiveSource]}{" "}
+                                <span className="font-mono text-muted-foreground">
+                                  {row.effectiveKitNo}
                                 </span>
-                                <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                                  {row.manualSource ? "manuel" : row.matchMethod}
-                                </span>
+                              </p>
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                {row.manualSource ? "manuel" : row.matchMethod}
+                              </p>
+                            </>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px]">
+                              eşleşmedi
+                            </Badge>
+                          )}
+                        </div>
+
+                        <div className="text-right">
+                          {reduced ? (
+                            <div className="flex items-center justify-end gap-1.5 font-mono text-xs whitespace-nowrap">
+                              <span className="text-muted-foreground line-through">
+                                {row.apiTotalGb.toFixed(2)}
                               </span>
-                            ) : (
-                              <Badge variant="outline" className="text-[10px]">
-                                eşleşmedi
-                              </Badge>
-                            )}
-                          </td>
-                          <td className="py-3 text-right font-mono text-xs">
-                            {row.effectiveGb.toFixed(2)}
-                          </td>
-                          <td className="py-3 text-center">
-                            <Switch
-                              checked={row.isActive}
-                              onCheckedChange={(v) => handleToggleActive(row, v)}
-                              className="data-[state=checked]:bg-primary"
-                            />
-                          </td>
-                          <td className="py-3 text-right">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              title="Düzenle"
-                              onClick={() => openEdit(row)}
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                              <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
+                              <span className="font-semibold text-foreground text-sm">
+                                {row.effectiveGb.toFixed(2)}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="font-mono text-sm text-foreground">
+                              {row.apiTotalGb.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex justify-center">
+                          <Switch
+                            checked={row.isActive}
+                            onCheckedChange={(v) => handleToggleActive(row, v)}
+                            className="data-[state=checked]:bg-primary"
+                          />
+                        </div>
+
+                        <div className="flex justify-end">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Düzenle"
+                            onClick={() => openEdit(row)}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </CardContent>
