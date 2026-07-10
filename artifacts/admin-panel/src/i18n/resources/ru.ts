@@ -714,29 +714,6 @@ const ru: Record<string, string> = {
   "IP Adresi:": "IP-адрес:",
   "Veri yok": "Нет данных",
   "Veri": "Данные",
-
-  // Dashboard redesign
-  "İyi günler": "Добрый день",
-  "Filo ve terminal operasyonlarınıza genel bakış.": "Общий обзор вашего флота и терминальных операций.",
-  "AKTİF GEMİ": "АКТИВНЫЕ СУДА",
-  "Canlı veri alınıyor": "Получение данных в реальном времени",
-  "CANLI": "LIVE",
-  "FİLO HARİTASI": "КАРТА ФЛОТА",
-  "SON SENKRON": "ПОСЛЕДНЯЯ СИНХР.",
-  "Tümü": "Все",
-  "Henüz senkron yok.": "Записей синхронизации пока нет.",
-  "Senkron tamamlandı": "Синхронизация завершена",
-  "Senkron başarısız": "Ошибка синхронизации",
-  "Çalışıyor…": "Выполняется…",
-  "Bekliyor": "Ожидание",
-  "{{count}} kayıt bulundu": "{{count}} записей найдено",
-  "EN AKTİF TERMİNALLER": "САМЫЕ АКТИВНЫЕ ТЕРМИНАЛЫ",
-  "BANT GENİŞLİĞİ KULLANIMI": "ИСПОЛЬЗОВАНИЕ ПОЛОСЫ",
-  "KAYNAK DAĞILIMI": "РАСПРЕДЕЛЕНИЕ ИСТОЧНИКОВ",
-  "terminal": "терминал",
-  "hesap": "аккаунт",
-  "Operatör": "Оператор",
-  "Terminaller, gemiler, lokasyonlar…": "Терминалы, суда, локации…",
 };
 
 export default ru;
