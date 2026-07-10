@@ -151,6 +151,7 @@ html.dark .sade-theme {
 .sade-theme .sd-icon-btn {
   width: 34px;
   height: 34px;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -180,12 +181,15 @@ html.dark .sade-theme {
 }
 .sade-theme .sd-search input {
   flex: 1;
+  min-width: 0;
+  width: 100%;
   background: transparent;
   border: none;
   outline: none;
   font-size: 13px;
   color: var(--sd-ink);
   font-family: inherit;
+  text-overflow: ellipsis;
 }
 .sade-theme .sd-search input::placeholder {
   color: var(--sd-muted);
@@ -222,6 +226,16 @@ html.dark .sade-theme {
   .sade-theme .sd-main-pad {
     padding-left: 20px !important;
     padding-right: 20px !important;
+  }
+  .sade-theme header.sd-main-pad {
+    gap: 8px !important;
+  }
+  .sade-theme .sd-search-wrap {
+    max-width: 130px;
+  }
+  .sade-theme .sd-search {
+    height: 34px;
+    padding: 0 10px;
   }
   .sade-theme .sd-page-head {
     flex-direction: column;

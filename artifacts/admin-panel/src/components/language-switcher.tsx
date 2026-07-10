@@ -24,11 +24,11 @@ export function LanguageSwitcher({
   const triggerClassName =
     variant === "solid"
       ? compact
-        ? "inline-flex items-center justify-center w-9 h-9 rounded-full bg-white dark:bg-card border border-[#e6e9ef] dark:border-border shadow-sm text-foreground hover:border-primary/40 hover:shadow-md transition-all"
-        : "inline-flex items-center gap-2 h-9 px-3.5 rounded-full bg-white dark:bg-card border border-[#e6e9ef] dark:border-border shadow-sm text-xs font-semibold text-foreground hover:border-primary/40 hover:shadow-md transition-all"
+        ? "shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-full bg-white dark:bg-card border border-[#e6e9ef] dark:border-border shadow-sm text-foreground hover:border-primary/40 hover:shadow-md transition-all"
+        : "shrink-0 inline-flex items-center gap-2 h-9 px-3.5 rounded-full bg-white dark:bg-card border border-[#e6e9ef] dark:border-border shadow-sm text-xs font-semibold text-foreground hover:border-primary/40 hover:shadow-md transition-all"
       : compact
-        ? "inline-flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-        : "inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors";
+        ? "shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+        : "shrink-0 inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors";
 
   return (
     <DropdownMenu>

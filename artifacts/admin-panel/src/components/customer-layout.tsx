@@ -338,9 +338,9 @@ export default function CustomerLayout({
               <Menu size={16} />
             </button>
 
-            <div className="flex-1 max-w-md">
+            <div className="flex-1 min-w-0 max-w-md sd-search-wrap">
               <div className="sd-search">
-                <Search size={14} style={{ color: "var(--sd-muted)" }} />
+                <Search size={14} className="shrink-0" style={{ color: "var(--sd-muted)" }} />
                 <input
                   placeholder={t("Gemi veya KIT ara")}
                   value={query}
