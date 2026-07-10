@@ -59,6 +59,7 @@ import type {
   LeobridgeTestResult,
   ListAuditLogsParams,
   ListSessions200Item,
+  ListShipQuotaDeductionsParams,
   LoginBody,
   ManualPlanResult,
   ManualPlanUpdate,
@@ -69,6 +70,11 @@ import type {
   SchedulerCancelResult,
   SchedulerSettings,
   SchedulerSettingsUpdate,
+  ShipQuotaDeduction,
+  ShipQuotaDeductionUpdate,
+  ShipQuotaSettings,
+  ShipQuotaSettingsUpdate,
+  ShipQuotaSyncResult,
   StarlinkAccount,
   StarlinkDailyPoint,
   StarlinkMonthlyPoint,
@@ -2174,6 +2180,427 @@ export const useDeleteWhatsappThresholdRule = <
   TContext
 > => {
   return useMutation(getDeleteWhatsappThresholdRuleMutationOptions(options));
+};
+
+/**
+ * @summary Gemi internet satışı kota düşümü yapılandırması.
+ */
+export const getGetShipQuotaSettingsUrl = () => {
+  return `/api/ship-quotas/settings`;
+};
+
+export const getShipQuotaSettings = async (
+  options?: RequestInit,
+): Promise<ShipQuotaSettings> => {
+  return customFetch<ShipQuotaSettings>(getGetShipQuotaSettingsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetShipQuotaSettingsQueryKey = () => {
+  return [`/api/ship-quotas/settings`] as const;
+};
+
+export const getGetShipQuotaSettingsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getShipQuotaSettings>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getShipQuotaSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetShipQuotaSettingsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getShipQuotaSettings>>
+  > = ({ signal }) => getShipQuotaSettings({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getShipQuotaSettings>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetShipQuotaSettingsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getShipQuotaSettings>>
+>;
+export type GetShipQuotaSettingsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Gemi internet satışı kota düşümü yapılandırması.
+ */
+
+export function useGetShipQuotaSettings<
+  TData = Awaited<ReturnType<typeof getShipQuotaSettings>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getShipQuotaSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetShipQuotaSettingsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getUpdateShipQuotaSettingsUrl = () => {
+  return `/api/ship-quotas/settings`;
+};
+
+export const updateShipQuotaSettings = async (
+  shipQuotaSettingsUpdate: ShipQuotaSettingsUpdate,
+  options?: RequestInit,
+): Promise<ShipQuotaSettings> => {
+  return customFetch<ShipQuotaSettings>(getUpdateShipQuotaSettingsUrl(), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(shipQuotaSettingsUpdate),
+  });
+};
+
+export const getUpdateShipQuotaSettingsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateShipQuotaSettings>>,
+    TError,
+    { data: BodyType<ShipQuotaSettingsUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateShipQuotaSettings>>,
+  TError,
+  { data: BodyType<ShipQuotaSettingsUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateShipQuotaSettings"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateShipQuotaSettings>>,
+    { data: BodyType<ShipQuotaSettingsUpdate> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateShipQuotaSettings(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateShipQuotaSettingsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateShipQuotaSettings>>
+>;
+export type UpdateShipQuotaSettingsMutationBody =
+  BodyType<ShipQuotaSettingsUpdate>;
+export type UpdateShipQuotaSettingsMutationError = ErrorType<unknown>;
+
+export const useUpdateShipQuotaSettings = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateShipQuotaSettings>>,
+    TError,
+    { data: BodyType<ShipQuotaSettingsUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateShipQuotaSettings>>,
+  TError,
+  { data: BodyType<ShipQuotaSettingsUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateShipQuotaSettingsMutationOptions(options));
+};
+
+/**
+ * @summary Harici adegloba API'sinden gemi kotalarını hemen senkronize eder.
+ */
+export const getSyncShipQuotasNowUrl = () => {
+  return `/api/ship-quotas/sync`;
+};
+
+export const syncShipQuotasNow = async (
+  options?: RequestInit,
+): Promise<ShipQuotaSyncResult> => {
+  return customFetch<ShipQuotaSyncResult>(getSyncShipQuotasNowUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSyncShipQuotasNowMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncShipQuotasNow>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof syncShipQuotasNow>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["syncShipQuotasNow"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof syncShipQuotasNow>>,
+    void
+  > = () => {
+    return syncShipQuotasNow(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SyncShipQuotasNowMutationResult = NonNullable<
+  Awaited<ReturnType<typeof syncShipQuotasNow>>
+>;
+
+export type SyncShipQuotasNowMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Harici adegloba API'sinden gemi kotalarını hemen senkronize eder.
+ */
+export const useSyncShipQuotasNow = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncShipQuotasNow>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof syncShipQuotasNow>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getSyncShipQuotasNowMutationOptions(options));
+};
+
+export const getListShipQuotaDeductionsUrl = (
+  params?: ListShipQuotaDeductionsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/ship-quotas/deductions?${stringifiedParams}`
+    : `/api/ship-quotas/deductions`;
+};
+
+export const listShipQuotaDeductions = async (
+  params?: ListShipQuotaDeductionsParams,
+  options?: RequestInit,
+): Promise<ShipQuotaDeduction[]> => {
+  return customFetch<ShipQuotaDeduction[]>(
+    getListShipQuotaDeductionsUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListShipQuotaDeductionsQueryKey = (
+  params?: ListShipQuotaDeductionsParams,
+) => {
+  return [`/api/ship-quotas/deductions`, ...(params ? [params] : [])] as const;
+};
+
+export const getListShipQuotaDeductionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listShipQuotaDeductions>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListShipQuotaDeductionsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listShipQuotaDeductions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListShipQuotaDeductionsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listShipQuotaDeductions>>
+  > = ({ signal }) =>
+    listShipQuotaDeductions(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listShipQuotaDeductions>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListShipQuotaDeductionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listShipQuotaDeductions>>
+>;
+export type ListShipQuotaDeductionsQueryError = ErrorType<unknown>;
+
+export function useListShipQuotaDeductions<
+  TData = Awaited<ReturnType<typeof listShipQuotaDeductions>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListShipQuotaDeductionsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listShipQuotaDeductions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListShipQuotaDeductionsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Otomatik eşleşmeyi manuel olarak düzeltir veya satırı devre dışı bırakır.
+ */
+export const getUpdateShipQuotaDeductionUrl = (id: number) => {
+  return `/api/ship-quotas/deductions/${id}`;
+};
+
+export const updateShipQuotaDeduction = async (
+  id: number,
+  shipQuotaDeductionUpdate: ShipQuotaDeductionUpdate,
+  options?: RequestInit,
+): Promise<ShipQuotaDeduction> => {
+  return customFetch<ShipQuotaDeduction>(getUpdateShipQuotaDeductionUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(shipQuotaDeductionUpdate),
+  });
+};
+
+export const getUpdateShipQuotaDeductionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateShipQuotaDeduction>>,
+    TError,
+    { id: number; data: BodyType<ShipQuotaDeductionUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateShipQuotaDeduction>>,
+  TError,
+  { id: number; data: BodyType<ShipQuotaDeductionUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateShipQuotaDeduction"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateShipQuotaDeduction>>,
+    { id: number; data: BodyType<ShipQuotaDeductionUpdate> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateShipQuotaDeduction(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateShipQuotaDeductionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateShipQuotaDeduction>>
+>;
+export type UpdateShipQuotaDeductionMutationBody =
+  BodyType<ShipQuotaDeductionUpdate>;
+export type UpdateShipQuotaDeductionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Otomatik eşleşmeyi manuel olarak düzeltir veya satırı devre dışı bırakır.
+ */
+export const useUpdateShipQuotaDeduction = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateShipQuotaDeduction>>,
+    TError,
+    { id: number; data: BodyType<ShipQuotaDeductionUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateShipQuotaDeduction>>,
+  TError,
+  { id: number; data: BodyType<ShipQuotaDeductionUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateShipQuotaDeductionMutationOptions(options));
 };
 
 /**

@@ -32,6 +32,15 @@ Detaylı "şu an nasıl çalışıyor" referansı. Hızlı operatör özeti içi
 
 `floor(totalGib / step) * step` threshold per active period, idempotent via `last_alert_threshold_gib`, FIFO queue at 30s/mail. SMTP config in DB `email_settings` singleton (AES-GCM password, never returned to UI — `hasPassword` flag only).
 
+## Ship internet resale quota deduction
+
+- Hourly sync (`ship-quota.ts::startShipQuotaSync`) pulls `https://ads.adegloba.space/api/external/ship-quotas` (`x-api-key`) → `{generatedAt, period, ships:[{shipName,kitNumber,totalGb}]}` and upserts into `ship_quota_deductions` (unique per `period + externalKitNumber + externalShipName`). Auto-match priority: KIT number, then case-insensitive ship name. Admin `manual*` overrides always win and are never clobbered by re-sync.
+- `getDeductionMapForPeriod(period, source)` is the single lookup every read path calls to subtract resale GB from raw usage: dashboard `/station/summary`, KIT lists/details (Satcom/Starlink/Norway), monthly-history endpoints (`/station/kits/:kitNo/monthly`, `/starlink|leobridge/terminals/:kit/monthly` via bulk helper `getDeductionsByPeriodForKit`), and both email + WhatsApp threshold alerts. Fleet map is intentionally excluded (spec). Both helpers gate on `ship_quota_settings.enabled` first — disabling the feature returns raw usage everywhere, including monthly history.
+- **Known limitation (accepted)**: upsert key is `(period, externalKitNumber, externalShipName)`. If the external API renames a ship/KIT mid-period, the stale row stays active alongside the new one, and both may match the same KIT — bounded to one period, visible in the admin deductions table, fixable via the row's `isActive` toggle.
+- For Satcom, the GiB→GB conversion happens first, then resale GB is subtracted — the "effective" usage shown/alerted on is always decimal GB across all three sources.
+- Admin UI: `/settings/ship-quotas` (enable/API key/manual sync + status card; deductions table with per-row active toggle + manual override dialog, "Otomatiğe Dön" resets to auto-match).
+- `manualSource`/`manualKitNo` are always set or cleared together (server-enforced in `updateShipQuotaDeduction`) — a lone `manualSource` would leave `effectiveKitNo` falling back to `matchedKitNo`, which was resolved under the *original* `matchedSource`, silently deducting the wrong terminal.
+
 ## API & client
 
 - **Contract-first API**: OpenAPI spec drives client hooks + server validation via Orval.

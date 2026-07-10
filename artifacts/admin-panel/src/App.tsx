@@ -25,6 +25,7 @@ const SettingsStarlink = lazy(() => import("./pages/settings/starlink"));
 const SettingsNorway = lazy(() => import("./pages/settings/norway"));
 const SettingsEmail = lazy(() => import("./pages/settings/email"));
 const SettingsWhatsapp = lazy(() => import("./pages/settings/whatsapp"));
+const SettingsShipQuotas = lazy(() => import("./pages/settings/ship-quotas"));
 const SettingsScheduler = lazy(() => import("./pages/settings/scheduler"));
 const SettingsDanger = lazy(() => import("./pages/settings/danger"));
 const Profile = lazy(() => import("./pages/profile"));
@@ -179,6 +180,7 @@ function Router() {
       <Route path="/settings/norway">{() => <ProtectedRoute component={SettingsNorway} minRole="admin" />}</Route>
       <Route path="/settings/email">{() => <ProtectedRoute component={SettingsEmail} minRole="admin" />}</Route>
       <Route path="/settings/whatsapp">{() => <ProtectedRoute component={SettingsWhatsapp} minRole="admin" />}</Route>
+      <Route path="/settings/ship-quotas">{() => <ProtectedRoute component={SettingsShipQuotas} minRole="admin" />}</Route>
       <Route path="/settings/scheduler">{() => <ProtectedRoute component={SettingsScheduler} minRole="viewer" />}</Route>
       <Route path="/settings/danger">{() => <ProtectedRoute component={SettingsDanger} minRole="admin" />}</Route>
       <Route path="/profile">{() => <ProtectedRoute component={Profile} />}</Route>

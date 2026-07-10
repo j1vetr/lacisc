@@ -2,6 +2,16 @@
 
 Tarihsel mimari/karar notları. Güncel "şu an nasıl çalışıyor" özeti için `replit.md`'ye bakın.
 
+## July 2026
+
+### Gemi internet satışı kota düşümü (Task #37)
+Bazı gemiler kendi Starlink/Satcom/Norway bant genişliklerini yolcularına yeniden satıyor; bu "resale" trafiği toplam kullanıma dahil olup KIT'i olduğundan daha dolu gösteriyordu. Çözüm: harici `ads.adegloba.space` API'sinden (`x-api-key`, `{generatedAt, period, ships:[{shipName,kitNumber,totalGb}]}`) saatlik çekilen gemi başına resale GB, ham kullanımdan düşülüp "efektif" değer her yerde gösterilir.
+- **DB**: `ship_quota_settings` (singleton id=1 — enabled/encrypted api key/last sync durum) + `ship_quota_deductions` (period+KIT+gemi adı unique, `matched*` auto-eşleşme, `manual*` admin override — re-sync asla ezmez).
+- **Backend**: `lib/ship-quota.ts` — `startShipQuotaSync()` saatlik senkron + `getDeductionMapForPeriod(source, period)` tek ortak lookup + `getDeductionsByPeriodForKit(periods, source, kitNo)` (tek KIT'in birden çok dönemi için tek sorgu). Eşleme önceliği: KIT numarası → case-insensitive gemi adı. `alerts.ts`/`whatsapp.ts` eşik hesaplarına, `records.ts`/`starlink.ts`/`leobridge.ts` liste/detay **ve aylık geçmiş** endpoint'lerine entegre edildi (header'daki efektif değerle grafik/aylık tablo tutarlı). Filo haritası hariç (spec). Her iki helper da önce `ship_quota_settings.enabled` kontrolü yapar — kapalıyken tüm okuma yollarında ham değer döner. Yeni route grubu `routes/ship-quota.ts` (`GET/PATCH /ship-quotas/settings`, `POST /ship-quotas/sync`, `GET /ship-quotas/deductions`, `PATCH /ship-quotas/deductions/:id`); PATCH artık `manualSource`/`manualKitNo`'nun birlikte set/clear edilmesini zorunlu kılıyor (biri boş kalırsa `effectiveKitNo` yanlış kaynağın `matchedKitNo`'suna düşüp sessizce yanlış terminali düşerdi).
+- **UI**: `/settings/ship-quotas` — ayar kartı (enabled/API key/manuel sync/durum) + dönem filtresi olan düşüm tablosu (satır bazlı Aktif switch + manuel override dialog, "Otomatiğe Dön" ile reset).
+- **OpenAPI + codegen**: `ShipQuotaSettings`/`ShipQuotaSettingsUpdate`/`ShipQuotaSyncResult`/`ShipQuotaDeduction`/`ShipQuotaDeductionUpdate`/`ShipQuotaSource` şemaları + path'ler eklendi, Orval hooks üretildi.
+- **Prod migration**: bkz. replit.md gotcha (db push YOK, manuel SQL).
+
 ## June 2026
 
 ### Manuel paket kotası override (2026-06-10)

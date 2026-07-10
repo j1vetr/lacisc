@@ -17,6 +17,34 @@ import {
   isCustomer,
   classifyKitDb,
 } from "../lib/customer-scope";
+import {
+  applyDeduction,
+  getDeductionMapForPeriod,
+  getDeductionForKit,
+  getDeductionsByPeriodForKit,
+} from "../lib/ship-quota";
+
+// GiB cinsinden ham değere GB cinsinden düşümü uygulayıp GiB olarak döner
+// (Satcom tablo/API'leri hâlâ GiB — bkz. replit.md "Satcom GiB → GB" notu).
+async function deductGibForKitsBySatcomPeriod(
+  rows: Array<{ kitNo: string; period: string | null; totalGib: number | null }>
+): Promise<Map<string, number>> {
+  const periods = Array.from(
+    new Set(rows.map((r) => r.period).filter((p): p is string => !!p))
+  );
+  const mapsByPeriod = new Map<string, Map<string, number>>();
+  for (const p of periods) {
+    mapsByPeriod.set(p, await getDeductionMapForPeriod(p, "satcom"));
+  }
+  const out = new Map<string, number>();
+  for (const r of rows) {
+    if (r.totalGib == null || !r.period) continue;
+    const dedGb = mapsByPeriod.get(r.period)?.get(r.kitNo) ?? 0;
+    if (dedGb <= 0) continue;
+    out.set(r.kitNo, applyDeduction(r.totalGib, dedGb / 1.073741824));
+  }
+  return out;
+}
 
 // Satcom `active_plan_name` (CardDetails enrichment) içinden kota tahmini.
 // Plan adları "Mobile Priority 1TB Pooling Plan_TURKEY", "StellaKonnect 50GB"
@@ -109,7 +137,7 @@ router.get("/station/kits", requireAuth, async (req: AuthRequest, res): Promise<
     LEFT JOIN station_credentials c ON c.id = k.credential_id
     ${where}
   `);
-  const list = (
+  const rawRows = (
     rows as unknown as {
       rows: Array<{
         kitNo: string;
@@ -123,8 +151,15 @@ router.get("/station/kits", requireAuth, async (req: AuthRequest, res): Promise<
         manualPlanGb: number | null;
       }>;
     }
-  ).rows.map((r) => ({
+  ).rows;
+  // Task #37: gemi internet satışı kota düşümü — ham totalGib'den efektif
+  // değere geçiş, listenin geri kalanı (sıralama, rozetler) bu üzerinden çalışır.
+  const deductedGib = await deductGibForKitsBySatcomPeriod(
+    rawRows.map((r) => ({ kitNo: r.kitNo, period: r.lastPeriod, totalGib: r.totalGib }))
+  );
+  const list = rawRows.map((r) => ({
     ...r,
+    totalGib: deductedGib.get(r.kitNo) ?? r.totalGib,
     planAllowanceGb: r.manualPlanGb ?? parseSatcomPlanAllowanceGb(r.activePlanName),
     // Postgres `timestamp` (timezone'suz) raw SQL'de Z'siz string döner.
     // Drizzle ORM yolu (kit-detail) Date → ISO+Z üretiyor; tutarlı olmak için
@@ -233,11 +268,24 @@ router.get("/station/kits/:kitNo", requireAuth, async (req: AuthRequest, res): P
   const manualPlanGb = kitMeta?.manualPlanGb ?? null;
   const planAllowanceGb = manualPlanGb ?? autoPlanGb;
 
+  // Task #37: gemi internet satışı kota düşümü — bu KIT'in dönemine ait
+  // ham GiB'den (varsa) düşüm uygulanır; UI ham/efektif ayrımını
+  // `deductionGb` alanıyla gösterebilir.
+  let effectiveTotalGib = latest?.totalGib ?? null;
+  let deductionGb = 0;
+  if (latest?.totalGib != null && latest.period) {
+    deductionGb = await getDeductionForKit(latest.period, "satcom", kitNo);
+    if (deductionGb > 0) {
+      effectiveTotalGib = applyDeduction(latest.totalGib, deductionGb / 1.073741824);
+    }
+  }
+
   res.json({
     kitNo,
     shipName: kitMeta?.shipName ?? null,
     currentPeriod: latest?.period ?? null,
-    totalGib: latest?.totalGib ?? null,
+    totalGib: effectiveTotalGib,
+    deductionGb: deductionGb > 0 ? deductionGb : null,
     totalUsd: latest?.totalUsd ?? null,
     rowCount: latest?.rowCount ?? 0,
     lastSyncedAt: latest?.scrapedAt ?? null,
@@ -814,7 +862,25 @@ router.get("/station/kits/:kitNo/monthly", requireAuth, async (req: AuthRequest,
     .from(stationKitPeriodTotal)
     .where(eq(stationKitPeriodTotal.kitNo, kitNo))
     .orderBy(desc(stationKitPeriodTotal.period));
-  res.json(months);
+
+  // Task #37: her dönem satırına o dönemin gemi kota düşümü uygulanır —
+  // header'daki efektif değerle aylık tablo tutarlı olsun diye.
+  const dedByPeriod = await getDeductionsByPeriodForKit(
+    months.map((m) => m.period),
+    "satcom",
+    kitNo
+  );
+  const effectiveMonths = months.map((m) => {
+    const dedGb = dedByPeriod.get(m.period) ?? 0;
+    return {
+      ...m,
+      totalGib:
+        m.totalGib != null && dedGb > 0
+          ? applyDeduction(m.totalGib, dedGb / 1.073741824)
+          : m.totalGib,
+    };
+  });
+  res.json(effectiveMonths);
 });
 
 // --- /station/summary — dashboard KPI'ları (aktif period bazlı) ---
@@ -842,17 +908,26 @@ router.get("/station/summary", requireAuth, async (req: AuthRequest, res): Promi
         ? and(baseWhere, inArray(stationKitPeriodTotal.kitNo, scope))
         : sql`false`
       : baseWhere;
-    const [agg] = await db
+    // Task #37: gemi internet satışı kota düşümü — düşüm her KIT'e ayrı ayrı
+    // uygulanıp (0'da taban) SONRA toplanır; ham toplamdan tek seferde
+    // düşümler toplamını çıkarmak, tek bir KIT'in düşümü kendi ham
+    // kullanımını aşınca yanlış (fazla düşük) bir filo toplamı üretirdi.
+    const periodRows = await db
       .select({
-        kitCount: count(),
-        gib: sql<number>`COALESCE(SUM(${stationKitPeriodTotal.totalGib}), 0)`.mapWith(Number),
-        usd: sql<number>`COALESCE(SUM(${stationKitPeriodTotal.totalUsd}), 0)`.mapWith(Number),
+        kitNo: stationKitPeriodTotal.kitNo,
+        gib: stationKitPeriodTotal.totalGib,
+        usd: stationKitPeriodTotal.totalUsd,
       })
       .from(stationKitPeriodTotal)
       .where(where as never);
-    totalKits = Number(agg?.kitCount ?? 0);
-    totalGib = Number(agg?.gib ?? 0);
-    totalUsd = Number(agg?.usd ?? 0);
+    const dedMap = await getDeductionMapForPeriod(activePeriod, "satcom");
+    totalKits = periodRows.length;
+    totalGib = periodRows.reduce((sum, r) => {
+      const dedGb = dedMap.get(r.kitNo) ?? 0;
+      const gib = r.gib ?? 0;
+      return sum + (dedGb > 0 ? applyDeduction(gib, dedGb / 1.073741824) : gib);
+    }, 0);
+    totalUsd = periodRows.reduce((sum, r) => sum + (r.usd ?? 0), 0);
   }
 
   // Operatör sync sağlığı sadece operatörlere gösterilir; customer'a yalnızca

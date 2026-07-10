@@ -22,6 +22,12 @@ import {
 } from "../lib/starlink-sync";
 import * as progress from "../lib/sync-progress";
 import { getAssignedKits, isCustomer } from "../lib/customer-scope";
+import {
+  applyDeduction,
+  getDeductionForKit,
+  getDeductionMapForPeriod,
+  getDeductionsByPeriodForKit,
+} from "../lib/ship-quota";
 
 const DEFAULT_STARLINK_BASE_URL = "https://starlink.tototheo.com";
 
@@ -487,14 +493,24 @@ router.get("/starlink/terminals", requireAuth, async (req: AuthRequest, res): Pr
     ${where}
     ORDER BY COALESCE(p.total_gb, 0) DESC
   `);
+  // Task #37: gemi internet satışı kota düşümü — GB-native Starlink verisinde
+  // GiB dönüşümü gerekmez, düşüm doğrudan currentPeriodTotalGb'den çıkarılır.
+  const dedMap = await getDeductionMapForPeriod(period, "starlink");
   res.json(
     (rows as unknown as { rows: Array<Record<string, unknown>> }).rows.map(
-      (r) => ({
-        ...r,
-        lastFixAt: toIso(r.lastFixAt),
-        lastSeenAt: toIso(r.lastSeenAt),
-        updatedAt: toIso(r.updatedAt),
-      })
+      (r) => {
+        const kitNo = String(r.kitSerialNumber);
+        const dedGb = dedMap.get(kitNo) ?? 0;
+        const rawGb = r.currentPeriodTotalGb as number | null;
+        return {
+          ...r,
+          currentPeriodTotalGb:
+            dedGb > 0 && rawGb != null ? applyDeduction(rawGb, dedGb) : rawGb,
+          lastFixAt: toIso(r.lastFixAt),
+          lastSeenAt: toIso(r.lastSeenAt),
+          updatedAt: toIso(r.updatedAt),
+        };
+      }
     )
   );
 });
@@ -537,6 +553,16 @@ router.get(
       .from(starlinkCredentials)
       .where(eq(starlinkCredentials.id, t.credentialId))
       .limit(1);
+    // Task #37: gemi internet satışı kota düşümü — GB-native değerden direkt çıkarılır.
+    const currentPeriodForDeduction = currentPt?.period ?? period;
+    const deductionGb =
+      currentPt?.totalGb != null
+        ? await getDeductionForKit(currentPeriodForDeduction, "starlink", kit)
+        : 0;
+    const effectiveCurrentPeriodTotalGb =
+      currentPt?.totalGb != null && deductionGb > 0
+        ? applyDeduction(currentPt.totalGb, deductionGb)
+        : (currentPt?.totalGb ?? null);
     res.json({
       kitSerialNumber: t.kitSerialNumber,
       nickname: t.nickname,
@@ -562,7 +588,8 @@ router.get(
       pingDropRate: t.pingDropRate,
       updatedAt: t.updatedAt.toISOString(),
       currentPeriod: currentPt?.period ?? period,
-      currentPeriodTotalGb: currentPt?.totalGb ?? null,
+      currentPeriodTotalGb: effectiveCurrentPeriodTotalGb,
+      deductionGb: deductionGb > 0 ? deductionGb : null,
       currentPeriodPackageGb: currentPt?.packageUsageGb ?? null,
       currentPeriodPriorityGb: currentPt?.priorityGb ?? null,
       currentPeriodOverageGb: currentPt?.overageGb ?? null,
@@ -697,11 +724,25 @@ router.get(
       .from(starlinkTerminalPeriodTotal)
       .where(eq(starlinkTerminalPeriodTotal.kitSerialNumber, kit))
       .orderBy(desc(starlinkTerminalPeriodTotal.period));
+    // Task #37: her dönem satırına o dönemin gemi kota düşümü uygulanır —
+    // header'daki efektif değerle aylık tablo tutarlı olsun diye.
+    const dedByPeriod = await getDeductionsByPeriodForKit(
+      months.map((m) => m.period),
+      "starlink",
+      kit
+    );
     res.json(
-      months.map((m) => ({
-        ...m,
-        scrapedAt: m.scrapedAt ? m.scrapedAt.toISOString() : null,
-      }))
+      months.map((m) => {
+        const dedGb = dedByPeriod.get(m.period) ?? 0;
+        return {
+          ...m,
+          totalGb:
+            m.totalGb != null && dedGb > 0
+              ? applyDeduction(m.totalGb, dedGb)
+              : m.totalGb,
+          scrapedAt: m.scrapedAt ? m.scrapedAt.toISOString() : null,
+        };
+      })
     );
   }
 );

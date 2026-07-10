@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
-import { Server, Mail, AlertTriangle, Satellite, Globe, MessageCircle, Clock } from "lucide-react";
+import { Server, Mail, AlertTriangle, Satellite, Globe, MessageCircle, Clock, Ship } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
 const TABS = [
@@ -9,6 +9,7 @@ const TABS = [
   { href: "/settings/norway", label: "NORWAY", icon: Globe },
   { href: "/settings/email", label: "E-posta & Alarmlar", icon: Mail },
   { href: "/settings/whatsapp", label: "WhatsApp", icon: MessageCircle },
+  { href: "/settings/ship-quotas", label: "Gemi Kota Düşümü", icon: Ship },
   { href: "/settings/scheduler", label: "Zamanlayıcı", icon: Clock },
   { href: "/settings/danger", label: "Tehlike Bölgesi", icon: AlertTriangle },
 ];

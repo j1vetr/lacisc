@@ -26,6 +26,12 @@ import {
   finishCombinedRun,
   isRunning as isAnySyncRunning,
 } from "../lib/sync-progress";
+import {
+  applyDeduction,
+  getDeductionForKit,
+  getDeductionMapForPeriod,
+  getDeductionsByPeriodForKit,
+} from "../lib/ship-quota";
 
 const DEFAULT_LEOBRIDGE_PORTAL_URL = "https://leobridge.spacenorway.com";
 
@@ -529,22 +535,44 @@ router.get(
         }
       }
     }
+    // Task #37: gemi internet satışı kota düşümü — her KIT kendi (en son)
+    // döneminden düşülür; farklı KIT'ler farklı dönemlerde olabileceğinden
+    // dönem başına tek seferlik map fetch edilip tüm satırlarda paylaşılır.
+    const periodsNeeded = Array.from(
+      new Set(
+        Array.from(totals.values())
+          .map((v) => v.period)
+          .filter((p): p is string => !!p),
+      ),
+    );
+    const dedMapsByPeriod = new Map<string, Map<string, number>>();
+    for (const p of periodsNeeded) {
+      dedMapsByPeriod.set(p, await getDeductionMapForPeriod(p, "leobridge"));
+    }
     res.json(
-      filtered.map((r) => ({
-        kitSerialNumber: r.kitSerialNumber,
-        serviceLineNumber: r.serviceLineNumber,
-        nickname: r.nickname,
-        addressLabel: r.addressLabel,
-        lat: r.lat,
-        lng: r.lng,
-        isOnline: r.isOnline,
-        lastSeenAt: r.lastSeenAt ? r.lastSeenAt.toISOString() : null,
-        updatedAt: r.updatedAt.toISOString(),
-        currentPeriod: totals.get(r.kitSerialNumber)?.period ?? null,
-        currentPeriodTotalGb: totals.get(r.kitSerialNumber)?.totalGb ?? null,
-        planAllowanceGb: r.planAllowanceGb ?? null,
-        manualPlanGb: r.manualPlanGb ?? null,
-      })),
+      filtered.map((r) => {
+        const total = totals.get(r.kitSerialNumber);
+        const dedGb = total?.period
+          ? (dedMapsByPeriod.get(total.period)?.get(r.kitSerialNumber) ?? 0)
+          : 0;
+        const rawGb = total?.totalGb ?? null;
+        return {
+          kitSerialNumber: r.kitSerialNumber,
+          serviceLineNumber: r.serviceLineNumber,
+          nickname: r.nickname,
+          addressLabel: r.addressLabel,
+          lat: r.lat,
+          lng: r.lng,
+          isOnline: r.isOnline,
+          lastSeenAt: r.lastSeenAt ? r.lastSeenAt.toISOString() : null,
+          updatedAt: r.updatedAt.toISOString(),
+          currentPeriod: total?.period ?? null,
+          currentPeriodTotalGb:
+            dedGb > 0 && rawGb != null ? applyDeduction(rawGb, dedGb) : rawGb,
+          planAllowanceGb: r.planAllowanceGb ?? null,
+          manualPlanGb: r.manualPlanGb ?? null,
+        };
+      }),
     );
   },
 );
@@ -599,6 +627,15 @@ router.get(
       .from(leobridgeCredentials)
       .where(eq(leobridgeCredentials.id, row.credentialId))
       .limit(1);
+    // Task #37: gemi internet satışı kota düşümü — GB-native değerden direkt çıkarılır.
+    const deductionGb =
+      latest?.totalGb != null && latest.period
+        ? await getDeductionForKit(latest.period, "leobridge", kit)
+        : 0;
+    const effectiveCurrentPeriodTotalGb =
+      latest?.totalGb != null && deductionGb > 0
+        ? applyDeduction(latest.totalGb, deductionGb)
+        : (latest?.totalGb ?? null);
     res.json({
       kitSerialNumber: row.kitSerialNumber,
       serviceLineNumber: row.serviceLineNumber,
@@ -610,7 +647,8 @@ router.get(
       lastSeenAt: row.lastSeenAt ? row.lastSeenAt.toISOString() : null,
       updatedAt: row.updatedAt.toISOString(),
       currentPeriod: latest?.period ?? null,
-      currentPeriodTotalGb: latest?.totalGb ?? null,
+      currentPeriodTotalGb: effectiveCurrentPeriodTotalGb,
+      deductionGb: deductionGb > 0 ? deductionGb : null,
       currentPeriodPriorityGb: latest?.priorityGb ?? null,
       currentPeriodStandardGb: latest?.standardGb ?? null,
       planAllowanceGb: row.manualPlanGb ?? row.planAllowanceGb ?? null,
@@ -736,14 +774,27 @@ router.get(
             AND ${leobridgeTerminalPeriodTotal.credentialId} = ${credentialId}`,
       )
       .orderBy(desc(leobridgeTerminalPeriodTotal.period));
+    // Task #37: her dönem satırına o dönemin gemi kota düşümü uygulanır —
+    // header'daki efektif değerle aylık tablo tutarlı olsun diye.
+    const dedByPeriod = await getDeductionsByPeriodForKit(
+      rows.map((r) => r.period),
+      "leobridge",
+      kit,
+    );
     res.json(
-      rows.map((r) => ({
-        period: r.period,
-        totalGb: r.totalGb,
-        priorityGb: r.priorityGb,
-        standardGb: r.standardGb,
-        scrapedAt: r.scrapedAt ? r.scrapedAt.toISOString() : null,
-      })),
+      rows.map((r) => {
+        const dedGb = dedByPeriod.get(r.period) ?? 0;
+        return {
+          period: r.period,
+          totalGb:
+            r.totalGb != null && dedGb > 0
+              ? applyDeduction(r.totalGb, dedGb)
+              : r.totalGb,
+          priorityGb: r.priorityGb,
+          standardGb: r.standardGb,
+          scrapedAt: r.scrapedAt ? r.scrapedAt.toISOString() : null,
+        };
+      }),
     );
   },
 );

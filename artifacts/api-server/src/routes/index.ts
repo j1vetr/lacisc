@@ -11,6 +11,7 @@ import leobridgeRouter from "./leobridge";
 import whatsappRouter from "./whatsapp";
 import schedulerRouter from "./scheduler";
 import clientErrorsRouter from "./client-errors";
+import shipQuotaRouter from "./ship-quota";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(leobridgeRouter);
 router.use(whatsappRouter);
 router.use(schedulerRouter);
 router.use(clientErrorsRouter);
+router.use(shipQuotaRouter);
 
 export default router;

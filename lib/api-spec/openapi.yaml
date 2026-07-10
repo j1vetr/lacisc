@@ -521,6 +521,95 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/MessageResponse" }
 
+  # ---------------------------------------------------------------------------
+  # Gemi internet satışı kota düşümü (Task #37)
+  # ---------------------------------------------------------------------------
+  /ship-quotas/settings:
+    get:
+      operationId: getShipQuotaSettings
+      x-required-role: admin
+      tags: [ship-quota]
+      summary: Gemi internet satışı kota düşümü yapılandırması.
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ShipQuotaSettings" }
+    patch:
+      operationId: updateShipQuotaSettings
+      x-required-role: admin
+      tags: [ship-quota]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ShipQuotaSettingsUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ShipQuotaSettings" }
+
+  /ship-quotas/sync:
+    post:
+      operationId: syncShipQuotasNow
+      x-required-role: admin
+      tags: [ship-quota]
+      summary: Harici adegloba API'sinden gemi kotalarını hemen senkronize eder.
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200":
+          description: Sync sonucu
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ShipQuotaSyncResult" }
+
+  /ship-quotas/deductions:
+    get:
+      operationId: listShipQuotaDeductions
+      x-required-role: admin
+      tags: [ship-quota]
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      parameters:
+        - name: period
+          in: query
+          required: false
+          schema: { type: string, pattern: "^\\d{6}$" }
+          description: "YYYYMM — verilmezse tüm dönemler döner."
+      responses:
+        "200":
+          description: Eşleşme/düşüm satırları
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ShipQuotaDeduction" }
+
+  /ship-quotas/deductions/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    patch:
+      operationId: updateShipQuotaDeduction
+      x-required-role: admin
+      tags: [ship-quota]
+      summary: Otomatik eşleşmeyi manuel olarak düzeltir veya satırı devre dışı bırakır.
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ShipQuotaDeductionUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ShipQuotaDeduction" }
+
   /scheduler/settings:
     get:
       operationId: getSchedulerSettings
@@ -2397,6 +2486,10 @@ components:
           type: number
           nullable: true
           description: "Manuel kota override (GB). null = override yok, otomatik API değeri kullanılır."
+        deductionGb:
+          type: number
+          nullable: true
+          description: "Bu dönem için gemi internet satışı kota düşümü (GB). null = düşüm yok/etkin değil."
         ipv4: { type: string, nullable: true }
         optIn: { type: boolean, nullable: true }
         pingDropRate: { type: number, nullable: true }
@@ -2559,6 +2652,10 @@ components:
           type: number
           nullable: true
           description: "Manuel kota override (GB). null = override yok, otomatik API değeri kullanılır."
+        deductionGb:
+          type: number
+          nullable: true
+          description: "Bu dönem için gemi internet satışı kota düşümü (GB). null = düşüm yok/etkin değil."
         accountId: { type: integer, nullable: true }
         accountLabel: { type: string, nullable: true }
 
@@ -2690,6 +2787,82 @@ components:
           description: "Plan kotası alt sınırı (decimal GB, > 0). Catchall (null) artık desteklenmez; plan bilinmiyorsa e-posta fallback eşiği kullanılır."
         stepGb: { type: number, minimum: 1 }
 
+    ShipQuotaSource:
+      type: string
+      enum: [satcom, starlink, leobridge]
+
+    ShipQuotaSettings:
+      type: object
+      required: [enabled, hasApiKey, lastSyncStatus, updatedAt]
+      properties:
+        enabled: { type: boolean }
+        hasApiKey: { type: boolean, description: "true → kayıtlı API anahtarı var (gerçek değer dönmez)" }
+        lastSyncAt: { type: string, format: date-time, nullable: true }
+        lastSyncStatus: { type: string, nullable: true, enum: [success, failed, null] }
+        lastErrorMessage: { type: string, nullable: true }
+        lastPeriod: { type: string, nullable: true, description: "YYYYMM — en son başarılı senkronun dönemi." }
+        updatedAt: { type: string, format: date-time }
+
+    ShipQuotaSettingsUpdate:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        apiKey:
+          type: string
+          nullable: true
+          description: "undefined → değişmez, '' veya null → temizler, dolu → yeni anahtar."
+
+    ShipQuotaSyncResult:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+        period: { type: string, nullable: true }
+        matched: { type: integer, nullable: true }
+        unmatched: { type: integer, nullable: true }
+        error: { type: string, nullable: true }
+
+    ShipQuotaDeduction:
+      type: object
+      required:
+        - id
+        - period
+        - externalShipName
+        - externalKitNumber
+        - apiTotalGb
+        - matchMethod
+        - effectiveGb
+        - isActive
+        - updatedAt
+      properties:
+        id: { type: integer }
+        period: { type: string, description: "YYYYMM" }
+        externalShipName: { type: string }
+        externalKitNumber: { type: string }
+        apiTotalGb: { type: number }
+        matchedSource: { allOf: [{ $ref: "#/components/schemas/ShipQuotaSource" }], nullable: true }
+        matchedKitNo: { type: string, nullable: true }
+        matchMethod: { type: string, enum: [kit, ship_name, none] }
+        manualSource: { allOf: [{ $ref: "#/components/schemas/ShipQuotaSource" }], nullable: true }
+        manualKitNo: { type: string, nullable: true }
+        manualGb: { type: number, nullable: true }
+        effectiveSource: { allOf: [{ $ref: "#/components/schemas/ShipQuotaSource" }], nullable: true }
+        effectiveKitNo: { type: string, nullable: true }
+        effectiveGb: { type: number, description: "manualGb ?? apiTotalGb — düşüm hesaplarında kullanılan değer." }
+        isActive: { type: boolean }
+        updatedAt: { type: string, format: date-time }
+
+    ShipQuotaDeductionUpdate:
+      type: object
+      properties:
+        isActive: { type: boolean }
+        manualSource:
+          allOf: [{ $ref: "#/components/schemas/ShipQuotaSource" }]
+          nullable: true
+          description: "null → otomatik eşleşmeye dön, undefined → değişmez."
+        manualKitNo: { type: string, nullable: true }
+        manualGb: { type: number, minimum: 0, nullable: true }
+
     EmailSettings:
       type: object
       required:
@@ -2789,6 +2962,10 @@ components:
           type: number
           nullable: true
           description: "Manuel kota override (GB). null = override yok, otomatik plan-parse değeri kullanılır."
+        deductionGb:
+          type: number
+          nullable: true
+          description: "Bu dönem için gemi internet satışı kota düşümü (GB). null = düşüm yok/etkin değil."
         lastSessionStart: { type: string, format: date-time, nullable: true }
         lastSessionEnd: { type: string, format: date-time, nullable: true }
         lastSessionActive: { type: boolean, nullable: true }

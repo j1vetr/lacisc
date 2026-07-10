@@ -483,6 +483,138 @@ export const DeleteWhatsappThresholdRuleResponse = zod.object({
 });
 
 /**
+ * @summary Gemi internet satışı kota düşümü yapılandırması.
+ */
+export const GetShipQuotaSettingsResponse = zod.object({
+  enabled: zod.boolean(),
+  hasApiKey: zod
+    .boolean()
+    .describe("true → kayıtlı API anahtarı var (gerçek değer dönmez)"),
+  lastSyncAt: zod.coerce.date().nullish(),
+  lastSyncStatus: zod
+    .union([zod.literal("success"), zod.literal("failed"), zod.literal(null)])
+    .nullable(),
+  lastErrorMessage: zod.string().nullish(),
+  lastPeriod: zod
+    .string()
+    .nullish()
+    .describe("YYYYMM — en son başarılı senkronun dönemi."),
+  updatedAt: zod.coerce.date(),
+});
+
+export const UpdateShipQuotaSettingsBody = zod.object({
+  enabled: zod.boolean().optional(),
+  apiKey: zod
+    .string()
+    .nullish()
+    .describe(
+      "undefined → değişmez, '' veya null → temizler, dolu → yeni anahtar.",
+    ),
+});
+
+export const UpdateShipQuotaSettingsResponse = zod.object({
+  enabled: zod.boolean(),
+  hasApiKey: zod
+    .boolean()
+    .describe("true → kayıtlı API anahtarı var (gerçek değer dönmez)"),
+  lastSyncAt: zod.coerce.date().nullish(),
+  lastSyncStatus: zod
+    .union([zod.literal("success"), zod.literal("failed"), zod.literal(null)])
+    .nullable(),
+  lastErrorMessage: zod.string().nullish(),
+  lastPeriod: zod
+    .string()
+    .nullish()
+    .describe("YYYYMM — en son başarılı senkronun dönemi."),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Harici adegloba API'sinden gemi kotalarını hemen senkronize eder.
+ */
+export const SyncShipQuotasNowResponse = zod.object({
+  ok: zod.boolean(),
+  period: zod.string().nullish(),
+  matched: zod.number().nullish(),
+  unmatched: zod.number().nullish(),
+  error: zod.string().nullish(),
+});
+
+export const listShipQuotaDeductionsQueryPeriodRegExp = new RegExp("^\\d{6}$");
+
+export const ListShipQuotaDeductionsQueryParams = zod.object({
+  period: zod.coerce
+    .string()
+    .regex(listShipQuotaDeductionsQueryPeriodRegExp)
+    .optional()
+    .describe("YYYYMM — verilmezse tüm dönemler döner."),
+});
+
+export const ListShipQuotaDeductionsResponseItem = zod.object({
+  id: zod.number(),
+  period: zod.string().describe("YYYYMM"),
+  externalShipName: zod.string(),
+  externalKitNumber: zod.string(),
+  apiTotalGb: zod.number(),
+  matchedSource: zod.enum(["satcom", "starlink", "leobridge"]).nullish(),
+  matchedKitNo: zod.string().nullish(),
+  matchMethod: zod.enum(["kit", "ship_name", "none"]),
+  manualSource: zod.enum(["satcom", "starlink", "leobridge"]).nullish(),
+  manualKitNo: zod.string().nullish(),
+  manualGb: zod.number().nullish(),
+  effectiveSource: zod.enum(["satcom", "starlink", "leobridge"]).nullish(),
+  effectiveKitNo: zod.string().nullish(),
+  effectiveGb: zod
+    .number()
+    .describe("manualGb ?? apiTotalGb — düşüm hesaplarında kullanılan değer."),
+  isActive: zod.boolean(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListShipQuotaDeductionsResponse = zod.array(
+  ListShipQuotaDeductionsResponseItem,
+);
+
+/**
+ * @summary Otomatik eşleşmeyi manuel olarak düzeltir veya satırı devre dışı bırakır.
+ */
+export const UpdateShipQuotaDeductionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const updateShipQuotaDeductionBodyManualGbMin = 0;
+
+export const UpdateShipQuotaDeductionBody = zod.object({
+  isActive: zod.boolean().optional(),
+  manualSource: zod
+    .enum(["satcom", "starlink", "leobridge"])
+    .nullish()
+    .describe("null → otomatik eşleşmeye dön, undefined → değişmez."),
+  manualKitNo: zod.string().nullish(),
+  manualGb: zod.number().min(updateShipQuotaDeductionBodyManualGbMin).nullish(),
+});
+
+export const UpdateShipQuotaDeductionResponse = zod.object({
+  id: zod.number(),
+  period: zod.string().describe("YYYYMM"),
+  externalShipName: zod.string(),
+  externalKitNumber: zod.string(),
+  apiTotalGb: zod.number(),
+  matchedSource: zod.enum(["satcom", "starlink", "leobridge"]).nullish(),
+  matchedKitNo: zod.string().nullish(),
+  matchMethod: zod.enum(["kit", "ship_name", "none"]),
+  manualSource: zod.enum(["satcom", "starlink", "leobridge"]).nullish(),
+  manualKitNo: zod.string().nullish(),
+  manualGb: zod.number().nullish(),
+  effectiveSource: zod.enum(["satcom", "starlink", "leobridge"]).nullish(),
+  effectiveKitNo: zod.string().nullish(),
+  effectiveGb: zod
+    .number()
+    .describe("manualGb ?? apiTotalGb — düşüm hesaplarında kullanılan değer."),
+  isActive: zod.boolean(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
  * @summary Cron senkronizasyon zamanlayıcı ayarları + canlı durum.
  */
 export const getSchedulerSettingsResponseIntervalMinutesMin = 15;
@@ -708,6 +840,12 @@ export const GetKitDetailResponse = zod.object({
     .nullish()
     .describe(
       "Manuel kota override (GB). null = override yok, otomatik plan-parse değeri kullanılır.",
+    ),
+  deductionGb: zod
+    .number()
+    .nullish()
+    .describe(
+      "Bu dönem için gemi internet satışı kota düşümü (GB). null = düşüm yok\/etkin değil.",
     ),
   lastSessionStart: zod.coerce.date().nullish(),
   lastSessionEnd: zod.coerce.date().nullish(),
@@ -1144,6 +1282,12 @@ export const GetStarlinkTerminalDetailResponse = zod.object({
     .describe(
       "Manuel kota override (GB). null = override yok, otomatik API değeri kullanılır.",
     ),
+  deductionGb: zod
+    .number()
+    .nullish()
+    .describe(
+      "Bu dönem için gemi internet satışı kota düşümü (GB). null = düşüm yok\/etkin değil.",
+    ),
   ipv4: zod.string().nullish(),
   optIn: zod.boolean().nullish(),
   pingDropRate: zod.number().nullish(),
@@ -1441,6 +1585,12 @@ export const GetLeobridgeTerminalDetailResponse = zod.object({
     .nullish()
     .describe(
       "Manuel kota override (GB). null = override yok, otomatik API değeri kullanılır.",
+    ),
+  deductionGb: zod
+    .number()
+    .nullish()
+    .describe(
+      "Bu dönem için gemi internet satışı kota düşümü (GB). null = düşüm yok\/etkin değil.",
     ),
   accountId: zod.number().nullish(),
   accountLabel: zod.string().nullish(),

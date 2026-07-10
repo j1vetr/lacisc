@@ -826,3 +826,63 @@ export const schedulerSettings = pgTable("scheduler_settings", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 export type SchedulerSettings = typeof schedulerSettings.$inferSelect;
+
+// ---------------------------------------------------------------------------
+// Gemi internet satışı kota düşümü (Task #37)
+// ---------------------------------------------------------------------------
+// Bazı gemiler bant genişliğini üçüncü taraflara yeniden satıyor — bu hacim
+// adegloba ship-quotas API'sinden aylık toplam olarak gelir ve ham kullanımdan
+// düşülüp "efektif" değer her yerde (dashboard/liste/detay/alarm) gösterilir.
+
+// Singleton (id=1). Endpoint URL BİLEREK hardcoded constant (bkz. ship-quota.ts
+// DEFAULT_SHIP_QUOTA_ENDPOINT) — whatsapp allowlist önceliğiyle aynı: kullanıcı
+// tarafından değiştirilemez, SSRF riski taşımaz.
+export const shipQuotaSettings = pgTable("ship_quota_settings", {
+  id: integer("id").primaryKey(),
+  enabled: boolean("enabled").default(false).notNull(),
+  apiKeyEncrypted: text("api_key_encrypted"),
+  lastSyncAt: timestamp("last_sync_at"),
+  lastSyncStatus: text("last_sync_status"), // 'success' | 'failed'
+  lastErrorMessage: text("last_error_message"),
+  lastPeriod: text("last_period"), // YYYYMM — en son senkronize edilen dönem
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export type ShipQuotaSettings = typeof shipQuotaSettings.$inferSelect;
+
+// Harici API'den senkronize edilen gemi başına yeniden-satış düşümü. Her
+// (period, externalKitNumber, externalShipName) kombinasyonu için tek satır —
+// externalKitNumber boş string olabilir (NULL değil — unique index NULL'ları
+// birbirinden farklı satır sayar ve upsert'i bozar).
+//
+// matchedSource/matchedKitNo = otomatik eşleşme sonucu (re-sync'te güncellenir).
+// manualSource/manualKitNo/manualGb = admin düzeltmesi — re-sync ASLA ezmez.
+// Efektif kaynak/KIT/GB = manual* ?? matched*/apiTotalGb (bkz. ship-quota.ts
+// getDeductionMapForPeriod).
+export const shipQuotaDeductions = pgTable(
+  "ship_quota_deductions",
+  {
+    id: serial("id").primaryKey(),
+    period: text("period").notNull(), // YYYYMM
+    externalShipName: text("external_ship_name").notNull(),
+    externalKitNumber: text("external_kit_number").notNull().default(""),
+    apiTotalGb: doublePrecision("api_total_gb").notNull(),
+    matchedSource: text("matched_source"), // 'satcom' | 'starlink' | 'leobridge' | null
+    matchedKitNo: text("matched_kit_no"),
+    matchMethod: text("match_method").notNull().default("none"), // 'kit' | 'ship_name' | 'none'
+    manualSource: text("manual_source"),
+    manualKitNo: text("manual_kit_no"),
+    manualGb: doublePrecision("manual_gb"),
+    isActive: boolean("is_active").default(true).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("ship_quota_deductions_period_kit_ship_idx").on(
+      t.period,
+      t.externalKitNumber,
+      t.externalShipName
+    ),
+    index("ship_quota_deductions_period_idx").on(t.period),
+  ]
+);
+export type ShipQuotaDeduction = typeof shipQuotaDeductions.$inferSelect;

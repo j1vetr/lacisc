@@ -27,6 +27,7 @@ import {
 } from "@workspace/db";
 import { decrypt, encrypt } from "./crypto";
 import { logger } from "./logger";
+import { applyDeduction, getDeductionForKit } from "./ship-quota";
 
 // ---------------------------------------------------------------------------
 // Settings (singleton id=1)
@@ -825,7 +826,12 @@ export async function maybeFireWhatsappAlert(opts: {
     );
     if (!stepGb || stepGb < 1) return;
 
-    const crossedStep = Math.floor(opts.totalGb / stepGb) * stepGb;
+    // Task #37: gemi internet satışı kota düşümü — WhatsApp eşik karşılaştırması
+    // da efektif (düşülmüş) değer üzerinden yapılır.
+    const deductionGb = await getDeductionForKit(opts.period, opts.source, opts.kitNo);
+    const effectiveTotalGb = applyDeduction(opts.totalGb, deductionGb);
+
+    const crossedStep = Math.floor(effectiveTotalGb / stepGb) * stepGb;
     if (crossedStep <= 0) return;
 
     // Atomic claim: UPSERT + WHERE last < crossed garantisi.
@@ -843,7 +849,7 @@ export async function maybeFireWhatsappAlert(opts: {
       source: opts.source,
       kitNo: opts.kitNo,
       period: opts.period,
-      totalGb: opts.totalGb,
+      totalGb: effectiveTotalGb,
       planAllowanceGb: hasPlan ? (plan as number) : null,
       shipName: opts.shipName ?? null,
       crossedStep,

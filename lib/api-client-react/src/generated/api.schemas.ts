@@ -461,6 +461,8 @@ export interface StarlinkTerminalDetail {
   planAllowanceGb?: number | null;
   /** Manuel kota override (GB). null = override yok, otomatik API değeri kullanılır. */
   manualPlanGb?: number | null;
+  /** Bu dönem için gemi internet satışı kota düşümü (GB). null = düşüm yok/etkin değil. */
+  deductionGb?: number | null;
   ipv4?: string | null;
   optIn?: boolean | null;
   pingDropRate?: number | null;
@@ -586,6 +588,8 @@ export interface LeobridgeTerminalDetail {
   planAllowanceGb?: number | null;
   /** Manuel kota override (GB). null = override yok, otomatik API değeri kullanılır. */
   manualPlanGb?: number | null;
+  /** Bu dönem için gemi internet satışı kota düşümü (GB). null = düşüm yok/etkin değil. */
+  deductionGb?: number | null;
   accountId?: number | null;
   accountLabel?: string | null;
 }
@@ -696,6 +700,89 @@ export interface CreateWhatsappThresholdRuleBody {
   stepGb: number;
 }
 
+export type ShipQuotaSource =
+  (typeof ShipQuotaSource)[keyof typeof ShipQuotaSource];
+
+export const ShipQuotaSource = {
+  satcom: "satcom",
+  starlink: "starlink",
+  leobridge: "leobridge",
+} as const;
+
+export type ShipQuotaSettingsLastSyncStatus =
+  | (typeof ShipQuotaSettingsLastSyncStatus)[keyof typeof ShipQuotaSettingsLastSyncStatus]
+  | null;
+
+export const ShipQuotaSettingsLastSyncStatus = {
+  success: "success",
+  failed: "failed",
+} as const;
+
+export interface ShipQuotaSettings {
+  enabled: boolean;
+  /** true → kayıtlı API anahtarı var (gerçek değer dönmez) */
+  hasApiKey: boolean;
+  lastSyncAt?: string | null;
+  lastSyncStatus: ShipQuotaSettingsLastSyncStatus;
+  lastErrorMessage?: string | null;
+  /** YYYYMM — en son başarılı senkronun dönemi. */
+  lastPeriod?: string | null;
+  updatedAt: string;
+}
+
+export interface ShipQuotaSettingsUpdate {
+  enabled?: boolean;
+  /** undefined → değişmez, '' veya null → temizler, dolu → yeni anahtar. */
+  apiKey?: string | null;
+}
+
+export interface ShipQuotaSyncResult {
+  ok: boolean;
+  period?: string | null;
+  matched?: number | null;
+  unmatched?: number | null;
+  error?: string | null;
+}
+
+export type ShipQuotaDeductionMatchMethod =
+  (typeof ShipQuotaDeductionMatchMethod)[keyof typeof ShipQuotaDeductionMatchMethod];
+
+export const ShipQuotaDeductionMatchMethod = {
+  kit: "kit",
+  ship_name: "ship_name",
+  none: "none",
+} as const;
+
+export interface ShipQuotaDeduction {
+  id: number;
+  /** YYYYMM */
+  period: string;
+  externalShipName: string;
+  externalKitNumber: string;
+  apiTotalGb: number;
+  matchedSource?: ShipQuotaSource | null;
+  matchedKitNo?: string | null;
+  matchMethod: ShipQuotaDeductionMatchMethod;
+  manualSource?: ShipQuotaSource | null;
+  manualKitNo?: string | null;
+  manualGb?: number | null;
+  effectiveSource?: ShipQuotaSource | null;
+  effectiveKitNo?: string | null;
+  /** manualGb ?? apiTotalGb — düşüm hesaplarında kullanılan değer. */
+  effectiveGb: number;
+  isActive: boolean;
+  updatedAt: string;
+}
+
+export interface ShipQuotaDeductionUpdate {
+  isActive?: boolean;
+  /** null → otomatik eşleşmeye dön, undefined → değişmez. */
+  manualSource?: ShipQuotaSource | null;
+  manualKitNo?: string | null;
+  /** @minimum 0 */
+  manualGb?: number | null;
+}
+
 export interface EmailSettings {
   enabled: boolean;
   smtpHost?: string | null;
@@ -787,6 +874,8 @@ export interface KitDetail {
   planAllowanceGb?: number | null;
   /** Manuel kota override (GB). null = override yok, otomatik plan-parse değeri kullanılır. */
   manualPlanGb?: number | null;
+  /** Bu dönem için gemi internet satışı kota düşümü (GB). null = düşüm yok/etkin değil. */
+  deductionGb?: number | null;
   lastSessionStart?: string | null;
   lastSessionEnd?: string | null;
   lastSessionActive?: boolean | null;
@@ -945,6 +1034,14 @@ export type WipeStationDataParams = {
 
 export type TestWhatsappSettingsBody = {
   to?: string | null;
+};
+
+export type ListShipQuotaDeductionsParams = {
+  /**
+   * YYYYMM — verilmezse tüm dönemler döner.
+   * @pattern ^\d{6}$
+   */
+  period?: string;
 };
 
 export type TestEmailSettingsBody = {

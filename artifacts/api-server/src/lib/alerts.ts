@@ -9,6 +9,7 @@ import {
 import { decrypt } from "./crypto";
 import { logger } from "./logger";
 import { buildAlertEmail, buildTestEmail } from "./email-template";
+import { applyDeduction, getDeductionForKit } from "./ship-quota";
 
 // ---------------------------------------------------------------------------
 // Settings helpers (single-row id=1)
@@ -317,7 +318,11 @@ export async function checkAndSendUsageAlert(opts: {
     // Eşik artık GB cinsinden yorumlanır (UI birimi). Satcom totalGib → GB.
     // last_alert_threshold_gib column'unda da GB değeri saklanır (ad legacy).
     const step = Math.max(1, settings.thresholdStepGib);
-    const totalGb = opts.totalGib * 1.073741824;
+    const rawTotalGb = opts.totalGib * 1.073741824;
+    // Task #37: gemi internet satışı kota düşümü — alarm karşılaştırması
+    // efektif (düşülmüş) değer üzerinden yapılır, ham değer üzerinden değil.
+    const deductionGb = await getDeductionForKit(opts.period, "satcom", opts.kitNo);
+    const totalGb = applyDeduction(rawTotalGb, deductionGb);
     const crossedStep = Math.floor(totalGb / step) * step;
     if (crossedStep <= 0) return;
 
