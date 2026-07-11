@@ -7,6 +7,9 @@ import ru from "./resources/ru";
 import ar from "./resources/ar";
 import zh from "./resources/zh";
 import es from "./resources/es";
+import fr from "./resources/fr";
+import de from "./resources/de";
+import el from "./resources/el";
 
 // Strategy: Turkish source strings are used directly as translation KEYS
 // (t("Panel")), so Turkish needs no dictionary — i18next falls back to the
@@ -22,9 +25,12 @@ i18n
       ar: { translation: ar },
       zh: { translation: zh },
       es: { translation: es },
+      fr: { translation: fr },
+      de: { translation: de },
+      el: { translation: el },
     },
     fallbackLng: "tr",
-    supportedLngs: ["tr", "en", "ru", "ar", "zh", "es"],
+    supportedLngs: ["tr", "en", "ru", "ar", "zh", "es", "fr", "de", "el"],
     detection: {
       order: ["localStorage", "navigator"],
       caches: ["localStorage"],

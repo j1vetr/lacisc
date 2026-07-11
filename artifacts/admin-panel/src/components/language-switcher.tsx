@@ -8,6 +8,9 @@ import RU from "country-flag-icons/react/3x2/RU";
 import SA from "country-flag-icons/react/3x2/SA";
 import CN from "country-flag-icons/react/3x2/CN";
 import ES from "country-flag-icons/react/3x2/ES";
+import FR from "country-flag-icons/react/3x2/FR";
+import DE from "country-flag-icons/react/3x2/DE";
+import GR from "country-flag-icons/react/3x2/GR";
 
 import {
   DropdownMenu,
@@ -25,6 +28,9 @@ function FlagIcon({ code, className }: { code: string; className?: string }) {
     case "ar": return <SA {...props} />;
     case "zh": return <CN {...props} />;
     case "es": return <ES {...props} />;
+    case "fr": return <FR {...props} />;
+    case "de": return <DE {...props} />;
+    case "el": return <GR {...props} />;
     default:   return null;
   }
 }
