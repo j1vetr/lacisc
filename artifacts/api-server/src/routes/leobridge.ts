@@ -559,7 +559,8 @@ router.get(
         return {
           kitSerialNumber: r.kitSerialNumber,
           serviceLineNumber: r.serviceLineNumber,
-          nickname: r.nickname,
+          nickname: r.displayName ?? r.nickname,
+          displayName: r.displayName ?? null,
           addressLabel: r.addressLabel,
           lat: r.lat,
           lng: r.lng,
@@ -639,7 +640,8 @@ router.get(
     res.json({
       kitSerialNumber: row.kitSerialNumber,
       serviceLineNumber: row.serviceLineNumber,
-      nickname: row.nickname,
+      nickname: row.displayName ?? row.nickname,
+      displayName: row.displayName ?? null,
       addressLabel: row.addressLabel,
       lat: row.lat,
       lng: row.lng,
@@ -693,6 +695,35 @@ router.patch(
       return;
     }
     res.json({ kitSerialNumber: kit, manualPlanGb: value });
+  },
+);
+
+// PATCH /leobridge/terminals/:kit/display-name — manuel gemi adı override'ı kaydet / temizle.
+router.patch(
+  "/leobridge/terminals/:kit/display-name",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const kit = String(req.params.kit ?? "").trim();
+    if (!kit) {
+      res.status(400).json({ error: "Geçersiz KIT." });
+      return;
+    }
+    const raw = req.body?.displayName;
+    const value: string | null =
+      raw === null || raw === undefined || String(raw).trim() === ""
+        ? null
+        : String(raw).trim();
+    const updated = await db
+      .update(leobridgeTerminals)
+      .set({ displayName: value })
+      .where(eq(leobridgeTerminals.kitSerialNumber, kit))
+      .returning({ kit: leobridgeTerminals.kitSerialNumber });
+    if (updated.length === 0) {
+      res.status(404).json({ error: "Terminal bulunamadı." });
+      return;
+    }
+    res.json({ kitSerialNumber: kit, displayName: value });
   },
 );
 

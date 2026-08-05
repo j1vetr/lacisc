@@ -802,6 +802,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteStationKit
+      tags: [records]
+      summary: Tek bir Satcom KIT'ini tüm verisiyle siler (admin).
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: kitNo
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Silindi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "404":
+          description: KIT bulunamadı
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /station/kits/{kitNo}/manual-plan:
     patch:
@@ -829,6 +854,45 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ManualPlanResult"
+        "400":
+          description: Geçersiz değer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: KIT bulunamadı
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /station/kits/{kitNo}/display-name:
+    patch:
+      operationId: updateStationKitDisplayName
+      tags: [records]
+      summary: Satcom KIT için manuel gemi adı override'ı kaydet / temizle (admin).
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: kitNo
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DisplayNameUpdate"
+      responses:
+        "200":
+          description: Gemi adı güncellendi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DisplayNameResult"
         "400":
           description: Geçersiz değer
           content:
@@ -1353,6 +1417,45 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /starlink/terminals/{kit}/display-name:
+    patch:
+      operationId: updateStarlinkTerminalDisplayName
+      tags: [starlink]
+      summary: Starlink terminal için manuel gemi adı override'ı kaydet / temizle (admin).
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: kit
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DisplayNameUpdate"
+      responses:
+        "200":
+          description: Gemi adı güncellendi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DisplayNameResult"
+        "400":
+          description: Geçersiz değer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Terminal bulunamadı
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /starlink/terminals/{kit}/daily:
     get:
       operationId: getStarlinkTerminalDaily
@@ -1685,6 +1788,45 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ManualPlanResult"
+        "400":
+          description: Geçersiz değer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Terminal bulunamadı
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /leobridge/terminals/{kit}/display-name:
+    patch:
+      operationId: updateLeobridgeTerminalDisplayName
+      tags: [leobridge]
+      summary: Norway terminal için manuel gemi adı override'ı kaydet / temizle (admin).
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: kit
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DisplayNameUpdate"
+      responses:
+        "200":
+          description: Gemi adı güncellendi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DisplayNameResult"
         "400":
           description: Geçersiz değer
           content:
@@ -3108,6 +3250,24 @@ components:
         limit: { type: integer }
         totalPages: { type: integer }
       required: [logs, total, page, limit, totalPages]
+
+    DisplayNameUpdate:
+      type: object
+      properties:
+        displayName:
+          type: string
+          nullable: true
+          description: "Manuel gemi adı. null = override'ı temizle, kaynak adına dön."
+
+    DisplayNameResult:
+      type: object
+      required: [displayName]
+      properties:
+        kitNo: { type: string, nullable: true }
+        kitSerialNumber: { type: string, nullable: true }
+        displayName:
+          type: string
+          nullable: true
 
     ManualPlanUpdate:
       type: object

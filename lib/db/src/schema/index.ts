@@ -171,6 +171,9 @@ export const stationKits = pgTable(
   // Manuel kota override — tanımlandıysa API/plan-parse değerinin önüne geçer.
   // null = override yok, otomatik değer kullanılır.
   manualPlanGb: doublePrecision("manual_plan_gb"),
+  // Manuel gemi adı override — tanımlandıysa sync'ten gelen ship_name'in
+  // önüne geçer (sadece görüntüleme; sync asla bu alanı ezmez).
+  displayName: text("display_name"),
   },
   (t) => [primaryKey({ columns: [t.credentialId, t.kitNo] })]
 );
@@ -494,6 +497,9 @@ export const starlinkTerminals = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
     // Manuel kota override — tanımlandıysa API değerinin önüne geçer.
     manualPlanGb: doublePrecision("manual_plan_gb"),
+    // Manuel gemi adı override — tanımlandıysa sync'ten gelen nickname/assetName'in
+    // önüne geçer (sadece görüntüleme; sync asla bu alanı ezmez).
+    displayName: text("display_name"),
   },
   (t) => [
     primaryKey({ columns: [t.credentialId, t.kitSerialNumber] }),
@@ -630,6 +636,9 @@ export const leobridgeTerminals = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
     // Manuel kota override — tanımlandıysa API değerinin önüne geçer.
     manualPlanGb: doublePrecision("manual_plan_gb"),
+    // Manuel gemi adı override — tanımlandıysa sync'ten gelen nickname'in
+    // önüne geçer (sadece görüntüleme; sync asla bu alanı ezmez).
+    displayName: text("display_name"),
   },
   (t) => [
     primaryKey({ columns: [t.credentialId, t.kitSerialNumber] }),

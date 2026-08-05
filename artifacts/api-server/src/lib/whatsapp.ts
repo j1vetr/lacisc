@@ -950,6 +950,7 @@ export async function lookupStarlinkPlanAndShip(
       manualPlanGb: starlinkTerminals.manualPlanGb,
       nickname: starlinkTerminals.nickname,
       asset: starlinkTerminals.assetName,
+      displayName: starlinkTerminals.displayName,
     })
     .from(starlinkTerminals)
     .where(
@@ -961,7 +962,8 @@ export async function lookupStarlinkPlanAndShip(
   return {
     // Manuel override varsa API değerinin önüne geçer.
     planAllowanceGb: row?.manualPlanGb ?? row?.plan ?? null,
-    shipName: row?.nickname ?? row?.asset ?? null,
+    // displayName tanımlandıysa sync adının önüne geçer.
+    shipName: row?.displayName ?? row?.nickname ?? row?.asset ?? null,
   };
 }
 
@@ -974,6 +976,7 @@ export async function lookupLeobridgePlanAndShip(
       plan: leobridgeTerminals.planAllowanceGb,
       manualPlanGb: leobridgeTerminals.manualPlanGb,
       nickname: leobridgeTerminals.nickname,
+      displayName: leobridgeTerminals.displayName,
     })
     .from(leobridgeTerminals)
     .where(
@@ -985,7 +988,8 @@ export async function lookupLeobridgePlanAndShip(
   return {
     // Manuel override varsa API değerinin önüne geçer.
     planAllowanceGb: row?.manualPlanGb ?? row?.plan ?? null,
-    shipName: row?.nickname ?? null,
+    // displayName tanımlandıysa sync adının önüne geçer.
+    shipName: row?.displayName ?? row?.nickname ?? null,
   };
 }
 
@@ -1012,6 +1016,7 @@ export async function lookupSatcomShipAndPlan(
       shipName: stationKits.shipName,
       activePlanName: stationKits.activePlanName,
       manualPlanGb: stationKits.manualPlanGb,
+      displayName: stationKits.displayName,
     })
     .from(stationKits)
     .where(
@@ -1046,7 +1051,8 @@ export async function lookupSatcomShipAndPlan(
   const planAllowanceGb = row?.manualPlanGb ?? autoPlanGb;
 
   return {
-    shipName: row?.shipName ?? null,
+    // displayName tanımlandıysa sync adının önüne geçer.
+    shipName: row?.displayName ?? row?.shipName ?? null,
     planAllowanceGb,
   };
 }

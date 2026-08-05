@@ -879,6 +879,17 @@ export const GetKitDetailResponse = zod.object({
 });
 
 /**
+ * @summary Tek bir Satcom KIT'ini tüm verisiyle siler (admin).
+ */
+export const DeleteStationKitParams = zod.object({
+  kitNo: zod.coerce.string(),
+});
+
+export const DeleteStationKitResponse = zod.object({
+  message: zod.string(),
+});
+
+/**
  * @summary Manuel kota override'ı kaydet / temizle (admin).
  */
 export const UpdateKitManualPlanParams = zod.object({
@@ -898,6 +909,26 @@ export const UpdateKitManualPlanResponse = zod.object({
   kitNo: zod.string().nullish(),
   kitSerialNumber: zod.string().nullish(),
   manualPlanGb: zod.number().nullable(),
+});
+
+/**
+ * @summary Satcom KIT için manuel gemi adı override'ı kaydet / temizle (admin).
+ */
+export const UpdateStationKitDisplayNameParams = zod.object({
+  kitNo: zod.coerce.string(),
+});
+
+export const UpdateStationKitDisplayNameBody = zod.object({
+  displayName: zod
+    .string()
+    .nullish()
+    .describe("Manuel gemi adı. null = override'ı temizle, kaynak adına dön."),
+});
+
+export const UpdateStationKitDisplayNameResponse = zod.object({
+  kitNo: zod.string().nullish(),
+  kitSerialNumber: zod.string().nullish(),
+  displayName: zod.string().nullable(),
 });
 
 /**
@@ -1358,6 +1389,26 @@ export const UpdateStarlinkTerminalManualPlanResponse = zod.object({
   manualPlanGb: zod.number().nullable(),
 });
 
+/**
+ * @summary Starlink terminal için manuel gemi adı override'ı kaydet / temizle (admin).
+ */
+export const UpdateStarlinkTerminalDisplayNameParams = zod.object({
+  kit: zod.coerce.string(),
+});
+
+export const UpdateStarlinkTerminalDisplayNameBody = zod.object({
+  displayName: zod
+    .string()
+    .nullish()
+    .describe("Manuel gemi adı. null = override'ı temizle, kaynak adına dön."),
+});
+
+export const UpdateStarlinkTerminalDisplayNameResponse = zod.object({
+  kitNo: zod.string().nullish(),
+  kitSerialNumber: zod.string().nullish(),
+  displayName: zod.string().nullable(),
+});
+
 export const GetStarlinkTerminalDailyParams = zod.object({
   kit: zod.coerce.string(),
 });
@@ -1651,6 +1702,26 @@ export const UpdateLeobridgeTerminalManualPlanResponse = zod.object({
   kitNo: zod.string().nullish(),
   kitSerialNumber: zod.string().nullish(),
   manualPlanGb: zod.number().nullable(),
+});
+
+/**
+ * @summary Norway terminal için manuel gemi adı override'ı kaydet / temizle (admin).
+ */
+export const UpdateLeobridgeTerminalDisplayNameParams = zod.object({
+  kit: zod.coerce.string(),
+});
+
+export const UpdateLeobridgeTerminalDisplayNameBody = zod.object({
+  displayName: zod
+    .string()
+    .nullish()
+    .describe("Manuel gemi adı. null = override'ı temizle, kaynak adına dön."),
+});
+
+export const UpdateLeobridgeTerminalDisplayNameResponse = zod.object({
+  kitNo: zod.string().nullish(),
+  kitSerialNumber: zod.string().nullish(),
+  displayName: zod.string().nullable(),
 });
 
 export const GetLeobridgeTerminalDailyParams = zod.object({

@@ -16,6 +16,7 @@ import {
   getGetLeobridgeSettingsQueryKey,
   useGetMe,
   getGetMeQueryKey,
+  useDeleteStationKit,
   useDeleteStarlinkTerminal,
   useDeleteLeobridgeTerminal,
   useUpdateKitManualPlan,
@@ -335,9 +336,7 @@ export default function Kits() {
                 ? Math.min(100, (r.totalGb / r.planGb) * 100)
                 : null;
             const warn = pct !== null && pct >= 80;
-            const canDelete =
-              canManageAccounts &&
-              (r.source === "starlink" || r.source === "leobridge");
+            const canDelete = canManageAccounts;
             const canEdit = canManageAccounts;
             const rowPadding = canDelete && canEdit
               ? "pr-[72px]"
@@ -425,7 +424,7 @@ export default function Kits() {
                     offsetRight={canDelete ? "right-9" : "right-1"}
                   />
                 )}
-                {canDelete && r.source !== "satcom" && (
+                {canDelete && (
                   <KitDeleteButton
                     source={r.source}
                     kitNo={r.kitNo}
@@ -602,40 +601,50 @@ function KitDeleteButton({
   kitNo,
   shipName,
 }: {
-  source: "starlink" | "leobridge";
+  source: Source;
   kitNo: string;
   shipName: string | null;
 }) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const deleteSatcom = useDeleteStationKit();
   const deleteStarlink = useDeleteStarlinkTerminal();
   const deleteLeobridge = useDeleteLeobridgeTerminal();
-  const mutation = source === "starlink" ? deleteStarlink : deleteLeobridge;
-  const sourceLabel = source === "starlink" ? "Tototheo (Starlink)" : "Norway (Leo Bridge)";
+  const mutation =
+    source === "satcom"
+      ? deleteSatcom
+      : source === "starlink"
+        ? deleteStarlink
+        : deleteLeobridge;
+  const sourceLabel =
+    source === "satcom"
+      ? "Satcom"
+      : source === "starlink"
+        ? "Tototheo (Starlink)"
+        : "Norway (Leo Bridge)";
 
   const handleDelete = () => {
-    mutation.mutate(
-      { kit: kitNo },
-      {
-        onSuccess: () => {
-          toast({
-            title: t("Terminal Silindi"),
-            description: t("{{kitNo}} {{sourceLabel}} kaynağından temizlendi.", { kitNo, sourceLabel }),
-          });
-          queryClient.invalidateQueries();
-        },
-        onError: (err: unknown) => {
-          toast({
-            title: t("Silme Başarısız"),
-            description:
-              (err instanceof Error ? t(err.message) : null) ||
-              t("Terminal silinemedi."),
-            variant: "destructive",
-          });
-        },
+    const params =
+      source === "satcom" ? { kitNo } : { kit: kitNo };
+    (mutation.mutate as (p: typeof params, opts: object) => void)(params, {
+      onSuccess: () => {
+        toast({
+          title: t("Terminal Silindi"),
+          description: t("{{kitNo}} {{sourceLabel}} kaynağından temizlendi.", { kitNo, sourceLabel }),
+        });
+        queryClient.invalidateQueries();
       },
-    );
+      onError: (err: unknown) => {
+        toast({
+          title: t("Silme Başarısız"),
+          description:
+            (err instanceof Error ? t(err.message) : null) ||
+            t("Terminal silinemedi."),
+          variant: "destructive",
+        });
+      },
+    });
   };
 
   return (

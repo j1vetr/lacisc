@@ -9,9 +9,11 @@ import {
   stationKitLocation,
   stationKitTelemetryHourly,
   stationKitSubscriptionHistory,
+  whatsappAlertState,
 } from "@workspace/db";
 import { eq, desc, asc, and, gte, inArray, sql, count, max, isNull } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
+import { audit } from "../lib/audit";
 import {
   getAssignedKits,
   isCustomer,
@@ -115,7 +117,8 @@ router.get("/station/kits", requireAuth, async (req: AuthRequest, res): Promise<
       l.total_usd     AS "totalUsd",
       COALESCE(l.row_count, 0) AS "rowCount",
       l.scraped_at    AS "lastSyncedAt",
-      k.ship_name     AS "shipName",
+      COALESCE(k.display_name, k.ship_name) AS "shipName",
+      k.display_name  AS "displayName",
       k.active_plan_name AS "activePlanName",
       k.manual_plan_gb AS "manualPlanGb",
       k.credential_id AS "credentialId",
@@ -137,6 +140,7 @@ router.get("/station/kits", requireAuth, async (req: AuthRequest, res): Promise<
         rowCount: number;
         lastSyncedAt: string | Date | null;
         shipName: string | null;
+        displayName: string | null;
         activePlanName: string | null;
         manualPlanGb: number | null;
       }>;
@@ -272,7 +276,8 @@ router.get("/station/kits/:kitNo", requireAuth, async (req: AuthRequest, res): P
 
   res.json({
     kitNo,
-    shipName: kitMeta?.shipName ?? null,
+    shipName: kitMeta?.displayName ?? kitMeta?.shipName ?? null,
+    displayName: kitMeta?.displayName ?? null,
     currentPeriod: latest?.period ?? null,
     totalGib: effectiveTotalGib,
     deductionGb: deductionGb > 0 ? deductionGb : null,
@@ -331,6 +336,98 @@ router.patch(
       return;
     }
     res.json({ kitNo, manualPlanGb: value });
+  },
+);
+
+// PATCH /station/kits/:kitNo/display-name — manuel gemi adı override'ı kaydet / temizle.
+// Body: { displayName: string | null }. Admin zorunlu.
+router.patch(
+  "/station/kits/:kitNo/display-name",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const kitNo = String(req.params.kitNo);
+    const raw = req.body?.displayName;
+    const value: string | null =
+      raw === null || raw === undefined || String(raw).trim() === ""
+        ? null
+        : String(raw).trim();
+    const updated = await db
+      .update(stationKits)
+      .set({ displayName: value })
+      .where(eq(stationKits.kitNo, kitNo))
+      .returning({ kitNo: stationKits.kitNo });
+    if (updated.length === 0) {
+      res.status(404).json({ error: "KIT bulunamadı." });
+      return;
+    }
+    res.json({ kitNo, displayName: value });
+  },
+);
+
+// DELETE /station/kits/:kitNo — Tek bir Satcom KIT'ini tüm verisiyle sil (admin).
+// Starlink/Norway'deki terminal delete ile aynı mantık: kit_no ile eşleşen
+// tüm credential satırlarını transaction içinde siler. KIT hâlâ portaldaysa
+// bir sonraki sync'te tekrar eklenir (tek seferlik temizleme).
+router.delete(
+  "/station/kits/:kitNo",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const kitNo = String(req.params.kitNo ?? "").trim();
+    if (!kitNo) {
+      res.status(400).json({ error: "Geçersiz KIT." });
+      return;
+    }
+    const { daily, periodTotal, location, alertState, kits } =
+      await db.transaction(async (tx) => {
+        const daily = await tx
+          .delete(stationKitDaily)
+          .where(eq(stationKitDaily.kitNo, kitNo))
+          .returning({ id: stationKitDaily.cdrId });
+        const periodTotal = await tx
+          .delete(stationKitPeriodTotal)
+          .where(eq(stationKitPeriodTotal.kitNo, kitNo))
+          .returning({ id: stationKitPeriodTotal.kitNo });
+        const location = await tx
+          .delete(stationKitLocation)
+          .where(eq(stationKitLocation.kitNo, kitNo))
+          .returning({ id: stationKitLocation.kitNo });
+        const alertState = await tx
+          .delete(whatsappAlertState)
+          .where(
+            and(
+              eq(whatsappAlertState.source, "satcom"),
+              eq(whatsappAlertState.kitNo, kitNo),
+            ),
+          )
+          .returning({ id: whatsappAlertState.kitNo });
+        const kits = await tx
+          .delete(stationKits)
+          .where(eq(stationKits.kitNo, kitNo))
+          .returning({ id: stationKits.kitNo });
+        return { daily, periodTotal, location, alertState, kits };
+      });
+    if (kits.length === 0) {
+      res.status(404).json({ error: "KIT bulunamadı." });
+      return;
+    }
+    req.log.warn(
+      {
+        kitNo,
+        kits: kits.length,
+        daily: daily.length,
+        periodTotal: periodTotal.length,
+        location: location.length,
+        alertState: alertState.length,
+      },
+      "Satcom KIT deleted manually",
+    );
+    await audit(req, {
+      action: "station.kit.delete",
+      target: `kit:${kitNo}`,
+    });
+    res.json({ message: "KIT ve tüm verisi silindi." });
   },
 );
 
@@ -419,7 +516,7 @@ router.get(
                   l.offline      AS "offline",
                   l.active       AS "active",
                   l.last_seen_at AS "lastSeenAt",
-                  k.ship_name    AS "shipName",
+                  COALESCE(k.display_name, k.ship_name) AS "shipName",
                   c.label        AS "accountLabel"
                 FROM station_kit_location l
                 LEFT JOIN station_kits k

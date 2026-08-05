@@ -6,6 +6,7 @@ import {
   stationKits,
   stationKitDaily,
   stationKitPeriodTotal,
+  stationKitLocation,
   starlinkCredentials,
   starlinkTerminals,
   starlinkTerminalDaily,
@@ -16,8 +17,9 @@ import {
   leobridgeTerminalDaily,
   leobridgeTerminalPeriodTotal,
   leobridgeSyncLogs,
+  whatsappAlertState,
 } from "@workspace/db";
-import { eq, asc, desc, sql, count } from "drizzle-orm";
+import { eq, asc, desc, sql, count, and } from "drizzle-orm";
 import { encrypt, decrypt } from "../lib/crypto";
 import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
 import { audit } from "../lib/audit";

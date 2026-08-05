@@ -1012,6 +1012,17 @@ export interface SyncLogsResponse {
   totalPages: number;
 }
 
+export interface DisplayNameUpdate {
+  /** Manuel gemi adı. null = override'ı temizle, kaynak adına dön. */
+  displayName?: string | null;
+}
+
+export interface DisplayNameResult {
+  kitNo?: string | null;
+  kitSerialNumber?: string | null;
+  displayName: string | null;
+}
+
 export interface ManualPlanUpdate {
   /** GB olarak manuel kota. null = override'ı temizle, otomatik değere dön. */
   manualPlanGb?: number | null;

@@ -12,6 +12,7 @@ import {
   useGetStarlinkTerminalMonthly,
   getGetStarlinkTerminalMonthlyQueryKey,
   useUpdateStarlinkTerminalManualPlan,
+  useUpdateStarlinkTerminalDisplayName,
   useGetMe,
   getGetMeQueryKey,
 } from "@workspace/api-client-react";
@@ -83,8 +84,11 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
   const [selectedPeriod, setSelectedPeriod] = useState<string | undefined>(undefined);
   const [manualEditMode, setManualEditMode] = useState(false);
   const [manualInputVal, setManualInputVal] = useState("");
+  const [displayNameEditMode, setDisplayNameEditMode] = useState(false);
+  const [displayNameVal, setDisplayNameVal] = useState("");
 
   const manualPlanMutation = useUpdateStarlinkTerminalManualPlan();
+  const displayNameMutation = useUpdateStarlinkTerminalDisplayName();
 
   const { data: detail, isLoading: detailLoading } = useGetStarlinkTerminalDetail(
     kit,
@@ -509,6 +513,95 @@ export default function StarlinkDetail({ kit }: { kit: string }) {
                     {t("İptal")}
                   </button>
                   {manualPlanMutation.isError && (
+                    <span className="text-[11px] text-destructive">{t("Hata — tekrar deneyin.")}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Manuel Gemi Adı Override */}
+          {!detailLoading && (
+            <div className="mt-4 pt-4 border-t border-border">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                  {t("Gemi Adı")}
+                </span>
+                {detail?.displayName != null ? (
+                  <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-mono bg-[#f54e00]/10 text-[#f54e00] border border-[#f54e00]/20">
+                    {detail.displayName}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-mono bg-secondary text-muted-foreground">
+                    {detail?.nickname ?? detail?.assetName ?? "—"}
+                  </span>
+                )}
+                {isAdmin && !displayNameEditMode && (
+                  <button
+                    onClick={() => {
+                      setDisplayNameVal(detail?.displayName ?? "");
+                      setDisplayNameEditMode(true);
+                    }}
+                    className="ml-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {t("Düzenle")}
+                  </button>
+                )}
+              </div>
+              {isAdmin && displayNameEditMode && (
+                <div className="mt-3 flex items-center gap-2 flex-wrap">
+                  <input
+                    type="text"
+                    value={displayNameVal}
+                    onChange={(e) => setDisplayNameVal(e.target.value)}
+                    placeholder={t("Gemi adı (boş = kaynaktan gelen ad)")}
+                    className="h-8 w-56 rounded border border-border bg-background px-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    onKeyDown={(e) => { if (e.key === "Escape") setDisplayNameEditMode(false); }}
+                  />
+                  <button
+                    disabled={displayNameMutation.isPending}
+                    onClick={() => {
+                      const val = displayNameVal.trim() || null;
+                      displayNameMutation.mutate(
+                        { kit, data: { displayName: val } },
+                        {
+                          onSuccess: () => {
+                            queryClient.invalidateQueries({ queryKey: getGetStarlinkTerminalDetailQueryKey(kit) });
+                            setDisplayNameEditMode(false);
+                          },
+                        },
+                      );
+                    }}
+                    className="h-8 px-3 rounded text-[12px] font-medium bg-foreground text-background disabled:opacity-50"
+                  >
+                    {displayNameMutation.isPending ? "…" : t("Kaydet")}
+                  </button>
+                  {detail?.displayName != null && (
+                    <button
+                      disabled={displayNameMutation.isPending}
+                      onClick={() => {
+                        displayNameMutation.mutate(
+                          { kit, data: { displayName: null } },
+                          {
+                            onSuccess: () => {
+                              queryClient.invalidateQueries({ queryKey: getGetStarlinkTerminalDetailQueryKey(kit) });
+                              setDisplayNameEditMode(false);
+                            },
+                          },
+                        );
+                      }}
+                      className="h-8 px-3 rounded text-[12px] border border-border text-muted-foreground hover:text-foreground disabled:opacity-50"
+                    >
+                      {t("Temizle")}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setDisplayNameEditMode(false)}
+                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {t("İptal")}
+                  </button>
+                  {displayNameMutation.isError && (
                     <span className="text-[11px] text-destructive">{t("Hata — tekrar deneyin.")}</span>
                   )}
                 </div>

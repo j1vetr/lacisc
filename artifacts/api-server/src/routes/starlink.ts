@@ -477,6 +477,7 @@ router.get("/starlink/terminals", requireAuth, async (req: AuthRequest, res): Pr
       t.updated_at           AS "updatedAt",
       t.plan_allowance_gb    AS "planAllowanceGb",
       t.manual_plan_gb       AS "manualPlanGb",
+      t.display_name         AS "displayName",
       p.total_gb             AS "currentPeriodTotalGb",
       p.package_usage_gb     AS "currentPeriodPackageGb",
       p.priority_gb          AS "currentPeriodPriorityGb",
@@ -565,8 +566,9 @@ router.get(
         : (currentPt?.totalGb ?? null);
     res.json({
       kitSerialNumber: t.kitSerialNumber,
-      nickname: t.nickname,
-      assetName: t.assetName,
+      nickname: t.displayName ?? t.nickname,
+      assetName: t.displayName ? null : t.assetName,
+      displayName: t.displayName,
       isOnline: t.isOnline,
       activated: t.activated,
       blocked: t.blocked,
@@ -633,6 +635,35 @@ router.patch(
       return;
     }
     res.json({ kitSerialNumber: kit, manualPlanGb: value });
+  },
+);
+
+// PATCH /starlink/terminals/:kit/display-name — manuel gemi adı override'ı kaydet / temizle.
+router.patch(
+  "/starlink/terminals/:kit/display-name",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const kit = String(req.params.kit ?? "").trim();
+    if (!kit) {
+      res.status(400).json({ error: "Geçersiz KIT." });
+      return;
+    }
+    const raw = req.body?.displayName;
+    const value: string | null =
+      raw === null || raw === undefined || String(raw).trim() === ""
+        ? null
+        : String(raw).trim();
+    const updated = await db
+      .update(starlinkTerminals)
+      .set({ displayName: value })
+      .where(eq(starlinkTerminals.kitSerialNumber, kit))
+      .returning({ kit: starlinkTerminals.kitSerialNumber });
+    if (updated.length === 0) {
+      res.status(404).json({ error: "Terminal bulunamadı." });
+      return;
+    }
+    res.json({ kitSerialNumber: kit, displayName: value });
   },
 );
 

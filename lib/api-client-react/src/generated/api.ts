@@ -30,6 +30,8 @@ import type {
   CreateStationAccountBody,
   CreateWhatsappThresholdRuleBody,
   DashboardSummary,
+  DisplayNameResult,
+  DisplayNameUpdate,
   EmailSettings,
   EmailSettingsUpdate,
   ErrorResponse,
@@ -3346,6 +3348,90 @@ export function useGetKitDetail<
 }
 
 /**
+ * @summary Tek bir Satcom KIT'ini tüm verisiyle siler (admin).
+ */
+export const getDeleteStationKitUrl = (kitNo: string) => {
+  return `/api/station/kits/${kitNo}`;
+};
+
+export const deleteStationKit = async (
+  kitNo: string,
+  options?: RequestInit,
+): Promise<MessageResponse> => {
+  return customFetch<MessageResponse>(getDeleteStationKitUrl(kitNo), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteStationKitMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteStationKit>>,
+    TError,
+    { kitNo: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteStationKit>>,
+  TError,
+  { kitNo: string },
+  TContext
+> => {
+  const mutationKey = ["deleteStationKit"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteStationKit>>,
+    { kitNo: string }
+  > = (props) => {
+    const { kitNo } = props ?? {};
+
+    return deleteStationKit(kitNo, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteStationKitMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteStationKit>>
+>;
+
+export type DeleteStationKitMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Tek bir Satcom KIT'ini tüm verisiyle siler (admin).
+ */
+export const useDeleteStationKit = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteStationKit>>,
+    TError,
+    { kitNo: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteStationKit>>,
+  TError,
+  { kitNo: string },
+  TContext
+> => {
+  return useMutation(getDeleteStationKitMutationOptions(options));
+};
+
+/**
  * @summary Manuel kota override'ı kaydet / temizle (admin).
  */
 export const getUpdateKitManualPlanUrl = (kitNo: string) => {
@@ -3430,6 +3516,97 @@ export const useUpdateKitManualPlan = <
   TContext
 > => {
   return useMutation(getUpdateKitManualPlanMutationOptions(options));
+};
+
+/**
+ * @summary Satcom KIT için manuel gemi adı override'ı kaydet / temizle (admin).
+ */
+export const getUpdateStationKitDisplayNameUrl = (kitNo: string) => {
+  return `/api/station/kits/${kitNo}/display-name`;
+};
+
+export const updateStationKitDisplayName = async (
+  kitNo: string,
+  displayNameUpdate: DisplayNameUpdate,
+  options?: RequestInit,
+): Promise<DisplayNameResult> => {
+  return customFetch<DisplayNameResult>(
+    getUpdateStationKitDisplayNameUrl(kitNo),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(displayNameUpdate),
+    },
+  );
+};
+
+export const getUpdateStationKitDisplayNameMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStationKitDisplayName>>,
+    TError,
+    { kitNo: string; data: BodyType<DisplayNameUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateStationKitDisplayName>>,
+  TError,
+  { kitNo: string; data: BodyType<DisplayNameUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateStationKitDisplayName"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateStationKitDisplayName>>,
+    { kitNo: string; data: BodyType<DisplayNameUpdate> }
+  > = (props) => {
+    const { kitNo, data } = props ?? {};
+
+    return updateStationKitDisplayName(kitNo, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateStationKitDisplayNameMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateStationKitDisplayName>>
+>;
+export type UpdateStationKitDisplayNameMutationBody =
+  BodyType<DisplayNameUpdate>;
+export type UpdateStationKitDisplayNameMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Satcom KIT için manuel gemi adı override'ı kaydet / temizle (admin).
+ */
+export const useUpdateStationKitDisplayName = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStationKitDisplayName>>,
+    TError,
+    { kitNo: string; data: BodyType<DisplayNameUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateStationKitDisplayName>>,
+  TError,
+  { kitNo: string; data: BodyType<DisplayNameUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateStationKitDisplayNameMutationOptions(options));
 };
 
 /**
@@ -5305,6 +5482,100 @@ export const useUpdateStarlinkTerminalManualPlan = <
   );
 };
 
+/**
+ * @summary Starlink terminal için manuel gemi adı override'ı kaydet / temizle (admin).
+ */
+export const getUpdateStarlinkTerminalDisplayNameUrl = (kit: string) => {
+  return `/api/starlink/terminals/${kit}/display-name`;
+};
+
+export const updateStarlinkTerminalDisplayName = async (
+  kit: string,
+  displayNameUpdate: DisplayNameUpdate,
+  options?: RequestInit,
+): Promise<DisplayNameResult> => {
+  return customFetch<DisplayNameResult>(
+    getUpdateStarlinkTerminalDisplayNameUrl(kit),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(displayNameUpdate),
+    },
+  );
+};
+
+export const getUpdateStarlinkTerminalDisplayNameMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStarlinkTerminalDisplayName>>,
+    TError,
+    { kit: string; data: BodyType<DisplayNameUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateStarlinkTerminalDisplayName>>,
+  TError,
+  { kit: string; data: BodyType<DisplayNameUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateStarlinkTerminalDisplayName"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateStarlinkTerminalDisplayName>>,
+    { kit: string; data: BodyType<DisplayNameUpdate> }
+  > = (props) => {
+    const { kit, data } = props ?? {};
+
+    return updateStarlinkTerminalDisplayName(kit, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateStarlinkTerminalDisplayNameMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateStarlinkTerminalDisplayName>>
+>;
+export type UpdateStarlinkTerminalDisplayNameMutationBody =
+  BodyType<DisplayNameUpdate>;
+export type UpdateStarlinkTerminalDisplayNameMutationError =
+  ErrorType<ErrorResponse>;
+
+/**
+ * @summary Starlink terminal için manuel gemi adı override'ı kaydet / temizle (admin).
+ */
+export const useUpdateStarlinkTerminalDisplayName = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStarlinkTerminalDisplayName>>,
+    TError,
+    { kit: string; data: BodyType<DisplayNameUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateStarlinkTerminalDisplayName>>,
+  TError,
+  { kit: string; data: BodyType<DisplayNameUpdate> },
+  TContext
+> => {
+  return useMutation(
+    getUpdateStarlinkTerminalDisplayNameMutationOptions(options),
+  );
+};
+
 export const getGetStarlinkTerminalDailyUrl = (
   kit: string,
   params?: GetStarlinkTerminalDailyParams,
@@ -6573,6 +6844,100 @@ export const useUpdateLeobridgeTerminalManualPlan = <
 > => {
   return useMutation(
     getUpdateLeobridgeTerminalManualPlanMutationOptions(options),
+  );
+};
+
+/**
+ * @summary Norway terminal için manuel gemi adı override'ı kaydet / temizle (admin).
+ */
+export const getUpdateLeobridgeTerminalDisplayNameUrl = (kit: string) => {
+  return `/api/leobridge/terminals/${kit}/display-name`;
+};
+
+export const updateLeobridgeTerminalDisplayName = async (
+  kit: string,
+  displayNameUpdate: DisplayNameUpdate,
+  options?: RequestInit,
+): Promise<DisplayNameResult> => {
+  return customFetch<DisplayNameResult>(
+    getUpdateLeobridgeTerminalDisplayNameUrl(kit),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(displayNameUpdate),
+    },
+  );
+};
+
+export const getUpdateLeobridgeTerminalDisplayNameMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateLeobridgeTerminalDisplayName>>,
+    TError,
+    { kit: string; data: BodyType<DisplayNameUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateLeobridgeTerminalDisplayName>>,
+  TError,
+  { kit: string; data: BodyType<DisplayNameUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateLeobridgeTerminalDisplayName"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateLeobridgeTerminalDisplayName>>,
+    { kit: string; data: BodyType<DisplayNameUpdate> }
+  > = (props) => {
+    const { kit, data } = props ?? {};
+
+    return updateLeobridgeTerminalDisplayName(kit, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateLeobridgeTerminalDisplayNameMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateLeobridgeTerminalDisplayName>>
+>;
+export type UpdateLeobridgeTerminalDisplayNameMutationBody =
+  BodyType<DisplayNameUpdate>;
+export type UpdateLeobridgeTerminalDisplayNameMutationError =
+  ErrorType<ErrorResponse>;
+
+/**
+ * @summary Norway terminal için manuel gemi adı override'ı kaydet / temizle (admin).
+ */
+export const useUpdateLeobridgeTerminalDisplayName = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateLeobridgeTerminalDisplayName>>,
+    TError,
+    { kit: string; data: BodyType<DisplayNameUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateLeobridgeTerminalDisplayName>>,
+  TError,
+  { kit: string; data: BodyType<DisplayNameUpdate> },
+  TContext
+> => {
+  return useMutation(
+    getUpdateLeobridgeTerminalDisplayNameMutationOptions(options),
   );
 };
 
