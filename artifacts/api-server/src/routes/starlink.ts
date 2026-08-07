@@ -505,6 +505,8 @@ router.get("/starlink/terminals", requireAuth, async (req: AuthRequest, res): Pr
         const rawGb = r.currentPeriodTotalGb as number | null;
         return {
           ...r,
+          // displayName tanımlandıysa sync adının önüne geçer.
+          nickname: (r.displayName as string | null) ?? r.nickname,
           currentPeriodTotalGb:
             dedGb > 0 && rawGb != null ? applyDeduction(rawGb, dedGb) : rawGb,
           lastFixAt: toIso(r.lastFixAt),

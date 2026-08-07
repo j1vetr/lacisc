@@ -347,10 +347,15 @@ export async function checkAndSendUsageAlert(opts: {
 
     // Resolve a friendly ship name for the subject.
     const [kit] = await db
-      .select({ shipName: stationKits.shipName })
+      .select({
+        shipName: stationKits.shipName,
+        displayName: stationKits.displayName,
+      })
       .from(stationKits)
       .where(eq(stationKits.kitNo, opts.kitNo));
-    const shipLabel = kit?.shipName?.trim() || opts.kitNo;
+    // displayName tanımlandıysa sync adının önüne geçer.
+    const effectiveShipName = kit?.displayName ?? kit?.shipName ?? null;
+    const shipLabel = effectiveShipName?.trim() || opts.kitNo;
 
     const built = await buildTransporter();
     if ("error" in built) {
@@ -363,7 +368,7 @@ export async function checkAndSendUsageAlert(opts: {
 
     const tpl = buildAlertEmail({
       shipLabel,
-      shipName: kit?.shipName ?? null,
+      shipName: effectiveShipName,
       kitNo: opts.kitNo,
       credentialLabel: opts.credentialLabel,
       period: opts.period,

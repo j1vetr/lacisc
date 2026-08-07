@@ -459,7 +459,7 @@ router.get(
         icon: stationKitLocation.icon,
         customerId: stationKitLocation.customerId,
         lastSeenAt: stationKitLocation.lastSeenAt,
-        shipName: stationKits.shipName,
+        shipName: sql<string | null>`COALESCE(${stationKits.displayName}, ${stationKits.shipName})`,
       })
       .from(stationKitLocation)
       .leftJoin(
@@ -584,7 +584,7 @@ router.get(
         : ((await db.execute(sql`
             SELECT
               t.kit_serial_number AS "kitNo",
-              t.nickname          AS "nickname",
+              COALESCE(t.display_name, t.nickname) AS "nickname",
               t.asset_name        AS "assetName",
               t.lat               AS "lat",
               t.lng               AS "lng",
@@ -656,7 +656,7 @@ router.get(
         : ((await db.execute(sql`
             SELECT
               t.kit_serial_number AS "kitNo",
-              t.nickname          AS "nickname",
+              COALESCE(t.display_name, t.nickname) AS "nickname",
               t.lat               AS "lat",
               t.lng               AS "lng",
               t.is_online         AS "isOnline",
@@ -756,7 +756,7 @@ router.get(
         icon: stationKitLocation.icon,
         customerId: stationKitLocation.customerId,
         lastSeenAt: stationKitLocation.lastSeenAt,
-        shipName: stationKits.shipName,
+        shipName: sql<string | null>`COALESCE(${stationKits.displayName}, ${stationKits.shipName})`,
       })
       .from(stationKitLocation)
       .leftJoin(

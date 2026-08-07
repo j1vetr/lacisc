@@ -498,10 +498,12 @@ router.get(
   requireRole("admin"),
   async (_req: AuthRequest, res): Promise<void> => {
     const [satcomRows, starlinkRows, leobridgeRows, latestPeriods] = await Promise.all([
+      // displayName (manuel gemi adı) tanımlandıysa etikette kaynak adının
+      // önüne geçer — KIT atama modalında da düzeltilen ad görünsün.
       db
         .select({
           kitNo: stationKits.kitNo,
-          shipName: stationKits.shipName,
+          shipName: sql<string | null>`COALESCE(${stationKits.displayName}, ${stationKits.shipName})`,
         })
         .from(stationKits)
         .orderBy(stationKits.kitNo),
@@ -510,7 +512,7 @@ router.get(
       db.execute(sql`
         SELECT DISTINCT ON (kit_serial_number)
           kit_serial_number AS "kitSerialNumber",
-          nickname,
+          COALESCE(display_name, nickname) AS nickname,
           asset_name AS "assetName"
         FROM starlink_terminals
         ORDER BY kit_serial_number, updated_at DESC
@@ -518,7 +520,7 @@ router.get(
       db.execute(sql`
         SELECT DISTINCT ON (kit_serial_number)
           kit_serial_number AS "kitSerialNumber",
-          nickname
+          COALESCE(display_name, nickname) AS nickname
         FROM leobridge_terminals
         ORDER BY kit_serial_number, updated_at DESC
       `),
