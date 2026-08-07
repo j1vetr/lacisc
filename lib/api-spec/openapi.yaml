@@ -2575,6 +2575,7 @@ components:
         kitSerialNumber: { type: string }
         nickname: { type: string, nullable: true }
         assetName: { type: string, nullable: true }
+        displayName: { type: string, nullable: true, description: "Manuel gemi adı override'ı. Doluysa nickname bu değeri yansıtır." }
         isOnline: { type: boolean, nullable: true }
         activated: { type: boolean, nullable: true }
         blocked: { type: boolean, nullable: true }
@@ -2609,6 +2610,7 @@ components:
         kitSerialNumber: { type: string }
         nickname: { type: string, nullable: true }
         assetName: { type: string, nullable: true }
+        displayName: { type: string, nullable: true, description: "Manuel gemi adı override'ı. Doluysa nickname bu değeri yansıtır." }
         isOnline: { type: boolean, nullable: true }
         activated: { type: boolean, nullable: true }
         blocked: { type: boolean, nullable: true }
@@ -2776,6 +2778,7 @@ components:
         kitSerialNumber: { type: string }
         serviceLineNumber: { type: string, nullable: true }
         nickname: { type: string, nullable: true }
+        displayName: { type: string, nullable: true, description: "Manuel gemi adı override'ı. Doluysa nickname bu değeri yansıtır." }
         addressLabel: { type: string, nullable: true }
         lat: { type: number, nullable: true }
         lng: { type: number, nullable: true }
@@ -3081,6 +3084,7 @@ components:
       properties:
         kitNo: { type: string }
         shipName: { type: string, nullable: true }
+        displayName: { type: string, nullable: true, description: "Manuel gemi adı override'ı. Doluysa shipName bu değeri yansıtır." }
         currentPeriod: { type: string, nullable: true }
         totalGib: { type: number, nullable: true }
         totalUsd: { type: number, nullable: true }

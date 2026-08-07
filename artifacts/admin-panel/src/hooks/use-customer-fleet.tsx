@@ -50,12 +50,16 @@ export type FleetState = {
 
 export function useCustomerFleet(): FleetState {
   const { t: tr } = useTranslation();
+  // Sekmeye dönüşte anında yenile: admin KIT atamalarını değiştirdiğinde
+  // müşteri 30 sn'lik polling turunu beklemek zorunda kalmasın.
   const satcomQ = useGetKits(
     { sortBy: "totalGib" },
     {
       query: {
         queryKey: getGetKitsQueryKey({ sortBy: "totalGib" }),
         refetchInterval: REFETCH_MS,
+        refetchOnWindowFocus: true,
+        staleTime: 0,
       },
     },
   );
@@ -63,12 +67,16 @@ export function useCustomerFleet(): FleetState {
     query: {
       queryKey: getGetStarlinkTerminalsQueryKey(),
       refetchInterval: REFETCH_MS,
+      refetchOnWindowFocus: true,
+      staleTime: 0,
     },
   });
   const leobridgeQ = useGetLeobridgeTerminals({
     query: {
       queryKey: getGetLeobridgeTerminalsQueryKey(),
       refetchInterval: REFETCH_MS,
+      refetchOnWindowFocus: true,
+      staleTime: 0,
     },
   });
 

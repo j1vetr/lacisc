@@ -416,6 +416,8 @@ export interface StarlinkTerminalSummary {
   kitSerialNumber: string;
   nickname?: string | null;
   assetName?: string | null;
+  /** Manuel gemi adı override'ı. Doluysa nickname bu değeri yansıtır. */
+  displayName?: string | null;
   isOnline?: boolean | null;
   activated?: boolean | null;
   blocked?: boolean | null;
@@ -444,6 +446,8 @@ export interface StarlinkTerminalDetail {
   kitSerialNumber: string;
   nickname?: string | null;
   assetName?: string | null;
+  /** Manuel gemi adı override'ı. Doluysa nickname bu değeri yansıtır. */
+  displayName?: string | null;
   isOnline?: boolean | null;
   activated?: boolean | null;
   blocked?: boolean | null;
@@ -574,6 +578,8 @@ export interface LeobridgeTerminalDetail {
   kitSerialNumber: string;
   serviceLineNumber?: string | null;
   nickname?: string | null;
+  /** Manuel gemi adı override'ı. Doluysa nickname bu değeri yansıtır. */
+  displayName?: string | null;
   addressLabel?: string | null;
   lat?: number | null;
   lng?: number | null;
@@ -857,6 +863,8 @@ export interface KitSummary {
 export interface KitDetail {
   kitNo: string;
   shipName?: string | null;
+  /** Manuel gemi adı override'ı. Doluysa shipName bu değeri yansıtır. */
+  displayName?: string | null;
   currentPeriod?: string | null;
   totalGib?: number | null;
   totalUsd?: number | null;

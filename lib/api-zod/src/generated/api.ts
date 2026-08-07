@@ -838,6 +838,12 @@ export const GetKitDetailParams = zod.object({
 export const GetKitDetailResponse = zod.object({
   kitNo: zod.string(),
   shipName: zod.string().nullish(),
+  displayName: zod
+    .string()
+    .nullish()
+    .describe(
+      "Manuel gemi adı override'ı. Doluysa shipName bu değeri yansıtır.",
+    ),
   currentPeriod: zod.string().nullish(),
   totalGib: zod.number().nullish(),
   totalUsd: zod.number().nullish(),
@@ -1275,6 +1281,12 @@ export const GetStarlinkTerminalsResponseItem = zod.object({
   kitSerialNumber: zod.string(),
   nickname: zod.string().nullish(),
   assetName: zod.string().nullish(),
+  displayName: zod
+    .string()
+    .nullish()
+    .describe(
+      "Manuel gemi adı override'ı. Doluysa nickname bu değeri yansıtır.",
+    ),
   isOnline: zod.boolean().nullish(),
   activated: zod.boolean().nullish(),
   blocked: zod.boolean().nullish(),
@@ -1316,6 +1328,12 @@ export const GetStarlinkTerminalDetailResponse = zod.object({
   kitSerialNumber: zod.string(),
   nickname: zod.string().nullish(),
   assetName: zod.string().nullish(),
+  displayName: zod
+    .string()
+    .nullish()
+    .describe(
+      "Manuel gemi adı override'ı. Doluysa nickname bu değeri yansıtır.",
+    ),
   isOnline: zod.boolean().nullish(),
   activated: zod.boolean().nullish(),
   blocked: zod.boolean().nullish(),
@@ -1639,6 +1657,12 @@ export const GetLeobridgeTerminalDetailResponse = zod.object({
   kitSerialNumber: zod.string(),
   serviceLineNumber: zod.string().nullish(),
   nickname: zod.string().nullish(),
+  displayName: zod
+    .string()
+    .nullish()
+    .describe(
+      "Manuel gemi adı override'ı. Doluysa nickname bu değeri yansıtır.",
+    ),
   addressLabel: zod.string().nullish(),
   lat: zod.number().nullish(),
   lng: zod.number().nullish(),
