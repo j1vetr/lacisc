@@ -174,6 +174,9 @@ export const stationKits = pgTable(
   // Manuel gemi adı override — tanımlandıysa sync'ten gelen ship_name'in
   // önüne geçer (sadece görüntüleme; sync asla bu alanı ezmez).
   displayName: text("display_name"),
+  // Görünmez terminal — true ise hiçbir listede/haritada/raporda/uyarıda
+  // gösterilmez. Sadece Ayarlar > Görünmezler'de kalır. Sync bu alanı ezmez.
+  hidden: boolean("hidden").notNull().default(false),
   },
   (t) => [primaryKey({ columns: [t.credentialId, t.kitNo] })]
 );
@@ -500,6 +503,8 @@ export const starlinkTerminals = pgTable(
     // Manuel gemi adı override — tanımlandıysa sync'ten gelen nickname/assetName'in
     // önüne geçer (sadece görüntüleme; sync asla bu alanı ezmez).
     displayName: text("display_name"),
+    // Görünmez terminal — bkz. stationKits.hidden.
+    hidden: boolean("hidden").notNull().default(false),
   },
   (t) => [
     primaryKey({ columns: [t.credentialId, t.kitSerialNumber] }),
@@ -639,6 +644,8 @@ export const leobridgeTerminals = pgTable(
     // Manuel gemi adı override — tanımlandıysa sync'ten gelen nickname'in
     // önüne geçer (sadece görüntüleme; sync asla bu alanı ezmez).
     displayName: text("display_name"),
+    // Görünmez terminal — bkz. stationKits.hidden.
+    hidden: boolean("hidden").notNull().default(false),
   },
   (t) => [
     primaryKey({ columns: [t.credentialId, t.kitSerialNumber] }),

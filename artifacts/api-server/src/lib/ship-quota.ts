@@ -123,21 +123,21 @@ async function findKitBySerial(kitNumber: string): Promise<KitMatch | null> {
   const [satcom] = await db
     .select({ kitNo: stationKits.kitNo })
     .from(stationKits)
-    .where(sql`lower(${stationKits.kitNo}) = lower(${trimmed})`)
+    .where(sql`lower(${stationKits.kitNo}) = lower(${trimmed}) AND ${stationKits.hidden} = false`)
     .limit(1);
   if (satcom) return { source: "satcom", kitNo: satcom.kitNo };
 
   const [starlink] = await db
     .select({ kitNo: starlinkTerminals.kitSerialNumber })
     .from(starlinkTerminals)
-    .where(sql`lower(${starlinkTerminals.kitSerialNumber}) = lower(${trimmed})`)
+    .where(sql`lower(${starlinkTerminals.kitSerialNumber}) = lower(${trimmed}) AND ${starlinkTerminals.hidden} = false`)
     .limit(1);
   if (starlink) return { source: "starlink", kitNo: starlink.kitNo };
 
   const [leobridge] = await db
     .select({ kitNo: leobridgeTerminals.kitSerialNumber })
     .from(leobridgeTerminals)
-    .where(sql`lower(${leobridgeTerminals.kitSerialNumber}) = lower(${trimmed})`)
+    .where(sql`lower(${leobridgeTerminals.kitSerialNumber}) = lower(${trimmed}) AND ${leobridgeTerminals.hidden} = false`)
     .limit(1);
   if (leobridge) return { source: "leobridge", kitNo: leobridge.kitNo };
 
@@ -152,7 +152,7 @@ async function findKitByShipName(shipName: string): Promise<KitMatch | null> {
     .select({ kitNo: stationKits.kitNo })
     .from(stationKits)
     .where(
-      sql`lower(${stationKits.shipName}) = lower(${trimmed}) OR lower(${stationKits.displayName}) = lower(${trimmed})`,
+      sql`(lower(${stationKits.shipName}) = lower(${trimmed}) OR lower(${stationKits.displayName}) = lower(${trimmed})) AND ${stationKits.hidden} = false`,
     )
     .limit(1);
   if (satcom) return { source: "satcom", kitNo: satcom.kitNo };
@@ -161,7 +161,7 @@ async function findKitByShipName(shipName: string): Promise<KitMatch | null> {
     .select({ kitNo: starlinkTerminals.kitSerialNumber })
     .from(starlinkTerminals)
     .where(
-      sql`lower(${starlinkTerminals.nickname}) = lower(${trimmed}) OR lower(${starlinkTerminals.assetName}) = lower(${trimmed}) OR lower(${starlinkTerminals.displayName}) = lower(${trimmed})`
+      sql`(lower(${starlinkTerminals.nickname}) = lower(${trimmed}) OR lower(${starlinkTerminals.assetName}) = lower(${trimmed}) OR lower(${starlinkTerminals.displayName}) = lower(${trimmed})) AND ${starlinkTerminals.hidden} = false`
     )
     .limit(1);
   if (starlink) return { source: "starlink", kitNo: starlink.kitNo };
@@ -170,7 +170,7 @@ async function findKitByShipName(shipName: string): Promise<KitMatch | null> {
     .select({ kitNo: leobridgeTerminals.kitSerialNumber })
     .from(leobridgeTerminals)
     .where(
-      sql`lower(${leobridgeTerminals.nickname}) = lower(${trimmed}) OR lower(${leobridgeTerminals.displayName}) = lower(${trimmed})`,
+      sql`(lower(${leobridgeTerminals.nickname}) = lower(${trimmed}) OR lower(${leobridgeTerminals.displayName}) = lower(${trimmed})) AND ${leobridgeTerminals.hidden} = false`,
     )
     .limit(1);
   if (leobridge) return { source: "leobridge", kitNo: leobridge.kitNo };

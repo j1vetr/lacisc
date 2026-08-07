@@ -515,8 +515,9 @@ router.get(
         byKit.set(r.kitSerialNumber, r);
       }
     }
-    const filtered = Array.from(byKit.values()).filter((r) =>
-      scope ? scope.includes(r.kitSerialNumber) : true,
+    // Görünmez (hidden) terminaller listede yer almaz.
+    const filtered = Array.from(byKit.values()).filter(
+      (r) => !r.hidden && (scope ? scope.includes(r.kitSerialNumber) : true),
     );
     const kits = filtered.map((r) => r.kitSerialNumber);
     const totals = new Map<string, { period: string; totalGb: number | null }>();
@@ -724,6 +725,31 @@ router.patch(
       return;
     }
     res.json({ kitSerialNumber: kit, displayName: value });
+  },
+);
+
+// PATCH /leobridge/terminals/:kit/hidden — terminali görünmez yap / geri göster.
+router.patch(
+  "/leobridge/terminals/:kit/hidden",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const kit = String(req.params.kit ?? "").trim();
+    const hidden = req.body?.hidden === true;
+    if (!kit) {
+      res.status(400).json({ error: "Geçersiz KIT." });
+      return;
+    }
+    const updated = await db
+      .update(leobridgeTerminals)
+      .set({ hidden })
+      .where(eq(leobridgeTerminals.kitSerialNumber, kit))
+      .returning({ kit: leobridgeTerminals.kitSerialNumber });
+    if (updated.length === 0) {
+      res.status(404).json({ error: "Terminal bulunamadı." });
+      return;
+    }
+    res.json({ kitSerialNumber: kit, hidden });
   },
 );
 

@@ -350,9 +350,13 @@ export async function checkAndSendUsageAlert(opts: {
       .select({
         shipName: stationKits.shipName,
         displayName: stationKits.displayName,
+        hidden: stationKits.hidden,
       })
       .from(stationKits)
       .where(eq(stationKits.kitNo, opts.kitNo));
+    // Görünmez terminal: e-posta uyarısı gönderilmez (claim kalıcı kalır,
+    // tekrar tetiklenmez).
+    if (kit?.hidden) return;
     // displayName tanımlandıysa sync adının önüne geçer.
     const effectiveShipName = kit?.displayName ?? kit?.shipName ?? null;
     const shipLabel = effectiveShipName?.trim() || opts.kitNo;

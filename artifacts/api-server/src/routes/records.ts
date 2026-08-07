@@ -93,12 +93,13 @@ router.get("/station/kits", requireAuth, async (req: AuthRequest, res): Promise<
   // "malformed array literal" benzeri bir hata ile düşüyor. Bunun yerine
   // her KIT'i ayrı param yapan IN listesi üretiyoruz. Empty scope yukarıda
   // erken dönüş ile yakalandığı için IN () üretme riski yok.
+  // Görünmez (hidden) KIT'ler hiçbir listede yer almaz.
   const where = scope
-    ? sql`WHERE k.kit_no IN (${sql.join(
+    ? sql`WHERE k.hidden = false AND k.kit_no IN (${sql.join(
         scope.map((v) => sql`${v}`),
         sql`, `,
       )})`
-    : sql``;
+    : sql`WHERE k.hidden = false`;
   // station_kits-driven liste: telemetri/lokasyon üreten ama henüz hiç CDR'ı
   // olmayan ("atıl") KIT'ler de görünür. Faturalandırma kolonları (lastPeriod,
   // totalGib, totalUsd, rowCount, lastSyncedAt) bu KIT'ler için NULL kalır;
@@ -365,6 +366,32 @@ router.patch(
   },
 );
 
+// PATCH /station/kits/:kitNo/hidden — terminali görünmez yap / geri göster.
+// Body: { hidden: boolean }. Admin zorunlu. Tüm credential satırlarına uygulanır.
+router.patch(
+  "/station/kits/:kitNo/hidden",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const kitNo = String(req.params.kitNo ?? "").trim();
+    const hidden = req.body?.hidden === true;
+    if (!kitNo) {
+      res.status(400).json({ error: "Geçersiz KIT." });
+      return;
+    }
+    const updated = await db
+      .update(stationKits)
+      .set({ hidden })
+      .where(eq(stationKits.kitNo, kitNo))
+      .returning({ kitNo: stationKits.kitNo });
+    if (updated.length === 0) {
+      res.status(404).json({ error: "KIT bulunamadı." });
+      return;
+    }
+    res.json({ kitNo, hidden });
+  },
+);
+
 // DELETE /station/kits/:kitNo — Tek bir Satcom KIT'ini tüm verisiyle sil (admin).
 // Starlink/Norway'deki terminal delete ile aynı mantık: kit_no ile eşleşen
 // tüm credential satırlarını transaction içinde siler. KIT hâlâ portaldaysa
@@ -469,7 +496,12 @@ router.get(
           eq(stationKits.credentialId, stationKitLocation.credentialId)
         )
       )
-      .where(eq(stationKitLocation.kitNo, kitNo))
+      .where(
+        and(
+          eq(stationKitLocation.kitNo, kitNo),
+          sql`COALESCE(${stationKits.hidden}, false) = false`,
+        ),
+      )
       .limit(1);
     if (!row) {
       res.status(404).json({ error: "KIT konum verisi yok." });
@@ -522,6 +554,7 @@ router.get(
                 LEFT JOIN station_kits k
                   ON k.kit_no = l.kit_no AND k.credential_id = l.credential_id
                 LEFT JOIN station_credentials c ON c.id = l.credential_id
+                WHERE COALESCE(k.hidden, false) = false
                 ORDER BY l.kit_no, l.last_seen_at DESC NULLS LAST
               ) t
               ${
@@ -598,7 +631,7 @@ router.get(
               -- gelmesini garanti eder (Task #30 spec'i).
               SELECT DISTINCT ON (kit_serial_number) *
               FROM starlink_terminals
-              WHERE lat IS NOT NULL AND lng IS NOT NULL
+              WHERE lat IS NOT NULL AND lng IS NOT NULL AND hidden = false
               ORDER BY kit_serial_number, last_seen_at DESC NULLS LAST, updated_at DESC
             ) t
             LEFT JOIN starlink_credentials c ON c.id = t.credential_id
@@ -666,7 +699,7 @@ router.get(
               -- last_seen_at önce — Starlink ile aynı taze-pin politikası.
               SELECT DISTINCT ON (kit_serial_number) *
               FROM leobridge_terminals
-              WHERE lat IS NOT NULL AND lng IS NOT NULL
+              WHERE lat IS NOT NULL AND lng IS NOT NULL AND hidden = false
               ORDER BY kit_serial_number, last_seen_at DESC NULLS LAST, updated_at DESC
             ) t
             LEFT JOIN leobridge_credentials c ON c.id = t.credential_id
@@ -766,9 +799,11 @@ router.get(
           eq(stationKits.credentialId, stationKitLocation.credentialId)
         )
       );
+    // Görünmez (hidden) KIT'lerin konumu döndürülmez.
+    const notHidden = sql`COALESCE(${stationKits.hidden}, false) = false`;
     const rows = scope
-      ? await baseQuery.where(inArray(stationKitLocation.kitNo, scope))
-      : await baseQuery;
+      ? await baseQuery.where(and(inArray(stationKitLocation.kitNo, scope), notHidden))
+      : await baseQuery.where(notHidden);
     const parsed = GetKitLocationsResponse.safeParse(rows);
     if (!parsed.success) {
       req.log.error(
@@ -973,14 +1008,34 @@ router.get("/station/kits/:kitNo/monthly", requireAuth, async (req: AuthRequest,
 // --- /station/summary — dashboard KPI'ları (aktif period bazlı) ---
 router.get("/station/summary", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const scope = await customerSatcomScope(req);
+  // Görünmez (hidden) KIT'ler toplamlara ve KPI'lara dahil edilmez.
+  const hiddenRows = await db
+    .select({ kitNo: stationKits.kitNo })
+    .from(stationKits)
+    .where(eq(stationKits.hidden, true));
+  const hiddenKits = hiddenRows.map((r) => r.kitNo);
+  const notHidden =
+    hiddenKits.length > 0
+      ? sql`${stationKitPeriodTotal.kitNo} NOT IN (${sql.join(
+          hiddenKits.map((v) => sql`${v}`),
+          sql`, `,
+        )})`
+      : sql`true`;
   // En güncel period: tüm KIT'ler arasında en büyük period — customer'da
   // sadece atanmış KIT'lere bakar.
   const activeQuery = scope
     ? db
         .select({ p: max(stationKitPeriodTotal.period) })
         .from(stationKitPeriodTotal)
-        .where(scope.length > 0 ? inArray(stationKitPeriodTotal.kitNo, scope) : sql`false`)
-    : db.select({ p: max(stationKitPeriodTotal.period) }).from(stationKitPeriodTotal);
+        .where(
+          scope.length > 0
+            ? and(inArray(stationKitPeriodTotal.kitNo, scope), notHidden)
+            : sql`false`,
+        )
+    : db
+        .select({ p: max(stationKitPeriodTotal.period) })
+        .from(stationKitPeriodTotal)
+        .where(notHidden);
   const [activeRow] = await activeQuery;
   const activePeriod = activeRow?.p ?? null;
 
@@ -989,7 +1044,7 @@ router.get("/station/summary", requireAuth, async (req: AuthRequest, res): Promi
   let totalUsd = 0;
 
   if (activePeriod) {
-    const baseWhere = eq(stationKitPeriodTotal.period, activePeriod);
+    const baseWhere = and(eq(stationKitPeriodTotal.period, activePeriod), notHidden);
     const where = scope
       ? scope.length > 0
         ? and(baseWhere, inArray(stationKitPeriodTotal.kitNo, scope))

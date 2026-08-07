@@ -714,6 +714,16 @@ const es: Record<string, string> = {
   "IP Adresi:": "Dirección IP:",
   "Veri yok": "Sin datos",
   "Veri": "Datos",
+  "Görünürlük": "Visibilidad",
+  "Görünmez yap": "Hacer invisible",
+  "Bu terminal tüm listelerden, haritadan, toplamlardan ve uyarılardan kaldırılacak. Ayarlar > Görünmezler bölümünden geri alabilirsiniz. Devam edilsin mi?": "Este terminal se eliminará de todas las listas, el mapa, los totales y las alertas. Puede restaurarlo en Ajustes > Invisibles. ¿Continuar?",
+  "Görünmezler": "Invisibles",
+  "Görünmez Terminaller": "Terminales invisibles",
+  "Buradaki terminaller hiçbir listede, haritada, toplamda veya uyarıda gösterilmez. Geri göster ile tekrar görünür yapabilirsiniz.": "Los terminales aquí no se muestran en ninguna lista, mapa, total ni alerta. Use Restaurar para volver a mostrarlos.",
+  "Görünmez yapılmış terminal yok.": "No hay terminales invisibles.",
+  "Geri göster": "Restaurar",
+  "Gemi Adı": "Nombre del barco",
+  "Gemi adı (boş = kaynaktan gelen ad)": "Nombre del barco (vacío = nombre de origen)",
 };
 
 export default es;

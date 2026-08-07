@@ -714,6 +714,16 @@ const ru: Record<string, string> = {
   "IP Adresi:": "IP-адрес:",
   "Veri yok": "Нет данных",
   "Veri": "Данные",
+  "Görünürlük": "Видимость",
+  "Görünmez yap": "Скрыть",
+  "Bu terminal tüm listelerden, haritadan, toplamlardan ve uyarılardan kaldırılacak. Ayarlar > Görünmezler bölümünden geri alabilirsiniz. Devam edilsin mi?": "Этот терминал будет удалён из всех списков, карты, итогов и оповещений. Его можно восстановить в Настройки > Скрытые. Продолжить?",
+  "Görünmezler": "Скрытые",
+  "Görünmez Terminaller": "Скрытые терминалы",
+  "Buradaki terminaller hiçbir listede, haritada, toplamda veya uyarıda gösterilmez. Geri göster ile tekrar görünür yapabilirsiniz.": "Эти терминалы не отображаются ни в списках, ни на карте, ни в итогах, ни в оповещениях. Нажмите «Показать снова», чтобы вернуть их.",
+  "Görünmez yapılmış terminal yok.": "Нет скрытых терминалов.",
+  "Geri göster": "Показать снова",
+  "Gemi Adı": "Название судна",
+  "Gemi adı (boş = kaynaktan gelen ad)": "Название судна (пусто = имя из источника)",
 };
 
 export default ru;

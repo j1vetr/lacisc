@@ -714,6 +714,16 @@ const ar: Record<string, string> = {
   "IP Adresi:": "عنوان IP:",
   "Veri yok": "لا توجد بيانات",
   "Veri": "البيانات",
+  "Görünürlük": "الظهور",
+  "Görünmez yap": "إخفاء",
+  "Bu terminal tüm listelerden, haritadan, toplamlardan ve uyarılardan kaldırılacak. Ayarlar > Görünmezler bölümünden geri alabilirsiniz. Devam edilsin mi?": "سيُزال هذا الطرفي من جميع القوائم والخريطة والإجماليات والتنبيهات. يمكنك استعادته من الإعدادات > المخفية. هل تريد المتابعة؟",
+  "Görünmezler": "المخفية",
+  "Görünmez Terminaller": "الطرفيات المخفية",
+  "Buradaki terminaller hiçbir listede, haritada, toplamda veya uyarıda gösterilmez. Geri göster ile tekrar görünür yapabilirsiniz.": "لا تظهر الطرفيات هنا في أي قائمة أو خريطة أو إجمالي أو تنبيه. استخدم «إظهار مجددًا» لإعادتها.",
+  "Görünmez yapılmış terminal yok.": "لا توجد طرفيات مخفية.",
+  "Geri göster": "إظهار مجددًا",
+  "Gemi Adı": "اسم السفينة",
+  "Gemi adı (boş = kaynaktan gelen ad)": "اسم السفينة (فارغ = الاسم من المصدر)",
 };
 
 export default ar;

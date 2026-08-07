@@ -485,6 +485,7 @@ router.get("/starlink/terminals", requireAuth, async (req: AuthRequest, res): Pr
     FROM (
       SELECT DISTINCT ON (kit_serial_number) *
       FROM starlink_terminals
+      WHERE hidden = false
       ORDER BY kit_serial_number, updated_at DESC
     ) t
     LEFT JOIN starlink_terminal_period_total p
@@ -666,6 +667,31 @@ router.patch(
       return;
     }
     res.json({ kitSerialNumber: kit, displayName: value });
+  },
+);
+
+// PATCH /starlink/terminals/:kit/hidden — terminali görünmez yap / geri göster.
+router.patch(
+  "/starlink/terminals/:kit/hidden",
+  requireAuth,
+  requireRole("admin"),
+  async (req: AuthRequest, res): Promise<void> => {
+    const kit = String(req.params.kit ?? "").trim();
+    const hidden = req.body?.hidden === true;
+    if (!kit) {
+      res.status(400).json({ error: "Geçersiz KIT." });
+      return;
+    }
+    const updated = await db
+      .update(starlinkTerminals)
+      .set({ hidden })
+      .where(eq(starlinkTerminals.kitSerialNumber, kit))
+      .returning({ kit: starlinkTerminals.kitSerialNumber });
+    if (updated.length === 0) {
+      res.status(404).json({ error: "Terminal bulunamadı." });
+      return;
+    }
+    res.json({ kitSerialNumber: kit, hidden });
   },
 );
 

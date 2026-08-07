@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
-import { Server, Mail, AlertTriangle, Satellite, Globe, MessageCircle, Clock, Ship } from "lucide-react";
+import { Server, Mail, AlertTriangle, Satellite, Globe, MessageCircle, Clock, Ship, EyeOff } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
@@ -17,6 +17,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
     { href: "/settings/whatsapp", label: "WhatsApp", icon: MessageCircle },
     { href: "/settings/ship-quotas", label: t("Gemi Kota Düşümü"), icon: Ship },
     { href: "/settings/scheduler", label: t("Zamanlayıcı"), icon: Clock },
+    { href: "/settings/hidden", label: t("Görünmezler"), icon: EyeOff },
     { href: "/settings/danger", label: t("Tehlike Bölgesi"), icon: AlertTriangle },
   ];
 

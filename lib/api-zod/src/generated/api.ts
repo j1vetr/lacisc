@@ -1408,6 +1408,73 @@ export const UpdateStarlinkTerminalManualPlanResponse = zod.object({
 });
 
 /**
+ * @summary Satcom KIT'i görünmez yap / geri göster (admin).
+ */
+export const UpdateStationKitHiddenParams = zod.object({
+  kitNo: zod.coerce.string(),
+});
+
+export const UpdateStationKitHiddenBody = zod.object({
+  hidden: zod
+    .boolean()
+    .describe("true = terminali görünmez yap, false = geri göster."),
+});
+
+export const UpdateStationKitHiddenResponse = zod.object({
+  kitNo: zod.string().nullish(),
+  kitSerialNumber: zod.string().nullish(),
+  hidden: zod.boolean(),
+});
+
+/**
+ * @summary Starlink terminalini görünmez yap / geri göster (admin).
+ */
+export const UpdateStarlinkTerminalHiddenParams = zod.object({
+  kit: zod.coerce.string(),
+});
+
+export const UpdateStarlinkTerminalHiddenBody = zod.object({
+  hidden: zod
+    .boolean()
+    .describe("true = terminali görünmez yap, false = geri göster."),
+});
+
+export const UpdateStarlinkTerminalHiddenResponse = zod.object({
+  kitNo: zod.string().nullish(),
+  kitSerialNumber: zod.string().nullish(),
+  hidden: zod.boolean(),
+});
+
+/**
+ * @summary Norway terminalini görünmez yap / geri göster (admin).
+ */
+export const UpdateLeobridgeTerminalHiddenParams = zod.object({
+  kit: zod.coerce.string(),
+});
+
+export const UpdateLeobridgeTerminalHiddenBody = zod.object({
+  hidden: zod
+    .boolean()
+    .describe("true = terminali görünmez yap, false = geri göster."),
+});
+
+export const UpdateLeobridgeTerminalHiddenResponse = zod.object({
+  kitNo: zod.string().nullish(),
+  kitSerialNumber: zod.string().nullish(),
+  hidden: zod.boolean(),
+});
+
+export const ListHiddenTerminalsResponse = zod.object({
+  terminals: zod.array(
+    zod.object({
+      kitNo: zod.string(),
+      name: zod.string().nullish(),
+      source: zod.enum(["satcom", "starlink", "leobridge"]),
+    }),
+  ),
+});
+
+/**
  * @summary Starlink terminal için manuel gemi adı override'ı kaydet / temizle (admin).
  */
 export const UpdateStarlinkTerminalDisplayNameParams = zod.object({

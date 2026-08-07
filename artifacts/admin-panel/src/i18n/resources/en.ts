@@ -715,6 +715,16 @@ const en: Record<string, string> = {
   "IP Adresi:": "IP Address:",
   "Veri yok": "No data",
   "Veri": "Data",
+  "Görünürlük": "Visibility",
+  "Görünmez yap": "Make invisible",
+  "Bu terminal tüm listelerden, haritadan, toplamlardan ve uyarılardan kaldırılacak. Ayarlar > Görünmezler bölümünden geri alabilirsiniz. Devam edilsin mi?": "This terminal will be removed from all lists, the map, totals and alerts. You can restore it from Settings > Invisible. Continue?",
+  "Görünmezler": "Invisible",
+  "Görünmez Terminaller": "Invisible Terminals",
+  "Buradaki terminaller hiçbir listede, haritada, toplamda veya uyarıda gösterilmez. Geri göster ile tekrar görünür yapabilirsiniz.": "Terminals here are not shown in any list, map, total or alert. Use Restore to make them visible again.",
+  "Görünmez yapılmış terminal yok.": "No terminals have been made invisible.",
+  "Geri göster": "Restore",
+  "Gemi Adı": "Ship Name",
+  "Gemi adı (boş = kaynaktan gelen ad)": "Ship name (empty = name from source)",
 };
 
 export default en;

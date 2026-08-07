@@ -43,6 +43,9 @@ import type {
   GetStarlinkTerminalDailyParams,
   GetSyncLogsParams,
   HealthStatus,
+  HiddenResult,
+  HiddenTerminalsResponse,
+  HiddenUpdate,
   KitDailyPoint,
   KitDetail,
   KitLocation,
@@ -5481,6 +5484,335 @@ export const useUpdateStarlinkTerminalManualPlan = <
     getUpdateStarlinkTerminalManualPlanMutationOptions(options),
   );
 };
+
+/**
+ * @summary Satcom KIT'i görünmez yap / geri göster (admin).
+ */
+export const getUpdateStationKitHiddenUrl = (kitNo: string) => {
+  return `/api/station/kits/${kitNo}/hidden`;
+};
+
+export const updateStationKitHidden = async (
+  kitNo: string,
+  hiddenUpdate: HiddenUpdate,
+  options?: RequestInit,
+): Promise<HiddenResult> => {
+  return customFetch<HiddenResult>(getUpdateStationKitHiddenUrl(kitNo), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(hiddenUpdate),
+  });
+};
+
+export const getUpdateStationKitHiddenMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStationKitHidden>>,
+    TError,
+    { kitNo: string; data: BodyType<HiddenUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateStationKitHidden>>,
+  TError,
+  { kitNo: string; data: BodyType<HiddenUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateStationKitHidden"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateStationKitHidden>>,
+    { kitNo: string; data: BodyType<HiddenUpdate> }
+  > = (props) => {
+    const { kitNo, data } = props ?? {};
+
+    return updateStationKitHidden(kitNo, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateStationKitHiddenMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateStationKitHidden>>
+>;
+export type UpdateStationKitHiddenMutationBody = BodyType<HiddenUpdate>;
+export type UpdateStationKitHiddenMutationError = ErrorType<void>;
+
+/**
+ * @summary Satcom KIT'i görünmez yap / geri göster (admin).
+ */
+export const useUpdateStationKitHidden = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStationKitHidden>>,
+    TError,
+    { kitNo: string; data: BodyType<HiddenUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateStationKitHidden>>,
+  TError,
+  { kitNo: string; data: BodyType<HiddenUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateStationKitHiddenMutationOptions(options));
+};
+
+/**
+ * @summary Starlink terminalini görünmez yap / geri göster (admin).
+ */
+export const getUpdateStarlinkTerminalHiddenUrl = (kit: string) => {
+  return `/api/starlink/terminals/${kit}/hidden`;
+};
+
+export const updateStarlinkTerminalHidden = async (
+  kit: string,
+  hiddenUpdate: HiddenUpdate,
+  options?: RequestInit,
+): Promise<HiddenResult> => {
+  return customFetch<HiddenResult>(getUpdateStarlinkTerminalHiddenUrl(kit), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(hiddenUpdate),
+  });
+};
+
+export const getUpdateStarlinkTerminalHiddenMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStarlinkTerminalHidden>>,
+    TError,
+    { kit: string; data: BodyType<HiddenUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateStarlinkTerminalHidden>>,
+  TError,
+  { kit: string; data: BodyType<HiddenUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateStarlinkTerminalHidden"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateStarlinkTerminalHidden>>,
+    { kit: string; data: BodyType<HiddenUpdate> }
+  > = (props) => {
+    const { kit, data } = props ?? {};
+
+    return updateStarlinkTerminalHidden(kit, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateStarlinkTerminalHiddenMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateStarlinkTerminalHidden>>
+>;
+export type UpdateStarlinkTerminalHiddenMutationBody = BodyType<HiddenUpdate>;
+export type UpdateStarlinkTerminalHiddenMutationError = ErrorType<void>;
+
+/**
+ * @summary Starlink terminalini görünmez yap / geri göster (admin).
+ */
+export const useUpdateStarlinkTerminalHidden = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStarlinkTerminalHidden>>,
+    TError,
+    { kit: string; data: BodyType<HiddenUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateStarlinkTerminalHidden>>,
+  TError,
+  { kit: string; data: BodyType<HiddenUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateStarlinkTerminalHiddenMutationOptions(options));
+};
+
+/**
+ * @summary Norway terminalini görünmez yap / geri göster (admin).
+ */
+export const getUpdateLeobridgeTerminalHiddenUrl = (kit: string) => {
+  return `/api/leobridge/terminals/${kit}/hidden`;
+};
+
+export const updateLeobridgeTerminalHidden = async (
+  kit: string,
+  hiddenUpdate: HiddenUpdate,
+  options?: RequestInit,
+): Promise<HiddenResult> => {
+  return customFetch<HiddenResult>(getUpdateLeobridgeTerminalHiddenUrl(kit), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(hiddenUpdate),
+  });
+};
+
+export const getUpdateLeobridgeTerminalHiddenMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateLeobridgeTerminalHidden>>,
+    TError,
+    { kit: string; data: BodyType<HiddenUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateLeobridgeTerminalHidden>>,
+  TError,
+  { kit: string; data: BodyType<HiddenUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateLeobridgeTerminalHidden"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateLeobridgeTerminalHidden>>,
+    { kit: string; data: BodyType<HiddenUpdate> }
+  > = (props) => {
+    const { kit, data } = props ?? {};
+
+    return updateLeobridgeTerminalHidden(kit, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateLeobridgeTerminalHiddenMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateLeobridgeTerminalHidden>>
+>;
+export type UpdateLeobridgeTerminalHiddenMutationBody = BodyType<HiddenUpdate>;
+export type UpdateLeobridgeTerminalHiddenMutationError = ErrorType<void>;
+
+/**
+ * @summary Norway terminalini görünmez yap / geri göster (admin).
+ */
+export const useUpdateLeobridgeTerminalHidden = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateLeobridgeTerminalHidden>>,
+    TError,
+    { kit: string; data: BodyType<HiddenUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateLeobridgeTerminalHidden>>,
+  TError,
+  { kit: string; data: BodyType<HiddenUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateLeobridgeTerminalHiddenMutationOptions(options));
+};
+
+export const getListHiddenTerminalsUrl = () => {
+  return `/api/admin/hidden-terminals`;
+};
+
+export const listHiddenTerminals = async (
+  options?: RequestInit,
+): Promise<HiddenTerminalsResponse> => {
+  return customFetch<HiddenTerminalsResponse>(getListHiddenTerminalsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListHiddenTerminalsQueryKey = () => {
+  return [`/api/admin/hidden-terminals`] as const;
+};
+
+export const getListHiddenTerminalsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listHiddenTerminals>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listHiddenTerminals>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListHiddenTerminalsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listHiddenTerminals>>
+  > = ({ signal }) => listHiddenTerminals({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listHiddenTerminals>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListHiddenTerminalsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listHiddenTerminals>>
+>;
+export type ListHiddenTerminalsQueryError = ErrorType<unknown>;
+
+export function useListHiddenTerminals<
+  TData = Awaited<ReturnType<typeof listHiddenTerminals>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listHiddenTerminals>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListHiddenTerminalsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Starlink terminal için manuel gemi adı override'ı kaydet / temizle (admin).

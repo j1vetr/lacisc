@@ -506,6 +506,7 @@ router.get(
           shipName: sql<string | null>`COALESCE(${stationKits.displayName}, ${stationKits.shipName})`,
         })
         .from(stationKits)
+        .where(eq(stationKits.hidden, false))
         .orderBy(stationKits.kitNo),
       // T002 — multi-credential: aynı KIT birden fazla hesapta olabilir;
       // en son güncellenen satırı tut (DISTINCT ON kit_serial_number).
@@ -515,6 +516,7 @@ router.get(
           COALESCE(display_name, nickname) AS nickname,
           asset_name AS "assetName"
         FROM starlink_terminals
+        WHERE hidden = false
         ORDER BY kit_serial_number, updated_at DESC
       `),
       db.execute(sql`
@@ -522,6 +524,7 @@ router.get(
           kit_serial_number AS "kitSerialNumber",
           COALESCE(display_name, nickname) AS nickname
         FROM leobridge_terminals
+        WHERE hidden = false
         ORDER BY kit_serial_number, updated_at DESC
       `),
       // Aktif dönem GiB → opsiyonel sıralama yardımcısı (UI azalan göstermek
@@ -568,6 +571,54 @@ router.get(
     }));
     res.json({ kits: [...satcom, ...starlink, ...leobridge] });
   }
+);
+
+// GET /admin/hidden-terminals — görünmez yapılmış terminallerin listesi
+// (Ayarlar > Görünmezler). Geri gösterme, kaynak bazlı PATCH .../hidden ile.
+router.get(
+  "/admin/hidden-terminals",
+  requireAuth,
+  requireRole("admin"),
+  async (_req: AuthRequest, res): Promise<void> => {
+    const [satRows, starRows, leoRows] = await Promise.all([
+      db
+        .select({
+          kitNo: stationKits.kitNo,
+          name: sql<string | null>`COALESCE(${stationKits.displayName}, ${stationKits.shipName})`,
+        })
+        .from(stationKits)
+        .where(eq(stationKits.hidden, true)),
+      db.execute(sql`
+        SELECT DISTINCT ON (kit_serial_number)
+          kit_serial_number AS "kitNo",
+          COALESCE(display_name, nickname, asset_name) AS "name"
+        FROM starlink_terminals
+        WHERE hidden = true
+        ORDER BY kit_serial_number, updated_at DESC
+      `),
+      db.execute(sql`
+        SELECT DISTINCT ON (kit_serial_number)
+          kit_serial_number AS "kitNo",
+          COALESCE(display_name, nickname) AS "name"
+        FROM leobridge_terminals
+        WHERE hidden = true
+        ORDER BY kit_serial_number, updated_at DESC
+      `),
+    ]);
+    const star = (starRows as unknown as {
+      rows: Array<{ kitNo: string; name: string | null }>;
+    }).rows;
+    const leo = (leoRows as unknown as {
+      rows: Array<{ kitNo: string; name: string | null }>;
+    }).rows;
+    res.json({
+      terminals: [
+        ...satRows.map((r) => ({ kitNo: r.kitNo, name: r.name, source: "satcom" as const })),
+        ...star.map((r) => ({ kitNo: r.kitNo, name: r.name, source: "starlink" as const })),
+        ...leo.map((r) => ({ kitNo: r.kitNo, name: r.name, source: "leobridge" as const })),
+      ],
+    });
+  },
 );
 
 router.get(
@@ -637,18 +688,29 @@ router.put(
     // atanmasını engelle). Satcom + Starlink havuzları tek hamlede çekilir.
     if (requested.length > 0) {
       const [satRows, starRows, leoRows] = await Promise.all([
+        // Görünmez (hidden) terminaller atanamaz.
         db
           .select({ kitNo: stationKits.kitNo })
           .from(stationKits)
-          .where(inArray(stationKits.kitNo, requested)),
+          .where(and(inArray(stationKits.kitNo, requested), eq(stationKits.hidden, false))),
         db
           .select({ kitNo: starlinkTerminals.kitSerialNumber })
           .from(starlinkTerminals)
-          .where(inArray(starlinkTerminals.kitSerialNumber, requested)),
+          .where(
+            and(
+              inArray(starlinkTerminals.kitSerialNumber, requested),
+              eq(starlinkTerminals.hidden, false),
+            ),
+          ),
         db
           .select({ kitNo: leobridgeTerminals.kitSerialNumber })
           .from(leobridgeTerminals)
-          .where(inArray(leobridgeTerminals.kitSerialNumber, requested)),
+          .where(
+            and(
+              inArray(leobridgeTerminals.kitSerialNumber, requested),
+              eq(leobridgeTerminals.hidden, false),
+            ),
+          ),
       ]);
       const known = new Set([
         ...satRows.map((r) => r.kitNo),

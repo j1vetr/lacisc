@@ -1,5 +1,5 @@
 import React, { useMemo, useState, lazy, Suspense } from "react";
-import { Link, useRoute } from "wouter";
+import { Link, useRoute, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
@@ -19,6 +19,7 @@ import {
   getGetKitSubscriptionsQueryKey,
   useUpdateKitManualPlan,
   useUpdateStationKitDisplayName,
+  useUpdateStationKitHidden,
   useGetMe,
   getGetMeQueryKey,
 } from "@workspace/api-client-react";
@@ -43,6 +44,7 @@ import {
   Phone,
   Briefcase,
   PlugZap,
+  EyeOff,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -268,6 +270,8 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
 
   const manualPlanMutation = useUpdateKitManualPlan();
   const displayNameMutation = useUpdateStationKitDisplayName();
+  const hiddenMutation = useUpdateStationKitHidden();
+  const [, navigate] = useLocation();
 
   const { data: detail, isLoading: detailLoading } = useGetKitDetail(kitNo, {
     query: { queryKey: getGetKitDetailQueryKey(kitNo), enabled: Boolean(kitNo) },
@@ -888,6 +892,37 @@ function SatcomKitDetail({ kitNo }: { kitNo: string }) {
                     <span className="text-[11px] text-destructive">{t("Hata — tekrar deneyin.")}</span>
                   )}
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Görünürlük — terminali görünmez yap */}
+          {isAdmin && !detailLoading && (
+            <div className="mt-4 pt-4 border-t border-border flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                {t("Görünürlük")}
+              </span>
+              <button
+                disabled={hiddenMutation.isPending}
+                onClick={() => {
+                  if (!window.confirm(t("Bu terminal tüm listelerden, haritadan, toplamlardan ve uyarılardan kaldırılacak. Ayarlar > Görünmezler bölümünden geri alabilirsiniz. Devam edilsin mi?"))) return;
+                  hiddenMutation.mutate(
+                    { kitNo, data: { hidden: true } },
+                    {
+                      onSuccess: () => {
+                        queryClient.invalidateQueries();
+                        navigate("/kits");
+                      },
+                    },
+                  );
+                }}
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded text-[12px] border border-border text-muted-foreground hover:text-foreground disabled:opacity-50"
+              >
+                <EyeOff className="w-3.5 h-3.5" />
+                {hiddenMutation.isPending ? "…" : t("Görünmez yap")}
+              </button>
+              {hiddenMutation.isError && (
+                <span className="text-[11px] text-destructive">{t("Hata — tekrar deneyin.")}</span>
               )}
             </div>
           )}

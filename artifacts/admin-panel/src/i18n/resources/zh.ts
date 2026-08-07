@@ -714,6 +714,16 @@ const zh: Record<string, string> = {
   "IP Adresi:": "IP 地址：",
   "Veri yok": "暂无数据",
   "Veri": "数据",
+  "Görünürlük": "可见性",
+  "Görünmez yap": "设为隐藏",
+  "Bu terminal tüm listelerden, haritadan, toplamlardan ve uyarılardan kaldırılacak. Ayarlar > Görünmezler bölümünden geri alabilirsiniz. Devam edilsin mi?": "该终端将从所有列表、地图、总计和警报中移除。可在 设置 > 隐藏项 中恢复。是否继续？",
+  "Görünmezler": "隐藏项",
+  "Görünmez Terminaller": "隐藏的终端",
+  "Buradaki terminaller hiçbir listede, haritada, toplamda veya uyarıda gösterilmez. Geri göster ile tekrar görünür yapabilirsiniz.": "此处的终端不会出现在任何列表、地图、总计或警报中。点击“恢复显示”即可重新显示。",
+  "Görünmez yapılmış terminal yok.": "没有被隐藏的终端。",
+  "Geri göster": "恢复显示",
+  "Gemi Adı": "船名",
+  "Gemi adı (boş = kaynaktan gelen ad)": "船名（留空 = 使用来源名称）",
 };
 
 export default zh;

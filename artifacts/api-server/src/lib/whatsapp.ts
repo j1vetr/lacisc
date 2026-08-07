@@ -817,6 +817,27 @@ export async function maybeFireWhatsappAlert(opts: {
   if (opts.totalGb == null || !Number.isFinite(opts.totalGb)) return;
   if (opts.period !== activePeriod()) return;
   try {
+    // Görünmez (hidden) terminal: hiçbir uyarı üretilmez.
+    const hiddenRow =
+      opts.source === "satcom"
+        ? await db
+            .select({ hidden: stationKits.hidden })
+            .from(stationKits)
+            .where(eq(stationKits.kitNo, opts.kitNo))
+            .limit(1)
+        : opts.source === "starlink"
+          ? await db
+              .select({ hidden: starlinkTerminals.hidden })
+              .from(starlinkTerminals)
+              .where(eq(starlinkTerminals.kitSerialNumber, opts.kitNo))
+              .limit(1)
+          : await db
+              .select({ hidden: leobridgeTerminals.hidden })
+              .from(leobridgeTerminals)
+              .where(eq(leobridgeTerminals.kitSerialNumber, opts.kitNo))
+              .limit(1);
+    if (hiddenRow[0]?.hidden) return;
+
     const settings = await getWhatsappSettings();
     if (!settings.enabled || !settings.hasApiKey) return;
 

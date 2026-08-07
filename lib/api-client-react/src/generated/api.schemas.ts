@@ -1031,6 +1031,36 @@ export interface DisplayNameResult {
   displayName: string | null;
 }
 
+export interface HiddenUpdate {
+  /** true = terminali görünmez yap, false = geri göster. */
+  hidden: boolean;
+}
+
+export interface HiddenResult {
+  kitNo?: string | null;
+  kitSerialNumber?: string | null;
+  hidden: boolean;
+}
+
+export type HiddenTerminalsResponseTerminalsItemSource =
+  (typeof HiddenTerminalsResponseTerminalsItemSource)[keyof typeof HiddenTerminalsResponseTerminalsItemSource];
+
+export const HiddenTerminalsResponseTerminalsItemSource = {
+  satcom: "satcom",
+  starlink: "starlink",
+  leobridge: "leobridge",
+} as const;
+
+export type HiddenTerminalsResponseTerminalsItem = {
+  kitNo: string;
+  name?: string | null;
+  source: HiddenTerminalsResponseTerminalsItemSource;
+};
+
+export interface HiddenTerminalsResponse {
+  terminals: HiddenTerminalsResponseTerminalsItem[];
+}
+
 export interface ManualPlanUpdate {
   /** GB olarak manuel kota. null = override'ı temizle, otomatik değere dön. */
   manualPlanGb?: number | null;

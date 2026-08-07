@@ -6,7 +6,7 @@ import {
   stationKitPeriodTotal,
   leobridgeTerminals,
 } from "@workspace/db";
-import { eq, inArray, max } from "drizzle-orm";
+import { and, eq, inArray, max } from "drizzle-orm";
 import type { Role } from "../middlewares/auth";
 
 export type KitSource = "satcom" | "starlink" | "leobridge";
@@ -37,13 +37,55 @@ export async function getAssignedKits(userId: number): Promise<AssignedKits> {
     })
     .from(customerKitAssignments)
     .where(eq(customerKitAssignments.userId, userId));
-  const satcom: string[] = [];
-  const starlink: string[] = [];
-  const leobridge: string[] = [];
+  let satcom: string[] = [];
+  let starlink: string[] = [];
+  let leobridge: string[] = [];
   for (const r of rows) {
     if (r.source === "starlink") starlink.push(r.kitNo);
     else if (r.source === "leobridge") leobridge.push(r.kitNo);
     else satcom.push(r.kitNo);
+  }
+  // Görünmez (hidden) terminaller müşteri kapsamından tamamen çıkarılır —
+  // atama kaydı dursa bile hiçbir müşteri endpoint'inde görünmez.
+  const [hidSat, hidStar, hidLeo] = await Promise.all([
+    satcom.length > 0
+      ? db
+          .select({ k: stationKits.kitNo })
+          .from(stationKits)
+          .where(and(inArray(stationKits.kitNo, satcom), eq(stationKits.hidden, true)))
+      : Promise.resolve([]),
+    starlink.length > 0
+      ? db
+          .select({ k: starlinkTerminals.kitSerialNumber })
+          .from(starlinkTerminals)
+          .where(
+            and(
+              inArray(starlinkTerminals.kitSerialNumber, starlink),
+              eq(starlinkTerminals.hidden, true),
+            ),
+          )
+      : Promise.resolve([]),
+    leobridge.length > 0
+      ? db
+          .select({ k: leobridgeTerminals.kitSerialNumber })
+          .from(leobridgeTerminals)
+          .where(
+            and(
+              inArray(leobridgeTerminals.kitSerialNumber, leobridge),
+              eq(leobridgeTerminals.hidden, true),
+            ),
+          )
+      : Promise.resolve([]),
+  ]);
+  const hiddenSet = new Set([
+    ...hidSat.map((r) => r.k),
+    ...hidStar.map((r) => r.k),
+    ...hidLeo.map((r) => r.k),
+  ]);
+  if (hiddenSet.size > 0) {
+    satcom = satcom.filter((k) => !hiddenSet.has(k));
+    starlink = starlink.filter((k) => !hiddenSet.has(k));
+    leobridge = leobridge.filter((k) => !hiddenSet.has(k));
   }
   return {
     satcom,
