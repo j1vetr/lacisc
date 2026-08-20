@@ -6,6 +6,7 @@ import {
   leobridgeTerminalDaily,
   leobridgeTerminalPeriodTotal,
   whatsappAlertState,
+  customerKitAssignments,
 } from "@workspace/db";
 import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
@@ -748,6 +749,16 @@ router.patch(
     if (updated.length === 0) {
       res.status(404).json({ error: "Terminal bulunamadı." });
       return;
+    }
+    if (hidden) {
+      await db
+        .delete(customerKitAssignments)
+        .where(
+          and(
+            eq(customerKitAssignments.kitNo, kit),
+            eq(customerKitAssignments.source, "leobridge"),
+          ),
+        );
     }
     res.json({ kitSerialNumber: kit, hidden });
   },

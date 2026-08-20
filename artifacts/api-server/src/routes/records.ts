@@ -10,6 +10,7 @@ import {
   stationKitTelemetryHourly,
   stationKitSubscriptionHistory,
   whatsappAlertState,
+  customerKitAssignments,
 } from "@workspace/db";
 import { eq, desc, asc, and, gte, inArray, sql, count, max, isNull } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
@@ -387,6 +388,18 @@ router.patch(
     if (updated.length === 0) {
       res.status(404).json({ error: "KIT bulunamadı." });
       return;
+    }
+    // Görünmez yapılınca müşteri atamalarından otomatik kaldır —
+    // aksi halde modal yeniden açıldığında eski atama seçili gelir.
+    if (hidden) {
+      await db
+        .delete(customerKitAssignments)
+        .where(
+          and(
+            eq(customerKitAssignments.kitNo, kitNo),
+            eq(customerKitAssignments.source, "satcom"),
+          ),
+        );
     }
     res.json({ kitNo, hidden });
   },

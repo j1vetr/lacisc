@@ -6,6 +6,7 @@ import {
   starlinkTerminalDaily,
   starlinkTerminalPeriodTotal,
   whatsappAlertState,
+  customerKitAssignments,
 } from "@workspace/db";
 import { eq, and, asc, desc, sql, count } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
@@ -690,6 +691,16 @@ router.patch(
     if (updated.length === 0) {
       res.status(404).json({ error: "Terminal bulunamadı." });
       return;
+    }
+    if (hidden) {
+      await db
+        .delete(customerKitAssignments)
+        .where(
+          and(
+            eq(customerKitAssignments.kitNo, kit),
+            eq(customerKitAssignments.source, "starlink"),
+          ),
+        );
     }
     res.json({ kitSerialNumber: kit, hidden });
   },
