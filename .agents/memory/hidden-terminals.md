@@ -11,4 +11,10 @@ Rule: each source table (station_kits, starlink_terminals, leobridge_terminals) 
 
 **How to apply:** when adding any new endpoint or job that reads terminal data, add a `hidden = false` filter (use `COALESCE(hidden,false)=false` on left joins). Deliberate exception: per-kit detail/daily/monthly/telemetry endpoints are NOT hidden-guarded for operator roles (list filtering + customer-scope gate deemed sufficient).
 
+**classifyKitDb / classifyKitsDb must also skip hidden terminals.** If a hidden Satcom record shares a kitNo/serial with a visible Norway record, the classifier previously returned "satcom" → the Norway assignment was stored with source='satcom' → leobridge customer scope was empty → customer saw nothing. Both functions now add `COALESCE(hidden,false)=false` to all three source queries.
+
+**Route prefix is authoritative for detail pages.** `/kits/:kitNo` always renders SatcomDetail, `/norway/:kitNo` always NorwayDetail, `/starlink/:kitNo` always StarlinkDetail. The DB classifier (`classifyKitDb`) is no longer consulted in `kit-detail.tsx` — it was routing Satcom URLs to Norway when the same serial existed in both tables with Norway being fresher.
+
+**Hiding auto-removes customer assignments.** PATCH .../hidden with hidden=true now deletes the matching rows from `customerKitAssignments` (source-scoped). Without this, old assignment pre-populated the modal as selected even after hiding.
+
 Production DB is external — schema changes are applied manually with idempotent `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`; never `pnpm db push`.

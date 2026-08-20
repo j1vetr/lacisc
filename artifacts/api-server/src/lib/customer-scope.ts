@@ -6,7 +6,7 @@ import {
   stationKitPeriodTotal,
   leobridgeTerminals,
 } from "@workspace/db";
-import { and, eq, inArray, max } from "drizzle-orm";
+import { and, eq, inArray, max, sql } from "drizzle-orm";
 import type { Role } from "../middlewares/auth";
 
 export type KitSource = "satcom" | "starlink" | "leobridge";
@@ -127,15 +127,19 @@ function pickWinner(cands: Candidate[]): KitSource | null {
 export async function classifyKitDb(
   kitNo: string,
 ): Promise<KitSource | "unknown"> {
+  // Görünmez (hidden) terminaller kaynak sınıflandırmasında dikkate alınmaz.
+  // Aksi halde hidden Satcom kaydı, aynı seri numaralı görünür Norway kaydına
+  // "satcom" kaynağı atayarak müşteri atamasını bozar.
+  const notHidden = sql`COALESCE(hidden, false) = false`;
   const [starRow, leoRow, satRow, satMeta] = await Promise.all([
     db
       .select({ ts: max(starlinkTerminals.updatedAt) })
       .from(starlinkTerminals)
-      .where(eq(starlinkTerminals.kitSerialNumber, kitNo)),
+      .where(and(eq(starlinkTerminals.kitSerialNumber, kitNo), notHidden)),
     db
       .select({ ts: max(leobridgeTerminals.updatedAt) })
       .from(leobridgeTerminals)
-      .where(eq(leobridgeTerminals.kitSerialNumber, kitNo)),
+      .where(and(eq(leobridgeTerminals.kitSerialNumber, kitNo), notHidden)),
     db
       .select({ ts: max(stationKitPeriodTotal.scrapedAt) })
       .from(stationKitPeriodTotal)
@@ -143,7 +147,7 @@ export async function classifyKitDb(
     db
       .select({ k: stationKits.kitNo })
       .from(stationKits)
-      .where(eq(stationKits.kitNo, kitNo))
+      .where(and(eq(stationKits.kitNo, kitNo), notHidden))
       .limit(1),
   ]);
 
@@ -171,6 +175,9 @@ export async function classifyKitsDb(
   const out = new Map<string, KitSource>();
   if (kitNos.length === 0) return out;
 
+  // Görünmez (hidden) terminaller kaynak sınıflandırmasında dikkate alınmaz —
+  // aynı gerekçe classifyKitDb'deki yorum satırında açıklanmış.
+  const notHidden = sql`COALESCE(hidden, false) = false`;
   const [starRows, leoRows, satRows, satMetaRows] = await Promise.all([
     db
       .select({
@@ -178,7 +185,7 @@ export async function classifyKitsDb(
         ts: max(starlinkTerminals.updatedAt),
       })
       .from(starlinkTerminals)
-      .where(inArray(starlinkTerminals.kitSerialNumber, kitNos))
+      .where(and(inArray(starlinkTerminals.kitSerialNumber, kitNos), notHidden))
       .groupBy(starlinkTerminals.kitSerialNumber),
     db
       .select({
@@ -186,7 +193,7 @@ export async function classifyKitsDb(
         ts: max(leobridgeTerminals.updatedAt),
       })
       .from(leobridgeTerminals)
-      .where(inArray(leobridgeTerminals.kitSerialNumber, kitNos))
+      .where(and(inArray(leobridgeTerminals.kitSerialNumber, kitNos), notHidden))
       .groupBy(leobridgeTerminals.kitSerialNumber),
     db
       .select({
@@ -199,7 +206,7 @@ export async function classifyKitsDb(
     db
       .select({ k: stationKits.kitNo })
       .from(stationKits)
-      .where(inArray(stationKits.kitNo, kitNos)),
+      .where(and(inArray(stationKits.kitNo, kitNos), notHidden)),
   ]);
 
   const buckets = new Map<string, Candidate[]>();
