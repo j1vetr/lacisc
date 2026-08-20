@@ -98,64 +98,30 @@ function formatHourLabel(iso: string) {
   }
 }
 
-// Wrapper picks the correct view by asking the backend which data source the
-// KIT belongs to. See git history for rationale.
+// Wrapper picks the correct view based on the URL route prefix.
+// /kits/:kitNo    → always Satcom   (stationKits)
+// /starlink/:kitNo → always Starlink
+// /norway/:kitNo  → always Norway   (leobridge)
+//
+// We intentionally do NOT call the /source classifier here because the same
+// kit serial can exist in multiple sources (e.g., a ship that migrated from
+// Satcom to Norway keeps data in both tables). The classifier returns the
+// "freshest" source which would wrongly redirect a Satcom detail URL to the
+// Norway screen, making the old Satcom record inaccessible (and unable to be
+// hidden). The route prefix is the authoritative source of truth.
 export default function KitDetail() {
-  const { t } = useTranslation();
   const [, kitsParams] = useRoute("/kits/:kitNo");
   const [, norwayParams] = useRoute("/norway/:kitNo");
   const [, starlinkParams] = useRoute("/starlink/:kitNo");
   const params = kitsParams ?? norwayParams ?? starlinkParams;
   const rawKitNo = params?.kitNo ?? "";
   const kitNo = decodeURIComponent(rawKitNo);
-  const { data: srcData, isLoading: srcLoading, error: srcError } = useGetKitSource(
-    kitNo,
-    {
-      query: {
-        queryKey: getGetKitSourceQueryKey(kitNo),
-        enabled: Boolean(kitNo),
-        staleTime: 5 * 60 * 1000,
-        retry: 0,
-      },
-    },
-  );
 
-  if (!kitNo) {
-    return <SatcomKitDetail kitNo={kitNo} />;
-  }
-  if (srcLoading) {
-    return (
-      <div className="space-y-3 animate-in fade-in duration-300">
-        <Skeleton className="h-12 w-full rounded-lg" />
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <Skeleton className="lg:col-span-8 h-[140px] rounded-lg" />
-          <Skeleton className="lg:col-span-4 h-[140px] rounded-lg" />
-        </div>
-        <Skeleton className="h-32 w-full rounded-lg" />
-      </div>
-    );
-  }
-  // Route-prefix-aware fallback: when /source lookup errors, prefer the URL the
-  // user navigated to (/norway → leobridge, /starlink → starlink). Only falls
-  // back to "satcom" for the generic /kits/:kitNo path. This avoids misrouting
-  // Norway KITs to Starlink during transient backend errors, since Leo Bridge
-  // and Tototheo can both expose KITP* serials.
-  const routeHint: "satcom" | "starlink" | "leobridge" =
-    norwayParams ? "leobridge" : starlinkParams ? "starlink" : "satcom";
-  const source: "satcom" | "starlink" | "leobridge" =
-    srcData?.source === "starlink" ||
-    srcData?.source === "satcom" ||
-    srcData?.source === "leobridge"
-      ? srcData.source
-      : srcError
-        ? routeHint
-        : "satcom";
-
-  if (source === "starlink") {
-    return <StarlinkDetail kit={kitNo} />;
-  }
-  if (source === "leobridge") {
+  if (norwayParams) {
     return <NorwayDetail kit={kitNo} />;
+  }
+  if (starlinkParams) {
+    return <StarlinkDetail kit={kitNo} />;
   }
   return <SatcomKitDetail kitNo={kitNo} />;
 }
