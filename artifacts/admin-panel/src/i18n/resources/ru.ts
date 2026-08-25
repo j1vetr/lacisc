@@ -724,6 +724,12 @@ const ru: Record<string, string> = {
   "Geri göster": "Показать снова",
   "Gemi Adı": "Название судна",
   "Gemi adı (boş = kaynaktan gelen ad)": "Название судна (пусто = имя из источника)",
+  "WhatsApp Bildirimleri (anindabildirim.com)": "Уведомления WhatsApp (anindabildirim.com)",
+  "anindabildirim.com Endpoint URL": "URL конечной точки anindabildirim.com",
+  "Güvenlik nedeniyle (SSRF + API anahtarı koruması) endpoint sabitlenmiştir. Yalnız api.anindabildirim.com host'una izin verilir.": "По соображениям безопасности конечная точка фиксирована. Разрешён только api.anindabildirim.com.",
+  "anindabildirim.com API anahtarı": "API-ключ anindabildirim.com",
+  "Eşik bildirimleri her sync turunda değil, günde bir kez bu saatte (Türkiye saati) toplu olarak gönderilir. Gün boyunca biriken tüm uyarılar alıcı başına tek mesajda birleştirilir.": "Уведомления о пороге отправляются раз в день в это время по времени Турции, а не при каждой синхронизации. Все накопленные за день предупреждения объединяются в одно сообщение для каждого получателя.",
+  "Plan-bazlı eşik uyarıları gün içinde kuyruğa alınır ve ayarlanan saatte alıcı başına toplu WhatsApp mesajı olarak gönderilir. Bildirimler YALNIZ \"müşteri\" rolündeki kullanıcılara, kendilerine atanmış KIT için gider (Kullanıcılar sayfasında telefon alanı dolu olmalı).": "Предупреждения о порогах в течение дня ставятся в очередь и в заданное время отправляются одним сообщением WhatsApp каждому получателю. Уведомления получают только пользователи с ролью клиента для назначенных им KIT.",
 };
 
 export default ru;

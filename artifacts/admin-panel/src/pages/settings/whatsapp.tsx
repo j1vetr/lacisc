@@ -48,7 +48,7 @@ export default function WhatsappSettingsPage() {
 
   const [enabled, setEnabled] = useState(false);
   const [endpointUrl, setEndpointUrl] = useState(
-    "https://my.wpileti.com/api/send-message",
+    "https://api.anindabildirim.com/api/send",
   );
   const [apiKey, setApiKey] = useState("");
   const [testRecipient, setTestRecipient] = useState("");
@@ -205,11 +205,11 @@ export default function WhatsappSettingsPage() {
               <div className="p-1.5 bg-background rounded border border-border">
                 <MessageCircle className="w-4 h-4 text-foreground" />
               </div>
-              {t("WhatsApp Bildirimleri (wpileti.com)")}
+              {t("WhatsApp Bildirimleri (anindabildirim.com)")}
             </CardTitle>
             <CardDescription className="mt-1 text-sm text-muted-foreground">
               {t(
-                "Plan-bazlı eşikleri aşan KIT'ler için anlık WhatsApp mesajı gönderir. Bildirimler YALNIZ \"müşteri\" rolündeki kullanıcılara, kendilerine atanmış KIT için gider (Kullanıcılar sayfasında telefon alanı dolu olmalı)."
+                "Plan-bazlı eşik uyarıları gün içinde kuyruğa alınır ve ayarlanan saatte alıcı başına toplu WhatsApp mesajı olarak gönderilir. Bildirimler YALNIZ \"müşteri\" rolündeki kullanıcılara, kendilerine atanmış KIT için gider (Kullanıcılar sayfasında telefon alanı dolu olmalı)."
               )}
             </CardDescription>
           </CardHeader>
@@ -236,7 +236,7 @@ export default function WhatsappSettingsPage() {
 
                 <div className="space-y-1.5">
                   <Label className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    {t("wpileti.com Endpoint URL")}
+                    {t("anindabildirim.com Endpoint URL")}
                   </Label>
                   <Input
                     value={endpointUrl}
@@ -246,7 +246,7 @@ export default function WhatsappSettingsPage() {
                   />
                   <p className="text-xs text-muted-foreground">
                     {t(
-                      "Güvenlik nedeniyle (SSRF + API anahtarı koruması) endpoint sabitlenmiştir. Yalnız my.wpileti.com host'una izin verilir."
+                      "Güvenlik nedeniyle (SSRF + API anahtarı koruması) endpoint sabitlenmiştir. Yalnız api.anindabildirim.com host'una izin verilir."
                     )}
                   </p>
                 </div>
@@ -261,7 +261,7 @@ export default function WhatsappSettingsPage() {
                     placeholder={
                       settings?.hasApiKey
                         ? t("(kayıtlı — değiştirmek için yenisini girin)")
-                        : t("wpileti.com API anahtarı")
+                        : t("anindabildirim.com API anahtarı")
                     }
                     onChange={(e) => setApiKey(e.target.value)}
                     className="font-mono text-sm bg-background border-border h-10 rounded-lg shadow-none"
@@ -324,7 +324,7 @@ export default function WhatsappSettingsPage() {
                   />
                   <p className="text-xs text-muted-foreground">
                     {t(
-                      "Eşik bildirimleri her sync turunda değil, günde bir kez bu saatte (Türkiye saati) toplu olarak gönderilir. Gün boyunca biriken tüm uyarılar alıcı başına tek mesajda birleştirilir (wpileti.com anti-spam koruması)."
+                        "Eşik bildirimleri her sync turunda değil, günde bir kez bu saatte (Türkiye saati) toplu olarak gönderilir. Gün boyunca biriken tüm uyarılar alıcı başına tek mesajda birleştirilir."
                     )}
                   </p>
                 </div>

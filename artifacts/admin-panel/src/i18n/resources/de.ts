@@ -711,6 +711,12 @@ const de: Record<string, string> = {
   "IP Adresi:": "IP-Adresse:",
   "Veri yok": "Keine Daten",
   "Veri": "Daten",
+  "WhatsApp Bildirimleri (anindabildirim.com)": "WhatsApp-Benachrichtigungen (anindabildirim.com)",
+  "anindabildirim.com Endpoint URL": "anindabildirim.com-Endpunkt-URL",
+  "Güvenlik nedeniyle (SSRF + API anahtarı koruması) endpoint sabitlenmiştir. Yalnız api.anindabildirim.com host'una izin verilir.": "Aus Sicherheitsgründen ist der Endpunkt festgelegt. Nur api.anindabildirim.com ist zulässig.",
+  "anindabildirim.com API anahtarı": "anindabildirim.com-API-Schlüssel",
+  "Eşik bildirimleri her sync turunda değil, günde bir kez bu saatte (Türkiye saati) toplu olarak gönderilir. Gün boyunca biriken tüm uyarılar alıcı başına tek mesajda birleştirilir.": "Schwellenwertbenachrichtigungen werden einmal täglich zu dieser Zeit nach türkischer Zeit gesendet, nicht bei jeder Synchronisierung. Alle während des Tages gesammelten Warnungen werden je Empfänger in einer Nachricht zusammengefasst.",
+  "Plan-bazlı eşik uyarıları gün içinde kuyruğa alınır ve ayarlanan saatte alıcı başına toplu WhatsApp mesajı olarak gönderilir. Bildirimler YALNIZ \"müşteri\" rolündeki kullanıcılara, kendilerine atanmış KIT için gider (Kullanıcılar sayfasında telefon alanı dolu olmalı).": "Planbasierte Schwellenwarnungen werden tagsüber in eine Warteschlange gestellt und zur eingestellten Zeit als eine WhatsApp-Nachricht pro Empfänger gesendet. Benachrichtigungen erhalten nur Nutzer mit der Kundenrolle für ihre zugewiesenen KIT.",
 };
 
 export default de;

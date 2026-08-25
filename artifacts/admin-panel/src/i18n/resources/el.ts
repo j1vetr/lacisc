@@ -710,6 +710,12 @@ const el: Record<string, string> = {
   "IP Adresi:": "Διεύθυνση IP:",
   "Veri yok": "Δεν υπάρχουν δεδομένα",
   "Veri": "Δεδομένα",
+  "WhatsApp Bildirimleri (anindabildirim.com)": "Ειδοποιήσεις WhatsApp (anindabildirim.com)",
+  "anindabildirim.com Endpoint URL": "URL endpoint anindabildirim.com",
+  "Güvenlik nedeniyle (SSRF + API anahtarı koruması) endpoint sabitlenmiştir. Yalnız api.anindabildirim.com host'una izin verilir.": "Για λόγους ασφαλείας το endpoint είναι σταθερό. Επιτρέπεται μόνο το api.anindabildirim.com.",
+  "anindabildirim.com API anahtarı": "Κλειδί API anindabildirim.com",
+  "Eşik bildirimleri her sync turunda değil, günde bir kez bu saatte (Türkiye saati) toplu olarak gönderilir. Gün boyunca biriken tüm uyarılar alıcı başına tek mesajda birleştirilir.": "Οι ειδοποιήσεις ορίου στέλνονται μία φορά την ημέρα αυτή την ώρα, με ώρα Τουρκίας, και όχι σε κάθε συγχρονισμό. Όλες οι ειδοποιήσεις της ημέρας συνδυάζονται σε ένα μήνυμα για κάθε παραλήπτη.",
+  "Plan-bazlı eşik uyarıları gün içinde kuyruğa alınır ve ayarlanan saatte alıcı başına toplu WhatsApp mesajı olarak gönderilir. Bildirimler YALNIZ \"müşteri\" rolündeki kullanıcılara, kendilerine atanmış KIT için gider (Kullanıcılar sayfasında telefon alanı dolu olmalı).": "Οι προειδοποιήσεις ορίου βάσει προγράμματος μπαίνουν σε ουρά μέσα στην ημέρα και στέλνονται την καθορισμένη ώρα ως ένα μήνυμα WhatsApp ανά παραλήπτη. Οι ειδοποιήσεις πηγαίνουν μόνο σε χρήστες με ρόλο πελάτη για τα ανατεθειμένα KIT τους.",
 };
 
 export default el;

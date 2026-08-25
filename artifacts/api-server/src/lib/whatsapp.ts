@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // WhatsApp eşik bildirim sistemi (Task #27).
 //
-// wpileti.com REST API üzerinden plan-bazlı eşik geçişlerinde tek-noktada
+// anindabildirim.com REST API üzerinden plan-bazlı eşik geçişlerinde tek-noktada
 // mesaj üretir. E-posta alarm sistemiyle PARALEL çalışır — eşik adımları,
 // alıcı listesi ve idempotency tablosu tamamen ayrıdır.
 //
@@ -101,15 +101,21 @@ export type WhatsappSettingsUpdate = {
 };
 
 // Güvenlik: SSRF + API anahtarı sızıntısını önlemek için endpoint URL
-// kesinlikle wpileti.com host'una pinlenmiştir. Admin UI'da bile
+// kesinlikle anindabildirim.com host'una pinlenmiştir. Admin UI'da bile
 // değiştirilemez (frontend read-only gösterir, backend reddeder).
-const ALLOWED_WHATSAPP_HOST = "my.wpileti.com";
-const DEFAULT_WHATSAPP_ENDPOINT = "https://my.wpileti.com/api/send-message";
+const ALLOWED_WHATSAPP_HOST = "api.anindabildirim.com";
+const DEFAULT_WHATSAPP_ENDPOINT = "https://api.anindabildirim.com/api/send";
 
 function isAllowedWhatsappEndpoint(raw: string): boolean {
   try {
     const u = new URL(raw);
-    return u.protocol === "https:" && u.host === ALLOWED_WHATSAPP_HOST;
+    return (
+      u.protocol === "https:" &&
+      u.host === ALLOWED_WHATSAPP_HOST &&
+      u.pathname === "/api/send" &&
+      !u.search &&
+      !u.hash
+    );
   } catch {
     return false;
   }
@@ -118,7 +124,12 @@ function isAllowedWhatsappEndpoint(raw: string): boolean {
 export async function saveWhatsappSettings(
   patch: WhatsappSettingsUpdate
 ): Promise<WhatsappSettingsView> {
-  const update: Record<string, unknown> = { updatedAt: new Date() };
+  // Endpoint artık admin tarafından seçilmez. Ayarlar kaydedildiğinde eski
+  // wpileti.com değeri de kalıcı olarak yeni sabit endpoint ile değiştirilir.
+  const update: Record<string, unknown> = {
+    endpointUrl: DEFAULT_WHATSAPP_ENDPOINT,
+    updatedAt: new Date(),
+  };
   if (patch.enabled !== undefined) update.enabled = patch.enabled;
   if (patch.endpointUrl !== undefined && patch.endpointUrl.trim()) {
     const candidate = patch.endpointUrl.trim();
@@ -300,7 +311,7 @@ async function processSendQueue(): Promise<void> {
               providerStatus: r.status,
               providerBody: r.body.slice(0, 500),
             },
-            "WhatsApp wpileti.com hata yanıtı"
+            "WhatsApp anindabildirim.com hata yanıtı"
           );
         } else {
           logger.info(
@@ -331,7 +342,7 @@ async function processSendQueue(): Promise<void> {
 // ---------------------------------------------------------------------------
 // Günlük özet (daily digest)
 //
-// WhatsApp consumer apps (wpileti.com benzeri unofficial wrapper'lar dahil)
+// WhatsApp consumer apps (anindabildirim.com benzeri gateway'ler dahil)
 // aynı kontağa kısa sürede arka arkaya çok mesaj atınca anti-spam motoruna
 // takılıp mesajları "Mesaj bekleniyor" pending durumuna düşürüyor (provider
 // 200 OK dönse bile teslim edilmiyor). Çözüm: eşik bildirimlerini her sync
@@ -640,11 +651,16 @@ async function sendOne(opts: {
 }): Promise<{ ok: boolean; status: number; body: string }> {
   const res = await fetch(opts.endpointUrl, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    // API anahtarının bir yönlendirme hedefiyle paylaşılmasını engelle.
+    redirect: "error",
+    headers: {
+      Authorization: `Bearer ${opts.apiKey}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
     body: JSON.stringify({
-      api_key: opts.apiKey,
-      receiver: opts.receiver,
-      data: { message: opts.message },
+      phone: opts.receiver,
+      message: opts.message,
     }),
   });
   const body = await res.text();
@@ -717,14 +733,14 @@ export async function sendTestWhatsapp(
           providerStatus: r.status,
           providerBody: r.body.slice(0, 500),
         },
-        "WhatsApp test gönderimi wpileti.com hata yanıtı"
+        "WhatsApp test gönderimi anindabildirim.com hata yanıtı"
       );
     }
     return {
       ok: r.ok,
       message: r.ok
         ? `Test mesajı ${target} numarasına gönderildi.`
-        : `wpileti.com hata (${r.status}).`,
+        : `anindabildirim.com hata (${r.status}).`,
       recipients: [target],
       providerStatus: r.status,
       providerBody: r.body.slice(0, 500),

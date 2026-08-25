@@ -1711,7 +1711,7 @@ export function useGetSyncProgress<
 }
 
 /**
- * @summary WhatsApp (wpileti.com) yapılandırması.
+ * @summary WhatsApp (anindabildirim.com) yapılandırması.
  */
 export const getGetWhatsappSettingsUrl = () => {
   return `/api/whatsapp/settings`;
@@ -1762,7 +1762,7 @@ export type GetWhatsappSettingsQueryResult = NonNullable<
 export type GetWhatsappSettingsQueryError = ErrorType<unknown>;
 
 /**
- * @summary WhatsApp (wpileti.com) yapılandırması.
+ * @summary WhatsApp (anindabildirim.com) yapılandırması.
  */
 
 export function useGetWhatsappSettings<

@@ -1,13 +1,14 @@
 ---
 name: WhatsApp alert delivery model
-description: Durable invariants for the Station Satcom WhatsApp threshold-alert pipeline (wpileti.com gateway). Read before touching whatsapp.ts send/queue/flush logic.
+description: Durable invariants for the Station Satcom WhatsApp threshold-alert pipeline (anindabildirim.com gateway). Read before touching whatsapp.ts send/queue/flush logic.
 ---
 
 # WhatsApp alert delivery — durable invariants
 
-The threshold-alert sender targets wpileti.com, an unofficial WhatsApp gateway whose
-anti-spam engine silently parks messages ("Mesaj bekleniyor") when the same contact
-receives several messages in a short window — even when the HTTP response is `200 OK`.
+The threshold-alert sender targets anindabildirim.com. It uses the fixed
+`https://api.anindabildirim.com/api/send` endpoint, `Authorization: Bearer <API_KEY>`,
+and a JSON body with `phone` plus `message`. Phone values are normalized to E.164 digits
+without a leading `+`.
 
 **Decision (be consistent with this):** alerts are batched and sent **once per day** at a
 panel-configurable hour (`whatsapp_settings.daily_send_hour`, default 13:00 Europe/Istanbul),
@@ -15,8 +16,8 @@ NOT per sync round. Alerts persist to the `whatsapp_pending_alert` table; a 60s 
 timer (`runDailyDigestIfDue`) flushes them when the daily window opens.
 
 **Why:** per-round sending (the old in-memory `pendingDigest` + end-of-round flush) produced
-N messages on days with N sync rounds, which tripped the gateway's anti-spam and stranded
-messages in pending. Daily batching = at most one message series per receiver per day.
+N messages on days with N sync rounds and was unreliable for recipients. Daily batching =
+at most one message series per receiver per day.
 
 **Two invariants that must survive any refactor:**
 1. The daily-window claim (`last_daily_flush_date = today`) must be **rolled back if the flush

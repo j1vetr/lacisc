@@ -724,6 +724,12 @@ const es: Record<string, string> = {
   "Geri göster": "Restaurar",
   "Gemi Adı": "Nombre del barco",
   "Gemi adı (boş = kaynaktan gelen ad)": "Nombre del barco (vacío = nombre de origen)",
+  "WhatsApp Bildirimleri (anindabildirim.com)": "Notificaciones de WhatsApp (anindabildirim.com)",
+  "anindabildirim.com Endpoint URL": "URL de endpoint de anindabildirim.com",
+  "Güvenlik nedeniyle (SSRF + API anahtarı koruması) endpoint sabitlenmiştir. Yalnız api.anindabildirim.com host'una izin verilir.": "Por seguridad, el endpoint está fijado. Solo se permite api.anindabildirim.com.",
+  "anindabildirim.com API anahtarı": "Clave API de anindabildirim.com",
+  "Eşik bildirimleri her sync turunda değil, günde bir kez bu saatte (Türkiye saati) toplu olarak gönderilir. Gün boyunca biriken tüm uyarılar alıcı başına tek mesajda birleştirilir.": "Las notificaciones de umbral se envían una vez al día a esta hora, según la hora de Turquía, no en cada sincronización. Todas las alertas acumuladas durante el día se combinan en un mensaje por destinatario.",
+  "Plan-bazlı eşik uyarıları gün içinde kuyruğa alınır ve ayarlanan saatte alıcı başına toplu WhatsApp mesajı olarak gönderilir. Bildirimler YALNIZ \"müşteri\" rolündeki kullanıcılara, kendilerine atanmış KIT için gider (Kullanıcılar sayfasında telefon alanı dolu olmalı).": "Las alertas de umbral basadas en el plan se ponen en cola durante el día y se envían a la hora configurada como un mensaje de WhatsApp por destinatario. Las notificaciones son solo para usuarios con rol de cliente y sus KIT asignados.",
 };
 
 export default es;

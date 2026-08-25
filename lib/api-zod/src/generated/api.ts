@@ -335,7 +335,7 @@ export const GetSyncProgressResponse = zod.object({
 });
 
 /**
- * @summary WhatsApp (wpileti.com) yapılandırması.
+ * @summary WhatsApp (anindabildirim.com) yapılandırması.
  */
 export const getWhatsappSettingsResponseDailySendHourMin = 0;
 export const getWhatsappSettingsResponseDailySendHourMax = 23;
@@ -426,12 +426,12 @@ export const TestWhatsappSettingsResponse = zod.object({
   providerStatus: zod
     .number()
     .nullish()
-    .describe("wpileti.com HTTP durum kodu (istek yapılmadıysa null)."),
+    .describe("anindabildirim.com HTTP durum kodu (istek yapılmadıysa null)."),
   providerBody: zod
     .string()
     .nullish()
     .describe(
-      "wpileti.com yanıt gövdesi (ilk 500 karakter; istek yapılmadıysa null).",
+      "anindabildirim.com yanıt gövdesi (ilk 500 karakter; istek yapılmadıysa null).",
     ),
 });
 

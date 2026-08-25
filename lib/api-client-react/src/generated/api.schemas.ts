@@ -681,9 +681,9 @@ export interface WhatsappTestResult {
   success: boolean;
   message: string;
   recipients: string[];
-  /** wpileti.com HTTP durum kodu (istek yapılmadıysa null). */
+  /** anindabildirim.com HTTP durum kodu (istek yapılmadıysa null). */
   providerStatus?: number | null;
-  /** wpileti.com yanıt gövdesi (ilk 500 karakter; istek yapılmadıysa null). */
+  /** anindabildirim.com yanıt gövdesi (ilk 500 karakter; istek yapılmadıysa null). */
   providerBody?: string | null;
 }
 

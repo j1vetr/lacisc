@@ -724,6 +724,12 @@ const zh: Record<string, string> = {
   "Geri göster": "恢复显示",
   "Gemi Adı": "船名",
   "Gemi adı (boş = kaynaktan gelen ad)": "船名（留空 = 使用来源名称）",
+  "WhatsApp Bildirimleri (anindabildirim.com)": "WhatsApp 通知 (anindabildirim.com)",
+  "anindabildirim.com Endpoint URL": "anindabildirim.com 接口地址",
+  "Güvenlik nedeniyle (SSRF + API anahtarı koruması) endpoint sabitlenmiştir. Yalnız api.anindabildirim.com host'una izin verilir.": "出于安全考虑，接口地址已固定。仅允许 api.anindabildirim.com。",
+  "anindabildirim.com API anahtarı": "anindabildirim.com API 密钥",
+  "Eşik bildirimleri her sync turunda değil, günde bir kez bu saatte (Türkiye saati) toplu olarak gönderilir. Gün boyunca biriken tüm uyarılar alıcı başına tek mesajda birleştirilir.": "阈值通知不会在每次同步时发送，而是在此时间按土耳其时间每天发送一次。当天累积的所有提醒会合并为每位收件人的一条消息。",
+  "Plan-bazlı eşik uyarıları gün içinde kuyruğa alınır ve ayarlanan saatte alıcı başına toplu WhatsApp mesajı olarak gönderilir. Bildirimler YALNIZ \"müşteri\" rolündeki kullanıcılara, kendilerine atanmış KIT için gider (Kullanıcılar sayfasında telefon alanı dolu olmalı).": "基于套餐的阈值提醒会在当天进入队列，并在设定时间合并为每位收件人的一条 WhatsApp 消息发送。通知仅发送给其已分配 KIT 的客户角色用户。",
 };
 
 export default zh;

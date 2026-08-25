@@ -731,15 +731,15 @@ export const leobridgeSyncLogs = pgTable(
 // WhatsApp eşik bildirimleri (Task #27)
 // ---------------------------------------------------------------------------
 
-// Singleton (id=1). wpileti.com hesap sırrı + global operatör bildirim
+// Singleton (id=1). anindabildirim.com API anahtarı + global operatör bildirim
 // listesi + opsiyonel test alıcısı. Plan-bazlı eşik kuralları ayrı tabloda.
 export const whatsappSettings = pgTable("whatsapp_settings", {
   id: integer("id").primaryKey(),
   enabled: boolean("enabled").default(false).notNull(),
   apiKeyEncrypted: text("api_key_encrypted"),
-  // wpileti.com endpoint (tek nokta — değişirse buradan ayarlanır).
+  // anindabildirim.com endpoint (tek nokta — değişirse buradan ayarlanır).
   endpointUrl: text("endpoint_url")
-    .default("https://my.wpileti.com/api/send-message")
+    .default("https://api.anindabildirim.com/api/send")
     .notNull(),
   // LEGACY — DEAD COLUMNS. Task #27 ilk taslağında ops broadcast +
   // ayrı global eşik vardı; spec dispatch yolu YALNIZ customer atamalı
@@ -753,7 +753,7 @@ export const whatsappSettings = pgTable("whatsapp_settings", {
   testRecipient: text("test_recipient"),
   // Günlük özet gönderim saati (0-23, Türkiye/Europe-Istanbul saati). Eşik
   // bildirimleri her sync turunda DEĞİL, günde bir kez bu saatte toplu gider
-  // (wpileti.com anti-spam koruması).
+  // (sağlayıcı anti-spam koruması).
   dailySendHour: integer("daily_send_hour").default(13).notNull(),
   // Son başarılı günlük flush'ın tarihi (YYYY-MM-DD, Istanbul). Aynı gün
   // tekrar göndermeyi engeller; null → henüz hiç flush edilmedi.

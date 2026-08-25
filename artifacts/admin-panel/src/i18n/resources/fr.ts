@@ -710,6 +710,12 @@ const fr: Record<string, string> = {
   "IP Adresi:": "Adresse IP :",
   "Veri yok": "Pas de données",
   "Veri": "Données",
+  "WhatsApp Bildirimleri (anindabildirim.com)": "Notifications WhatsApp (anindabildirim.com)",
+  "anindabildirim.com Endpoint URL": "URL de point de terminaison anindabildirim.com",
+  "Güvenlik nedeniyle (SSRF + API anahtarı koruması) endpoint sabitlenmiştir. Yalnız api.anindabildirim.com host'una izin verilir.": "Pour des raisons de sécurité, le point de terminaison est fixe. Seul api.anindabildirim.com est autorisé.",
+  "anindabildirim.com API anahtarı": "Clé API anindabildirim.com",
+  "Eşik bildirimleri her sync turunda değil, günde bir kez bu saatte (Türkiye saati) toplu olarak gönderilir. Gün boyunca biriken tüm uyarılar alıcı başına tek mesajda birleştirilir.": "Les notifications de seuil sont envoyées une fois par jour à cette heure selon l'heure de Turquie, et non à chaque synchronisation. Toutes les alertes accumulées pendant la journée sont regroupées dans un message par destinataire.",
+  "Plan-bazlı eşik uyarıları gün içinde kuyruğa alınır ve ayarlanan saatte alıcı başına toplu WhatsApp mesajı olarak gönderilir. Bildirimler YALNIZ \"müşteri\" rolündeki kullanıcılara, kendilerine atanmış KIT için gider (Kullanıcılar sayfasında telefon alanı dolu olmalı).": "Les alertes de seuil liées au forfait sont mises en file d'attente pendant la journée puis envoyées à l'heure définie sous forme d'un message WhatsApp par destinataire. Les notifications sont réservées aux utilisateurs ayant le rôle client pour leurs KIT attribués.",
 };
 
 export default fr;

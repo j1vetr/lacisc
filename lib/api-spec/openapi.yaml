@@ -428,7 +428,7 @@ paths:
       operationId: getWhatsappSettings
       x-required-role: admin
       tags: [whatsapp]
-      summary: WhatsApp (wpileti.com) yapılandırması.
+      summary: WhatsApp (anindabildirim.com) yapılandırması.
       security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       responses:
         "200":
@@ -3004,11 +3004,11 @@ components:
         providerStatus:
           type: integer
           nullable: true
-          description: "wpileti.com HTTP durum kodu (istek yapılmadıysa null)."
+          description: "anindabildirim.com HTTP durum kodu (istek yapılmadıysa null)."
         providerBody:
           type: string
           nullable: true
-          description: "wpileti.com yanıt gövdesi (ilk 500 karakter; istek yapılmadıysa null)."
+          description: "anindabildirim.com yanıt gövdesi (ilk 500 karakter; istek yapılmadıysa null)."
 
     WhatsappThresholdRule:
       type: object

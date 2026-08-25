@@ -724,6 +724,12 @@ const ar: Record<string, string> = {
   "Geri göster": "إظهار مجددًا",
   "Gemi Adı": "اسم السفينة",
   "Gemi adı (boş = kaynaktan gelen ad)": "اسم السفينة (فارغ = الاسم من المصدر)",
+  "WhatsApp Bildirimleri (anindabildirim.com)": "إشعارات WhatsApp (anindabildirim.com)",
+  "anindabildirim.com Endpoint URL": "عنوان نقطة نهاية anindabildirim.com",
+  "Güvenlik nedeniyle (SSRF + API anahtarı koruması) endpoint sabitlenmiştir. Yalnız api.anindabildirim.com host'una izin verilir.": "لأسباب أمنية تم تثبيت نقطة النهاية. يُسمح فقط بـ api.anindabildirim.com.",
+  "anindabildirim.com API anahtarı": "مفتاح API الخاص بـ anindabildirim.com",
+  "Eşik bildirimleri her sync turunda değil, günde bir kez bu saatte (Türkiye saati) toplu olarak gönderilir. Gün boyunca biriken tüm uyarılar alıcı başına tek mesajda birleştirilir.": "تُرسل إشعارات الحد مرة واحدة يوميًا في هذا الوقت بتوقيت تركيا، وليس في كل مزامنة. تُدمج جميع التنبيهات المتراكمة خلال اليوم في رسالة واحدة لكل مستلم.",
+  "Plan-bazlı eşik uyarıları gün içinde kuyruğa alınır ve ayarlanan saatte alıcı başına toplu WhatsApp mesajı olarak gönderilir. Bildirimler YALNIZ \"müşteri\" rolündeki kullanıcılara, kendilerine atanmış KIT için gider (Kullanıcılar sayfasında telefon alanı dolu olmalı).": "تُدرج تنبيهات الحد المبنية على الخطة في قائمة انتظار خلال اليوم وتُرسل في الوقت المحدد كرسالة WhatsApp واحدة لكل مستلم. تصل الإشعارات فقط إلى المستخدمين ذوي دور العميل للـ KIT المخصصة لهم.",
 };
 
 export default ar;

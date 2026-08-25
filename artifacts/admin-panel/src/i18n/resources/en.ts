@@ -725,6 +725,12 @@ const en: Record<string, string> = {
   "Geri göster": "Restore",
   "Gemi Adı": "Ship Name",
   "Gemi adı (boş = kaynaktan gelen ad)": "Ship name (empty = name from source)",
+  "WhatsApp Bildirimleri (anindabildirim.com)": "WhatsApp Notifications (anindabildirim.com)",
+  "anindabildirim.com Endpoint URL": "anindabildirim.com Endpoint URL",
+  "Güvenlik nedeniyle (SSRF + API anahtarı koruması) endpoint sabitlenmiştir. Yalnız api.anindabildirim.com host'una izin verilir.": "For security reasons (SSRF and API key protection), the endpoint is fixed. Only api.anindabildirim.com is allowed.",
+  "anindabildirim.com API anahtarı": "anindabildirim.com API key",
+  "Eşik bildirimleri her sync turunda değil, günde bir kez bu saatte (Türkiye saati) toplu olarak gönderilir. Gün boyunca biriken tüm uyarılar alıcı başına tek mesajda birleştirilir.": "Threshold notifications are sent once daily at this time (Turkey time), not on every sync. All alerts collected during the day are combined into one message per recipient.",
+  "Plan-bazlı eşik uyarıları gün içinde kuyruğa alınır ve ayarlanan saatte alıcı başına toplu WhatsApp mesajı olarak gönderilir. Bildirimler YALNIZ \"müşteri\" rolündeki kullanıcılara, kendilerine atanmış KIT için gider (Kullanıcılar sayfasında telefon alanı dolu olmalı).": "Plan-based threshold alerts are queued during the day and sent at the configured time as one WhatsApp message per recipient. Notifications go only to users with the customer role for their assigned KITs.",
 };
 
 export default en;
