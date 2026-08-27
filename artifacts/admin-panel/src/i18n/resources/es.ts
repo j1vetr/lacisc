@@ -730,6 +730,17 @@ const es: Record<string, string> = {
   "anindabildirim.com API anahtarı": "Clave API de anindabildirim.com",
   "Eşik bildirimleri her sync turunda değil, günde bir kez bu saatte (Türkiye saati) toplu olarak gönderilir. Gün boyunca biriken tüm uyarılar alıcı başına tek mesajda birleştirilir.": "Las notificaciones de umbral se envían una vez al día a esta hora, según la hora de Turquía, no en cada sincronización. Todas las alertas acumuladas durante el día se combinan en un mensaje por destinatario.",
   "Plan-bazlı eşik uyarıları gün içinde kuyruğa alınır ve ayarlanan saatte alıcı başına toplu WhatsApp mesajı olarak gönderilir. Bildirimler YALNIZ \"müşteri\" rolündeki kullanıcılara, kendilerine atanmış KIT için gider (Kullanıcılar sayfasında telefon alanı dolu olmalı).": "Las alertas de umbral basadas en el plan se ponen en cola durante el día y se envían a la hora configurada como un mensaje de WhatsApp por destinatario. Las notificaciones son solo para usuarios con rol de cliente y sus KIT asignados.",
+
+  // Map settings (Task #48)
+  "Harita": "Mapa",
+  "Harita Ayarları (CARTO Basemaps)": "Configuración del mapa (CARTO Basemaps)",
+  "CARTO Basemaps harita katmanı için API anahtarı. Anahtar girilmezse haritalar yüklenmeye devam eder ancak CARTO ticari kullanım filigranı gösterebilir. Domain kısıtlamalı anahtar tercih edilir.": "Clave API para la capa de teselas de CARTO Basemaps. Sin clave, los mapas seguirán cargando pero CARTO puede mostrar una marca de agua de uso comercial. Se recomienda una clave restringida por dominio.",
+  "CARTO API Anahtarı": "Clave API de CARTO",
+  "CARTO API anahtarınızı girin": "Ingrese su clave API de CARTO",
+  "Anahtarı Temizle": "Eliminar clave",
+  "Anahtar silindi.": "Clave eliminada.",
+  "Harita anahtarı kayıtlı.": "La clave API del mapa está guardada.",
+  "Harita anahtarı girilmemiş.": "No se ha configurado ninguna clave API de mapa.",
 };
 
 export default es;

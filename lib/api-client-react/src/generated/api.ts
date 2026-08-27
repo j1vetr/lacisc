@@ -68,6 +68,8 @@ import type {
   LoginBody,
   ManualPlanResult,
   ManualPlanUpdate,
+  MapSettings,
+  MapSettingsUpdate,
   MessageResponse,
   ReadinessStatus,
   ResetPasswordBody,
@@ -2606,6 +2608,167 @@ export const useUpdateShipQuotaDeduction = <
   TContext
 > => {
   return useMutation(getUpdateShipQuotaDeductionMutationOptions(options));
+};
+
+/**
+ * @summary CARTO harita API anahtarı durumunu döner (gerçek anahtar asla dönmez).
+ */
+export const getGetMapSettingsUrl = () => {
+  return `/api/map/settings`;
+};
+
+export const getMapSettings = async (
+  options?: RequestInit,
+): Promise<MapSettings> => {
+  return customFetch<MapSettings>(getGetMapSettingsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMapSettingsQueryKey = () => {
+  return [`/api/map/settings`] as const;
+};
+
+export const getGetMapSettingsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMapSettings>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMapSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMapSettingsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMapSettings>>> = ({
+    signal,
+  }) => getMapSettings({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMapSettings>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMapSettingsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMapSettings>>
+>;
+export type GetMapSettingsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary CARTO harita API anahtarı durumunu döner (gerçek anahtar asla dönmez).
+ */
+
+export function useGetMapSettings<
+  TData = Awaited<ReturnType<typeof getMapSettings>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMapSettings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMapSettingsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary CARTO harita API anahtarını günceller veya temizler.
+ */
+export const getUpdateMapSettingsUrl = () => {
+  return `/api/map/settings`;
+};
+
+export const updateMapSettings = async (
+  mapSettingsUpdate: MapSettingsUpdate,
+  options?: RequestInit,
+): Promise<MapSettings> => {
+  return customFetch<MapSettings>(getUpdateMapSettingsUrl(), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(mapSettingsUpdate),
+  });
+};
+
+export const getUpdateMapSettingsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMapSettings>>,
+    TError,
+    { data: BodyType<MapSettingsUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateMapSettings>>,
+  TError,
+  { data: BodyType<MapSettingsUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateMapSettings"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateMapSettings>>,
+    { data: BodyType<MapSettingsUpdate> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateMapSettings(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateMapSettingsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateMapSettings>>
+>;
+export type UpdateMapSettingsMutationBody = BodyType<MapSettingsUpdate>;
+export type UpdateMapSettingsMutationError = ErrorType<unknown>;
+
+/**
+ * @summary CARTO harita API anahtarını günceller veya temizler.
+ */
+export const useUpdateMapSettings = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMapSettings>>,
+    TError,
+    { data: BodyType<MapSettingsUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateMapSettings>>,
+  TError,
+  { data: BodyType<MapSettingsUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateMapSettingsMutationOptions(options));
 };
 
 /**

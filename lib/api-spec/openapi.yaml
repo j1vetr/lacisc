@@ -18,6 +18,7 @@ tags:
   - name: leobridge
   - name: whatsapp
   - name: scheduler
+  - name: map
 
 paths:
   /healthz:
@@ -609,6 +610,40 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ShipQuotaDeduction" }
+
+  # ---------------------------------------------------------------------------
+  # Harita ayarları (Task #48)
+  # ---------------------------------------------------------------------------
+  /map/settings:
+    get:
+      operationId: getMapSettings
+      x-required-role: admin
+      tags: [map]
+      summary: CARTO harita API anahtarı durumunu döner (gerçek anahtar asla dönmez).
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MapSettings" }
+    patch:
+      operationId: updateMapSettings
+      x-required-role: admin
+      tags: [map]
+      summary: CARTO harita API anahtarını günceller veya temizler.
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MapSettingsUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MapSettings" }
 
   /scheduler/settings:
     get:
@@ -3412,6 +3447,23 @@ components:
           type: number
           nullable: true
           description: "GB olarak manuel kota. null = override'ı temizle, otomatik değere dön."
+
+    MapSettings:
+      type: object
+      required: [hasApiKey, updatedAt]
+      properties:
+        hasApiKey:
+          type: boolean
+          description: "true → kayıtlı CARTO API anahtarı var (gerçek değer asla dönmez)"
+        updatedAt: { type: string, format: date-time }
+
+    MapSettingsUpdate:
+      type: object
+      properties:
+        apiKey:
+          type: string
+          nullable: true
+          description: "undefined → değişmez, '' veya null → temizler, dolu → yeni anahtar."
 
     ManualPlanResult:
       type: object

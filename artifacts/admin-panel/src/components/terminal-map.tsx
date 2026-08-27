@@ -73,10 +73,7 @@ export default function TerminalMap({
       attributionControl={false}
       className="ssa-leaflet absolute inset-0 h-full w-full"
     >
-      <TileLayer
-        url={CARTO_LIGHT_TILE_URL}
-        subdomains={["a", "b", "c", "d"]}
-      />
+      <TileLayer url={CARTO_LIGHT_TILE_URL} />
       <Marker position={[lat, lng]} icon={icon} />
       <Recenter lat={lat} lng={lng} />
     </MapContainer>

@@ -730,6 +730,17 @@ const ru: Record<string, string> = {
   "anindabildirim.com API anahtarı": "API-ключ anindabildirim.com",
   "Eşik bildirimleri her sync turunda değil, günde bir kez bu saatte (Türkiye saati) toplu olarak gönderilir. Gün boyunca biriken tüm uyarılar alıcı başına tek mesajda birleştirilir.": "Уведомления о пороге отправляются раз в день в это время по времени Турции, а не при каждой синхронизации. Все накопленные за день предупреждения объединяются в одно сообщение для каждого получателя.",
   "Plan-bazlı eşik uyarıları gün içinde kuyruğa alınır ve ayarlanan saatte alıcı başına toplu WhatsApp mesajı olarak gönderilir. Bildirimler YALNIZ \"müşteri\" rolündeki kullanıcılara, kendilerine atanmış KIT için gider (Kullanıcılar sayfasında telefon alanı dolu olmalı).": "Предупреждения о порогах в течение дня ставятся в очередь и в заданное время отправляются одним сообщением WhatsApp каждому получателю. Уведомления получают только пользователи с ролью клиента для назначенных им KIT.",
+
+  // Map settings (Task #48)
+  "Harita": "Карта",
+  "Harita Ayarları (CARTO Basemaps)": "Настройки карты (CARTO Basemaps)",
+  "CARTO Basemaps harita katmanı için API anahtarı. Anahtar girilmezse haritalar yüklenmeye devam eder ancak CARTO ticari kullanım filigranı gösterebilir. Domain kısıtlamalı anahtar tercih edilir.": "API-ключ для слоя тайлов CARTO Basemaps. Без ключа карты будут загружаться, но CARTO может показывать водяной знак коммерческого использования. Рекомендуется использовать ключ с ограничением по домену.",
+  "CARTO API Anahtarı": "API-ключ CARTO",
+  "CARTO API anahtarınızı girin": "Введите ваш API-ключ CARTO",
+  "Anahtarı Temizle": "Удалить ключ",
+  "Anahtar silindi.": "Ключ удалён.",
+  "Harita anahtarı kayıtlı.": "API-ключ карты сохранён.",
+  "Harita anahtarı girilmemiş.": "API-ключ карты не настроен.",
 };
 
 export default ru;

@@ -197,10 +197,7 @@ export default function FleetMap({
     });
 
     if (!hideTiles) {
-      L.tileLayer(
-        CARTO_LIGHT_TILE_URL,
-        { subdomains: ["a", "b", "c", "d"] },
-      ).addTo(map);
+      L.tileLayer(CARTO_LIGHT_TILE_URL).addTo(map);
     }
 
     const cluster = L.markerClusterGroup({

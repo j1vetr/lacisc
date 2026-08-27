@@ -716,6 +716,17 @@ const el: Record<string, string> = {
   "anindabildirim.com API anahtarı": "Κλειδί API anindabildirim.com",
   "Eşik bildirimleri her sync turunda değil, günde bir kez bu saatte (Türkiye saati) toplu olarak gönderilir. Gün boyunca biriken tüm uyarılar alıcı başına tek mesajda birleştirilir.": "Οι ειδοποιήσεις ορίου στέλνονται μία φορά την ημέρα αυτή την ώρα, με ώρα Τουρκίας, και όχι σε κάθε συγχρονισμό. Όλες οι ειδοποιήσεις της ημέρας συνδυάζονται σε ένα μήνυμα για κάθε παραλήπτη.",
   "Plan-bazlı eşik uyarıları gün içinde kuyruğa alınır ve ayarlanan saatte alıcı başına toplu WhatsApp mesajı olarak gönderilir. Bildirimler YALNIZ \"müşteri\" rolündeki kullanıcılara, kendilerine atanmış KIT için gider (Kullanıcılar sayfasında telefon alanı dolu olmalı).": "Οι προειδοποιήσεις ορίου βάσει προγράμματος μπαίνουν σε ουρά μέσα στην ημέρα και στέλνονται την καθορισμένη ώρα ως ένα μήνυμα WhatsApp ανά παραλήπτη. Οι ειδοποιήσεις πηγαίνουν μόνο σε χρήστες με ρόλο πελάτη για τα ανατεθειμένα KIT τους.",
+
+  // Map settings (Task #48)
+  "Harita": "Χάρτης",
+  "Harita Ayarları (CARTO Basemaps)": "Ρυθμίσεις χάρτη (CARTO Basemaps)",
+  "CARTO Basemaps harita katmanı için API anahtarı. Anahtar girilmezse haritalar yüklenmeye devam eder ancak CARTO ticari kullanım filigranı gösterebilir. Domain kısıtlamalı anahtar tercih edilir.": "Κλειδί API για το επίπεδο πλακιδίων CARTO Basemaps. Χωρίς κλειδί, οι χάρτες θα φορτώνονται αλλά ενδέχεται να εμφανιστεί υδατογράφημα εμπορικής χρήσης. Συνιστάται κλειδί με περιορισμό domain.",
+  "CARTO API Anahtarı": "Κλειδί API CARTO",
+  "CARTO API anahtarınızı girin": "Εισαγάγετε το κλειδί CARTO API σας",
+  "Anahtarı Temizle": "Διαγραφή κλειδιού",
+  "Anahtar silindi.": "Το κλειδί διαγράφηκε.",
+  "Harita anahtarı kayıtlı.": "Το κλειδί API χάρτη είναι αποθηκευμένο.",
+  "Harita anahtarı girilmemiş.": "Δεν έχει ρυθμιστεί κλειδί API χάρτη.",
 };
 
 export default el;

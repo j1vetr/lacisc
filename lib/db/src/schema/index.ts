@@ -902,3 +902,15 @@ export const shipQuotaDeductions = pgTable(
   ]
 );
 export type ShipQuotaDeduction = typeof shipQuotaDeductions.$inferSelect;
+
+// ---------------------------------------------------------------------------
+// CARTO harita tile ayarları (Task #48)
+// ---------------------------------------------------------------------------
+// Singleton (id=1). Yalnız API anahtarı şifreli tutulur; tile proxy backend
+// tarafından anahtarı CARTO'ya iletir — tarayıcıya asla döndürülmez.
+export const mapSettings = pgTable("map_settings", {
+  id: integer("id").primaryKey(),
+  apiKeyEncrypted: text("api_key_encrypted"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export type MapSettings = typeof mapSettings.$inferSelect;

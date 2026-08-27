@@ -1066,6 +1066,17 @@ export interface ManualPlanUpdate {
   manualPlanGb?: number | null;
 }
 
+export interface MapSettings {
+  /** true → kayıtlı CARTO API anahtarı var (gerçek değer asla dönmez) */
+  hasApiKey: boolean;
+  updatedAt: string;
+}
+
+export interface MapSettingsUpdate {
+  /** undefined → değişmez, '' veya null → temizler, dolu → yeni anahtar. */
+  apiKey?: string | null;
+}
+
 export interface ManualPlanResult {
   kitNo?: string | null;
   kitSerialNumber?: string | null;

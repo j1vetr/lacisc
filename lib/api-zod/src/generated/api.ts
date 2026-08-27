@@ -639,6 +639,39 @@ export const UpdateShipQuotaDeductionResponse = zod.object({
 });
 
 /**
+ * @summary CARTO harita API anahtarı durumunu döner (gerçek anahtar asla dönmez).
+ */
+export const GetMapSettingsResponse = zod.object({
+  hasApiKey: zod
+    .boolean()
+    .describe(
+      "true → kayıtlı CARTO API anahtarı var (gerçek değer asla dönmez)",
+    ),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary CARTO harita API anahtarını günceller veya temizler.
+ */
+export const UpdateMapSettingsBody = zod.object({
+  apiKey: zod
+    .string()
+    .nullish()
+    .describe(
+      "undefined → değişmez, '' veya null → temizler, dolu → yeni anahtar.",
+    ),
+});
+
+export const UpdateMapSettingsResponse = zod.object({
+  hasApiKey: zod
+    .boolean()
+    .describe(
+      "true → kayıtlı CARTO API anahtarı var (gerçek değer asla dönmez)",
+    ),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
  * @summary Cron senkronizasyon zamanlayıcı ayarları + canlı durum.
  */
 export const getSchedulerSettingsResponseIntervalMinutesMin = 15;

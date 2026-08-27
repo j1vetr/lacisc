@@ -731,6 +731,17 @@ const en: Record<string, string> = {
   "anindabildirim.com API anahtarı": "anindabildirim.com API key",
   "Eşik bildirimleri her sync turunda değil, günde bir kez bu saatte (Türkiye saati) toplu olarak gönderilir. Gün boyunca biriken tüm uyarılar alıcı başına tek mesajda birleştirilir.": "Threshold notifications are sent once daily at this time (Turkey time), not on every sync. All alerts collected during the day are combined into one message per recipient.",
   "Plan-bazlı eşik uyarıları gün içinde kuyruğa alınır ve ayarlanan saatte alıcı başına toplu WhatsApp mesajı olarak gönderilir. Bildirimler YALNIZ \"müşteri\" rolündeki kullanıcılara, kendilerine atanmış KIT için gider (Kullanıcılar sayfasında telefon alanı dolu olmalı).": "Plan-based threshold alerts are queued during the day and sent at the configured time as one WhatsApp message per recipient. Notifications go only to users with the customer role for their assigned KITs.",
+
+  // Map settings (Task #48)
+  "Harita": "Map",
+  "Harita Ayarları (CARTO Basemaps)": "Map Settings (CARTO Basemaps)",
+  "CARTO Basemaps harita katmanı için API anahtarı. Anahtar girilmezse haritalar yüklenmeye devam eder ancak CARTO ticari kullanım filigranı gösterebilir. Domain kısıtlamalı anahtar tercih edilir.": "API key for the CARTO Basemaps tile layer. Without a key, maps will still load but CARTO may show a commercial-use watermark. A domain-restricted key is recommended.",
+  "CARTO API Anahtarı": "CARTO API Key",
+  "CARTO API anahtarınızı girin": "Enter your CARTO API key",
+  "Anahtarı Temizle": "Clear Key",
+  "Anahtar silindi.": "Key cleared.",
+  "Harita anahtarı kayıtlı.": "Map API key is saved.",
+  "Harita anahtarı girilmemiş.": "No map API key configured.",
 };
 
 export default en;

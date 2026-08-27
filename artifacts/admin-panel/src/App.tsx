@@ -30,6 +30,7 @@ const SettingsShipQuotas = lazy(() => import("./pages/settings/ship-quotas"));
 const SettingsScheduler = lazy(() => import("./pages/settings/scheduler"));
 const SettingsDanger = lazy(() => import("./pages/settings/danger"));
 const SettingsHidden = lazy(() => import("./pages/settings/hidden"));
+const SettingsMap = lazy(() => import("./pages/settings/map"));
 const Profile = lazy(() => import("./pages/profile"));
 const AdminUsers = lazy(() => import("./pages/admin-users"));
 const AuditLogs = lazy(() => import("./pages/audit-logs"));
@@ -213,6 +214,7 @@ function Router() {
       <Route path="/settings/ship-quotas">{() => <ProtectedRoute component={SettingsShipQuotas} minRole="admin" />}</Route>
       <Route path="/settings/scheduler">{() => <ProtectedRoute component={SettingsScheduler} minRole="viewer" />}</Route>
       <Route path="/settings/danger">{() => <ProtectedRoute component={SettingsDanger} minRole="admin" />}</Route>
+      <Route path="/settings/map">{() => <ProtectedRoute component={SettingsMap} minRole="admin" />}</Route>
       <Route path="/settings/hidden">{() => <ProtectedRoute component={SettingsHidden} minRole="admin" />}</Route>
       <Route path="/profile">{() => <ProtectedRoute component={Profile} />}</Route>
       <Route path="/admin/users">{() => <ProtectedRoute component={AdminUsers} minRole="admin" />}</Route>

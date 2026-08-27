@@ -1,9 +1,4 @@
-const cartoApiKey = import.meta.env.VITE_CARTO_API_KEY?.trim();
-
-const cartoKeySuffix = cartoApiKey
-  ? `?key=${encodeURIComponent(cartoApiKey)}`
-  : "";
-
-export const CARTO_LIGHT_TILE_URL =
-  "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" +
-  cartoKeySuffix;
+// CARTO tile istekleri API proxy üzerinden gider — anahtar tarayıcıya açılmaz.
+// Backend GET /api/map/tiles/{z}/{x}/{y} isteği alır, şifreli anahtarı çözer
+// ve CARTO'ya iletir. Subdomain seçimi de proxy tarafında yapılır.
+export const CARTO_LIGHT_TILE_URL = "/api/map/tiles/{z}/{x}/{y}";

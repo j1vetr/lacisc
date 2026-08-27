@@ -730,6 +730,17 @@ const ar: Record<string, string> = {
   "anindabildirim.com API anahtarı": "مفتاح API الخاص بـ anindabildirim.com",
   "Eşik bildirimleri her sync turunda değil, günde bir kez bu saatte (Türkiye saati) toplu olarak gönderilir. Gün boyunca biriken tüm uyarılar alıcı başına tek mesajda birleştirilir.": "تُرسل إشعارات الحد مرة واحدة يوميًا في هذا الوقت بتوقيت تركيا، وليس في كل مزامنة. تُدمج جميع التنبيهات المتراكمة خلال اليوم في رسالة واحدة لكل مستلم.",
   "Plan-bazlı eşik uyarıları gün içinde kuyruğa alınır ve ayarlanan saatte alıcı başına toplu WhatsApp mesajı olarak gönderilir. Bildirimler YALNIZ \"müşteri\" rolündeki kullanıcılara, kendilerine atanmış KIT için gider (Kullanıcılar sayfasında telefon alanı dolu olmalı).": "تُدرج تنبيهات الحد المبنية على الخطة في قائمة انتظار خلال اليوم وتُرسل في الوقت المحدد كرسالة WhatsApp واحدة لكل مستلم. تصل الإشعارات فقط إلى المستخدمين ذوي دور العميل للـ KIT المخصصة لهم.",
+
+  // Map settings (Task #48)
+  "Harita": "الخريطة",
+  "Harita Ayarları (CARTO Basemaps)": "إعدادات الخريطة (CARTO Basemaps)",
+  "CARTO Basemaps harita katmanı için API anahtarı. Anahtar girilmezse haritalar yüklenmeye devam eder ancak CARTO ticari kullanım filigranı gösterebilir. Domain kısıtlamalı anahtar tercih edilir.": "مفتاح API لطبقة بلاطات CARTO Basemaps. بدون مفتاح ستُحمَّل الخرائط ولكن قد تُظهر CARTO علامة مائية للاستخدام التجاري. يُنصح باستخدام مفتاح مقيَّد بالنطاق.",
+  "CARTO API Anahtarı": "مفتاح CARTO API",
+  "CARTO API anahtarınızı girin": "أدخل مفتاح CARTO API الخاص بك",
+  "Anahtarı Temizle": "مسح المفتاح",
+  "Anahtar silindi.": "تم مسح المفتاح.",
+  "Harita anahtarı kayıtlı.": "مفتاح API للخريطة محفوظ.",
+  "Harita anahtarı girilmemiş.": "لم يتم تكوين مفتاح API للخريطة.",
 };
 
 export default ar;
