@@ -4,6 +4,7 @@ import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import "leaflet.markercluster";
+import { CARTO_LIGHT_TILE_URL } from "@/lib/carto";
 import { Maximize2, Minimize2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -197,7 +198,7 @@ export default function FleetMap({
 
     if (!hideTiles) {
       L.tileLayer(
-        "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        CARTO_LIGHT_TILE_URL,
         { subdomains: ["a", "b", "c", "d"] },
       ).addTo(map);
     }
