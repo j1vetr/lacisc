@@ -752,8 +752,7 @@ export const whatsappSettings = pgTable("whatsapp_settings", {
   // "Test mesajı gönder" butonu için varsayılan tek alıcı.
   testRecipient: text("test_recipient"),
   // Günlük özet gönderim saati (0-23, Türkiye/Europe-Istanbul saati). Eşik
-  // bildirimleri her sync turunda DEĞİL, günde bir kez bu saatte toplu gider
-  // (sağlayıcı anti-spam koruması).
+  // bildirimleri her sync turunda DEĞİL, günde bir kez bu saatte toplu gider.
   dailySendHour: integer("daily_send_hour").default(13).notNull(),
   // Son başarılı günlük flush'ın tarihi (YYYY-MM-DD, Istanbul). Aynı gün
   // tekrar göndermeyi engeller; null → henüz hiç flush edilmedi.

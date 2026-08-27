@@ -125,7 +125,7 @@ export async function saveWhatsappSettings(
   patch: WhatsappSettingsUpdate
 ): Promise<WhatsappSettingsView> {
   // Endpoint artık admin tarafından seçilmez. Ayarlar kaydedildiğinde eski
-  // wpileti.com değeri de kalıcı olarak yeni sabit endpoint ile değiştirilir.
+  // kayıtlar da kalıcı olarak yeni sabit endpoint ile değiştirilir.
   const update: Record<string, unknown> = {
     endpointUrl: DEFAULT_WHATSAPP_ENDPOINT,
     updatedAt: new Date(),
