@@ -80,15 +80,15 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#eef2f7] dark:bg-background flex flex-col items-center justify-center gap-3 sm:gap-4 p-4 sm:p-8">
+    <div className="min-h-screen w-full bg-[#eef2f7] dark:bg-background flex flex-col items-center justify-center gap-3 sm:gap-4 p-4 sm:p-8 transition-colors">
       <LanguageSwitcher variant="solid" />
-      <div className="w-full max-w-[1080px] bg-white dark:bg-card rounded-3xl border border-[#e6e9ef] dark:border-border overflow-hidden shadow-[0_30px_80px_-30px_rgba(15,23,42,0.18)] grid lg:grid-cols-[1.05fr_1fr]">
+      <div className="w-full max-w-[1080px] bg-white dark:bg-card rounded-3xl border border-[#e6e9ef] dark:border-border overflow-hidden shadow-[0_30px_80px_-30px_rgba(15,23,42,0.18)] dark:shadow-[0_30px_80px_-30px_rgba(0,0,0,0.55)] grid lg:grid-cols-[1.05fr_1fr] transition-colors">
         {/* SOL PANEL — uydu + dünya görseli, logo, özellikler */}
         <aside className="hidden lg:flex relative flex-col p-10 xl:p-12 overflow-hidden bg-white dark:bg-card/50 min-h-[680px]">
           {/* Yumuşak arka plan vurgusu */}
           <div
             aria-hidden
-            className="absolute inset-0 pointer-events-none"
+            className="absolute inset-0 pointer-events-none dark:opacity-50"
             style={{
               backgroundImage:
                 "radial-gradient(ellipse 100% 60% at 50% 35%, rgba(180,200,225,0.22) 0%, transparent 65%)",
@@ -107,7 +107,7 @@ export default function Login() {
               cy="260"
               rx="290"
               ry="110"
-              stroke="#cdd6e2"
+              className="stroke-[#cdd6e2] dark:stroke-[#3f454e]"
               strokeWidth="1"
               strokeDasharray="2 6"
             />
@@ -116,14 +116,14 @@ export default function Login() {
               cy="260"
               rx="360"
               ry="145"
-              stroke="#dfe5ee"
+              className="stroke-[#dfe5ee] dark:stroke-[#343a43]"
               strokeWidth="1"
               strokeDasharray="2 6"
             />
-            <circle cx="90" cy="170" r="2" fill="#94a3b8" />
-            <circle cx="520" cy="200" r="1.5" fill="#94a3b8" />
-            <circle cx="200" cy="80" r="1.5" fill="#cbd5e1" />
-            <circle cx="470" cy="50" r="2" fill="#cbd5e1" />
+            <circle className="fill-[#94a3b8] dark:fill-[#667080]" cx="90" cy="170" r="2" />
+            <circle className="fill-[#94a3b8] dark:fill-[#667080]" cx="520" cy="200" r="1.5" />
+            <circle className="fill-[#cbd5e1] dark:fill-[#596271]" cx="200" cy="80" r="1.5" />
+            <circle className="fill-[#cbd5e1] dark:fill-[#596271]" cx="470" cy="50" r="2" />
           </svg>
 
           {/* Logo — üstte */}
@@ -221,7 +221,7 @@ export default function Login() {
                           placeholder={t("Kullanıcı adınız")}
                           {...field}
                           autoComplete="username"
-                          className="bg-[#f6f8fb] dark:bg-background border-[#e6e9ef] dark:border-border h-12 rounded-xl pl-10 text-sm focus-visible:ring-primary focus-visible:bg-white shadow-none"
+                          className="bg-[#f6f8fb] dark:bg-background border-[#e6e9ef] dark:border-border h-12 rounded-xl pl-10 text-sm focus-visible:ring-primary focus-visible:bg-white dark:focus-visible:bg-card shadow-none"
                         />
                       </div>
                     </FormControl>
@@ -245,7 +245,7 @@ export default function Login() {
                           placeholder="••••••••"
                           {...field}
                           autoComplete="current-password"
-                          className="bg-[#f6f8fb] dark:bg-background border-[#e6e9ef] dark:border-border h-12 rounded-xl pl-10 pr-11 text-sm font-mono tracking-widest focus-visible:ring-primary focus-visible:bg-white shadow-none"
+                          className="bg-[#f6f8fb] dark:bg-background border-[#e6e9ef] dark:border-border h-12 rounded-xl pl-10 pr-11 text-sm font-mono tracking-widest focus-visible:ring-primary focus-visible:bg-white dark:focus-visible:bg-card shadow-none"
                         />
                         <button
                           type="button"
