@@ -23,6 +23,7 @@ import {
   getDecryptedMapApiKey,
   type MapSettingsUpdate,
 } from "../lib/map-settings";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -75,6 +76,132 @@ router.patch(
 
 const CARTO_SUBDOMAINS = ["a", "b", "c", "d"] as const;
 
+const DEFAULT_TILE_CACHE_TTL_SECONDS = 24 * 60 * 60;
+const DEFAULT_TILE_CACHE_MAX_ENTRIES = 1_000;
+const DEFAULT_TILE_CACHE_MAX_BYTES = 64 * 1024 * 1024;
+
+function readNonNegativeIntegerEnv(
+  name: string,
+  fallback: number,
+): number {
+  const value = process.env[name];
+  if (value === undefined || value.trim() === "") return fallback;
+
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function readPositiveIntegerEnv(name: string, fallback: number): number {
+  const value = process.env[name];
+  if (value === undefined || value.trim() === "") return fallback;
+
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+const TILE_CACHE_TTL_SECONDS = readNonNegativeIntegerEnv(
+  "MAP_TILE_CACHE_TTL_SECONDS",
+  DEFAULT_TILE_CACHE_TTL_SECONDS,
+);
+const TILE_CACHE_MAX_ENTRIES = readPositiveIntegerEnv(
+  "MAP_TILE_CACHE_MAX_ENTRIES",
+  DEFAULT_TILE_CACHE_MAX_ENTRIES,
+);
+const TILE_CACHE_MAX_BYTES = readPositiveIntegerEnv(
+  "MAP_TILE_CACHE_MAX_BYTES",
+  DEFAULT_TILE_CACHE_MAX_BYTES,
+);
+const TILE_CACHE_CONTROL = `public, max-age=${TILE_CACHE_TTL_SECONDS}`;
+
+type TileCacheEntry = {
+  buffer: Buffer;
+  contentType: string;
+  expiresAt: number;
+};
+
+/**
+ * Small bounded LRU cache. Map iteration order is used to keep the least
+ * recently used item at the beginning, while the byte limit prevents a few
+ * unusually large tiles from consuming unbounded heap memory.
+ */
+class TileCache {
+  private readonly entries = new Map<string, TileCacheEntry>();
+  private totalBytes = 0;
+  private hits = 0;
+  private misses = 0;
+
+  get(key: string, now = Date.now()): TileCacheEntry | undefined {
+    const entry = this.entries.get(key);
+    if (!entry) {
+      this.misses++;
+      return undefined;
+    }
+
+    if (entry.expiresAt <= now) {
+      this.delete(key);
+      this.misses++;
+      return undefined;
+    }
+
+    // Re-inserting moves the entry to the MRU end of the Map.
+    this.entries.delete(key);
+    this.entries.set(key, entry);
+    this.hits++;
+    return entry;
+  }
+
+  set(
+    key: string,
+    buffer: Buffer,
+    contentType: string,
+    now = Date.now(),
+  ): void {
+    if (TILE_CACHE_TTL_SECONDS === 0 || buffer.byteLength > TILE_CACHE_MAX_BYTES) {
+      return;
+    }
+
+    this.delete(key);
+    while (
+      this.entries.size >= TILE_CACHE_MAX_ENTRIES ||
+      this.totalBytes + buffer.byteLength > TILE_CACHE_MAX_BYTES
+    ) {
+      const oldestKey = this.entries.keys().next().value;
+      if (oldestKey === undefined) break;
+      this.delete(oldestKey);
+    }
+
+    this.entries.set(key, {
+      buffer,
+      contentType,
+      expiresAt: now + TILE_CACHE_TTL_SECONDS * 1_000,
+    });
+    this.totalBytes += buffer.byteLength;
+  }
+
+  private delete(key: string): void {
+    const entry = this.entries.get(key);
+    if (!entry) return;
+    this.entries.delete(key);
+    this.totalBytes -= entry.buffer.byteLength;
+  }
+
+  stats(): {
+    hits: number;
+    misses: number;
+    entries: number;
+    bytes: number;
+  } {
+    return {
+      hits: this.hits,
+      misses: this.misses,
+      entries: this.entries.size,
+      bytes: this.totalBytes,
+    };
+  }
+}
+
+const tileCache = new TileCache();
+
 router.get(
   "/map/tiles/:z/:x/:y",
   requireAuth,
@@ -94,6 +221,25 @@ router.get(
       return;
     }
 
+    const cacheKey = `${z}/${x}/${y}`;
+    const cached = tileCache.get(cacheKey);
+    if (cached) {
+      logger.info(
+        { cache: "map-tiles", event: "hit", key: cacheKey, ...tileCache.stats() },
+        "Map tile cache hit",
+      );
+      res
+        .set("Content-Type", cached.contentType)
+        .set("Cache-Control", TILE_CACHE_CONTROL)
+        .send(cached.buffer);
+      return;
+    }
+
+    logger.info(
+      { cache: "map-tiles", event: "miss", key: cacheKey, ...tileCache.stats() },
+      "Map tile cache miss",
+    );
+
     const subdomain = CARTO_SUBDOMAINS[(x + y) % CARTO_SUBDOMAINS.length];
     const apiKey = await getDecryptedMapApiKey();
 
@@ -104,7 +250,11 @@ router.get(
     let upstream: Response;
     try {
       upstream = await fetch(tileUrl, {
-        headers: { "User-Agent": "StationSatcomAdmin/1.0" },
+        headers: {
+          "User-Agent": "StationSatcomAdmin/1.0",
+          Accept: "image/png",
+          "Cache-Control": `public, max-age=${TILE_CACHE_TTL_SECONDS}`,
+        },
         signal: AbortSignal.timeout(10_000),
       });
     } catch {
@@ -119,11 +269,18 @@ router.get(
 
     const contentType =
       upstream.headers.get("content-type") ?? "image/png";
-    const buffer = Buffer.from(await upstream.arrayBuffer());
+    let buffer: Buffer;
+    try {
+      buffer = Buffer.from(await upstream.arrayBuffer());
+    } catch {
+      res.status(502).end();
+      return;
+    }
 
+    tileCache.set(cacheKey, buffer, contentType);
     res
       .set("Content-Type", contentType)
-      .set("Cache-Control", "public, max-age=86400")
+      .set("Cache-Control", TILE_CACHE_CONTROL)
       .send(buffer);
   }
 );
