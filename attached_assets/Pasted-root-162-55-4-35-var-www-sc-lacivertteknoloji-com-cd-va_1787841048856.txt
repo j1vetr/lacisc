@@ -1,0 +1,47 @@
+root@162-55-4-35:/var/www/sc.lacivertteknoloji.com# cd /var/www/sc.lacivertteknoloji.com
+
+rm -rf -- node_modules
+
+find lib artifacts scripts \
+  -type d \
+  -name node_modules \
+  -prune \
+  -exec rm -rf -- {} +
+
+sc-deploy
+From https://github.com/j1vetr/lacisc
+ * branch            main       -> FETCH_HEAD
+Already up to date.
+Scope: all 9 workspace projects
+Lockfile is up to date, resolution step is skipped
+Packages: +528
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 528, reused 528, downloaded 0, added 528, done
+
+devDependencies:
++ prettier 3.8.1
++ typescript 5.9.3
+
+. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+└─ Done in 15ms
+╭ Warning ───────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                            │
+│   Ignored build scripts: bcrypt@6.0.0.                                                     │
+│   Run "pnpm approve-builds" to pick which dependencies should be allowed to run scripts.   │
+│                                                                                            │
+╰────────────────────────────────────────────────────────────────────────────────────────────╯
+Done in 2.6s using pnpm v10.33.3
+
+> @workspace/api-spec@0.0.0 codegen /var/www/sc.lacivertteknoloji.com/lib/api-spec
+> orval --config ./orval.config.ts && node -e "require('fs').writeFileSync('../api-zod/src/index.ts', \"export * from './generated/api';\\n\")" && pnpm -w run typecheck:libs
+
+🍻 orval v8.5.3 - A swagger client generator for typescript
+api-client-react Cleaning output folder
+🎉 api-client-react - Your OpenAPI spec has been converted into ready to use orval!
+zod Cleaning output folder
+🛑 zod - EACCES: permission denied, open '/var/www/sc.lacivertteknoloji.com/lib/api-zod/src/index.ts'
+🛑 One or more project failed, see above for details
+/var/www/sc.lacivertteknoloji.com/lib/api-spec:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/api-spec@0.0.0 codegen: `orval --config ./orval.config.ts && node -e "require('fs').writeFileSync('../api-zod/src/index.ts', \"export * from './generated/api';\\n\")" && pnpm -w run typecheck:libs`
+Exit status 1
+root@162-55-4-35:/var/www/sc.lacivertteknoloji.com#
