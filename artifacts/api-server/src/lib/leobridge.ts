@@ -79,15 +79,21 @@ function cookieHeader(jar: CookieJar): string {
 }
 
 function extractCsrfFromHtml(html: string): string | null {
-  // Her iki attribute sıralamasını destekle: name...value ve value...name
-  const m =
+  // React SPA: token, #auth-root elementinin data-csrf-token attribute'unda gelir.
+  // (Portal client-side render ettiği için klasik hidden input HTML'de bulunmaz.)
+  const dataCsrf = html.match(/data-csrf-token="([^"]+)"/)?.[1];
+  if (dataCsrf) return dataCsrf;
+
+  // Fallback: geleneksel Django form hidden input (her iki attribute sırası).
+  return (
     html.match(
       /name=["']csrfmiddlewaretoken["'][^>]*\s+value=["']([^"']+)["']/i,
-    ) ??
+    )?.[1] ??
     html.match(
       /value=["']([^"']+)["'][^>]*\s+name=["']csrfmiddlewaretoken["']/i,
-    );
-  return m ? m[1] : null;
+    )?.[1] ??
+    null
+  );
 }
 
 export class LeobridgeClient {
