@@ -79,9 +79,14 @@ function cookieHeader(jar: CookieJar): string {
 }
 
 function extractCsrfFromHtml(html: string): string | null {
-  const m = html.match(
-    /name=["']csrfmiddlewaretoken["']\s+value=["']([^"']+)["']/i
-  );
+  // Her iki attribute sıralamasını destekle: name...value ve value...name
+  const m =
+    html.match(
+      /name=["']csrfmiddlewaretoken["'][^>]*\s+value=["']([^"']+)["']/i,
+    ) ??
+    html.match(
+      /value=["']([^"']+)["'][^>]*\s+name=["']csrfmiddlewaretoken["']/i,
+    );
   return m ? m[1] : null;
 }
 
@@ -98,10 +103,14 @@ export class LeobridgeClient {
   async login(): Promise<void> {
     this.jar = {};
     const loginUrl = `${this.base()}/accounts/login/?next=/`;
-    const getRes = await fetch(loginUrl, { redirect: "manual" });
+    // redirect:"follow" — GET isteği 302 döndürse bile form sayfasına ulaşırız.
+    // redirect:"manual" ile opaque/boş gövde gelirdi ve CSRF token okunamazdı.
+    const getRes = await fetch(loginUrl, { redirect: "follow" });
     parseSetCookie(this.jar, getRes.headers);
     const html = await getRes.text();
-    const csrf = extractCsrfFromHtml(html);
+    // Form token'ı tercih et; bulunamazsa Django'nun cookie jar'a yazdığı
+    // csrftoken değerine geri düş (ikisi de POST body için geçerlidir).
+    let csrf = extractCsrfFromHtml(html) ?? this.jar.csrftoken ?? null;
     if (!csrf) {
       throw new Error("Leo Bridge login formundan CSRF token alınamadı.");
     }
